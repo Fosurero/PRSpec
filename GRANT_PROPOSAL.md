@@ -2,7 +2,7 @@
 <p><strong>Applicant:</strong> Safi El-Hassanine, Egyptian Engineer<br>
 <p align="center">
   <img src="https://img.shields.io/badge/ESP-Program-627EEA?logo=ethereum&logoColor=white&style=for-the-badge" alt="ESP Program"/>
-  <img src="https://img.shields.io/badge/Status-Active-3C3C3D?logo=ethereum&logoColor=white&style=for-the-badge" alt="Status Active"/>
+  <img src="https://img.shields.io/badge/Status-Active-green?logo=ethereum&logoColor=white&style=for-the-badge" alt="Status Active"/>
   <img src="https://img.shields.io/badge/Grant-Application-627EEA?logo=ethereum&logoColor=white&style=for-the-badge" alt="Grant Application"/>
 </p>
 <strong>Project:</strong> PRSpec - Continuous Specification Intelligence<br>
