@@ -1,0 +1,43 @@
+llm:
+  # Provider: "gemini" or "openai"
+  provider: gemini
+  
+  # Gemini settings
+  gemini:
+    model: gemini-2.5-pro
+    max_output_tokens: 8192
+    temperature: 0.1
+  
+  # OpenAI settings (alternative)
+  openai:
+    model: gpt-4-turbo-preview
+    max_tokens: 4096
+    temperature: 0.1
+
+repositories:
+  execution_specs:
+    url: https://github.com/ethereum/execution-specs
+    branch: master
+    eip1559_path: src/ethereum/paris/fork.py
+  
+  go_ethereum:
+    url: https://github.com/ethereum/go-ethereum
+    branch: master
+    eip1559_paths:
+      - core/eip1559/eip1559.go
+      - core/types/transaction.go
+      - consensus/misc/eip1559.go
+
+analysis:
+  focus_areas:
+    - base_fee_calculation
+    - gas_limit_validation
+    - fee_cap_check
+    - priority_fee_handling
+    - transaction_validation
+
+output:
+  format: json  # json, markdown, html
+  directory: output
+  include_code_snippets: true
+  include_spec_references: true
