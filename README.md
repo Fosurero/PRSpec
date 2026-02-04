@@ -3,21 +3,27 @@
   <h1>PRSpec - Ethereum Specification Compliance Checker</h1>
 
   <a href="https://www.python.org/downloads/">
-    <img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python 3.9+"/>
+    <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white" />
   </a>
+
   <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/>
+    <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" />
   </a>
+
   <a href="https://ai.google.dev/">
-    <img src="https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Pro-4285F4" alt="Powered by Gemini 2.5 Pro"/>
+    <img src="https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" />
   </a>
-  <img src="https://img.shields.io/badge/Stable-Release-brightgreen" alt="Stable Release"/>
+
+  <img src="https://img.shields.io/badge/Stable-Release-brightgreen?style=for-the-badge" />
+
   <a href="https://github.com/Fosurero/PRSpec/tree/development">
-    <img src="https://img.shields.io/badge/Status-Active%20Development-blueviolet" alt="Development Status"/>
+    <img src="https://img.shields.io/badge/Status-Active%20Development-blueviolet?style=for-the-badge" />
   </a>
 
 </div>
 <br>
+
+
 
 **Author:** Safi El-Hassanine
 
