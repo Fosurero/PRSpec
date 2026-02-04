@@ -1,11 +1,23 @@
-# PRSpec - Ethereum Specification Compliance Checker
+<div align="center">
 
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Powered by Gemini](https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Pro-4285F4)](https://ai.google.dev/)
-![Stable Release](https://img.shields.io/badge/Stable-Release-brightgreen)
-[![Development Status](https://img.shields.io/badge/Status-Active%20Development-blueviolet)](https://github.com/Fosurero/PRSpec/tree/development)
+  <h1>PRSpec - Ethereum Specification Compliance Checker</h1>
 
+  <a href="https://www.python.org/downloads/">
+    <img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python 3.9+"/>
+  </a>
+  <a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/>
+  </a>
+  <a href="https://ai.google.dev/">
+    <img src="https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Pro-4285F4" alt="Powered by Gemini 2.5 Pro"/>
+  </a>
+  <img src="https://img.shields.io/badge/Stable-Release-brightgreen" alt="Stable Release"/>
+  <a href="https://github.com/Fosurero/PRSpec/tree/development">
+    <img src="https://img.shields.io/badge/Status-Active%20Development-blueviolet" alt="Development Status"/>
+  </a>
+
+</div>
+<br>
 
 **Author:** Safi El-Hassanine
 
