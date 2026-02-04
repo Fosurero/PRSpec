@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EIP-1559 Compliance Report - go-ethereum</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        h2 { color: #555; margin-top: 30px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin: 20px 0; }
+        .summary-card { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }
+        .summary-card .value { font-size: 2em; font-weight: bold; color: #007bff; }
+        .summary-card .label { color: #666; margin-top: 5px; }
+        .result-card { border: 1px solid #ddd; border-radius: 8px; margin: 20px 0; overflow: hidden; }
+        .result-header { background: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .result-body { padding: 20px; }
+        .status-badge { padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; font-size: 0.9em; }
+        .issue { background: #f8f9fa; border-left: 4px solid; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .issue-high { border-color: #dc3545; }
+        .issue-medium { border-color: #ffc107; }
+        .issue-low { border-color: #28a745; }
+        .issue-title { font-weight: bold; margin-bottom: 10px; }
+        .issue-detail { margin: 5px 0; color: #555; }
+        .issue-detail strong { color: #333; }
+        code { background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 EIP-1559 Compliance Report - go-ethereum</h1>
+        
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="value">⚠️ ISSUES FOUND</div>
+                <div class="label">Overall Status</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">65%</div>
+                <div class="label">Confidence</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">3</div>
+                <div class="label">Files Analyzed</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" style="color: #dc3545;">1</div>
+                <div class="label">High Severity</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" style="color: #ffc107;">0</div>
+                <div class="label">Medium Severity</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" style="color: #28a745;">0</div>
+                <div class="label">Low Severity</div>
+            </div>
+        </div>
+        
+        <h2>📋 Detailed Findings</h2>
+
+        <div class="result-card">
+            <div class="result-header">
+                <strong>core/types/transaction.go</strong>
+                <span class="status-badge" style="background: #ffc107;">PARTIAL_MATCH</span>
+            </div>
+            <div class="result-body">
+                <p><strong>Confidence:</strong> 95%</p>
+                <p>The provided implementation correctly handles the calculation of the effective priority fee (gas tip) and validates the transaction's fee cap against the block's base fee, as specified in EIP-1559. However, the code is missing a critical, consensus-level validation: it fails to ensure that a transaction's `max_fee_per_gas` is greater than or equal to its `max_priority_fee_per_gas`. This omission could lead to a consensus split if not addressed elsewhere in the client.</p>
+<h4>Issues:</h4>
+                <div class="issue issue-high">
+                    <div class="issue-title">[HIGH] MISSING_CHECK</div>
+                    <div class="issue-detail"><strong>Description:</strong> The provided Go code in `core/types/transaction.go` does not contain the validation check to ensure that a transaction's `max_fee_per_gas` is greater than or equal to its `max_priority_fee_per_gas`. The EIP-1559 specification explicitly requires this check as a condition for transaction validity. While the code correctly calculates the effective gas tip and checks the fee cap against the block's base fee, this fundamental intrinsic check on the transaction's own fields is absent from the provided file.</div>
+                    <div class="issue-detail"><strong>Spec Reference:</strong> <code>The total must be the larger of the two
+assert transaction.max_fee_per_gas >= transaction.max_priority_fee_per_gas</code></div>
+                    <div class="issue-detail"><strong>Code Location:</strong> <code>core/types/transaction.go</code></div>
+                    <div class="issue-detail"><strong>Potential Impact:</strong> If this check is missing from the client's transaction validation logic entirely (not just this specific file), it could lead to a consensus failure. A miner using a non-compliant client could include a transaction where `max_fee_per_gas < max_priority_fee_per_gas` into a block. Fully compliant clients would reject this block because it contains an invalid transaction, causing a network fork.</div>
+                    <div class="issue-detail"><strong>Suggestion:</strong> Implement a validation check to enforce `tx.GasFeeCap() >= tx.GasTipCap()` for EIP-1559 (DynamicFee) transactions. This check should be part of the transaction's intrinsic validation logic, which is typically performed when a transaction is first received by a node, before it is added to the transaction pool or included in a block. A suitable location could be within the `decode` method for the `DynamicFeeTx` type or in a dedicated `Validate()` method on the `TxData` interface.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="result-card">
+            <div class="result-header">
+                <strong>core/types/tx_dynamic_fee.go</strong>
+                <span class="status-badge" style="background: #dc3545;">ERROR</span>
+            </div>
+            <div class="result-body">
+                <p><strong>Confidence:</strong> 0%</p>
+                <p>Gemini analysis failed: Invalid operation: The `response.text` quick accessor requires the response to contain a valid `Part`, but none were returned. The candidate's [finish_reason](https://ai.google.dev/api/generate-content#finishreason) is 2.</p>
+<p>✅ No issues found in this file.</p>
+            </div>
+        </div>
+
+        <div class="result-card">
+            <div class="result-header">
+                <strong>params/protocol_params.go</strong>
+                <span class="status-badge" style="background: #28a745;">FULL_MATCH</span>
+            </div>
+            <div class="result-body">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided Go implementation file, `params/protocol_params.go`, correctly defines all protocol constants related to EIP-1559, such as `InitialBaseFee`, `DefaultBaseFeeChangeDenominator`, and gas limit parameters, in full alignment with the specification. However, this file only contains constants and not the consensus-critical logic for base fee updates or block validation, which prevents a complete audit of the implementation against the specification's reference logic.</p>
+<p>✅ No issues found in this file.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Generated by PRSpec v1.0.0 | Analyzer: Gemini (gemini-2.5-pro)</p>
+            <p>EIP-1559 | Client: go-ethereum | 2026-02-03 23:34:44</p>
+        </div>
+    </div>
+</body>
+</html>
