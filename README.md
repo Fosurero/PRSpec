@@ -38,6 +38,18 @@ PRSpec is an LLM-powered tool for analyzing Ethereum client implementations agai
 - **Intelligent Parsing**: Extracts relevant functions using regex and tree-sitter
 - **CLI Interface**: Easy-to-use command line tool with Rich formatting
 
+## 🎥 Demo
+
+### Video Demo
+[![PRSpec Demo](https://img.youtube.com/vi/v7UtBAxigKc/0.jpg)](https://www.youtube.com/watch?v=v7UtBAxigKc)
+
+*Click to watch PRSpec analyzing EIP-1559 compliance in real-time*
+
+### Screenshot
+![PRSpec Analysis Results](docs/demo-result.png)
+
+*Live analysis of go-ethereum's EIP-1559 implementation showing detected issues*
+
 ## 📋 Project Structure
 
 ```
