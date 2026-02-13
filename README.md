@@ -14,10 +14,14 @@
     <img src="https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" />
   </a>
 
-  <img src="https://img.shields.io/badge/Stable-Release-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/v1.1.0-Release-brightgreen?style=for-the-badge" />
 
   <a href="https://github.com/Fosurero/PRSpec/tree/development">
     <img src="https://img.shields.io/badge/Status-Active%20Development-blueviolet?style=for-the-badge" />
+  </a>
+
+  <a href="https://github.com/Fosurero/PRSpec/milestone/1">
+    <img src="https://img.shields.io/badge/ESP-Grant%20Application-627EEA?style=for-the-badge&logo=ethereum&logoColor=white" />
   </a>
 
 </div>
@@ -29,13 +33,17 @@
 
 PRSpec is an LLM-powered tool for analyzing Ethereum client implementations against official EIP specifications. It uses **Google Gemini 2.5 Pro** (with OpenAI GPT-4 as an alternative) to intelligently compare specification documents with actual code implementations.
 
+> **ESP RFP Context:** PRSpec is being developed under the Ethereum Foundation's ESP program for *Integrating LLMs into Ethereum Protocol Security Research*. See [GRANT_PROPOSAL.md](GRANT_PROPOSAL.md) for the full proposal.
+
 ## 🌟 Features
 
-- **Multi-EIP Support**: Analyze implementations of EIP-1559, EIP-4844, and more
-- **Multiple Clients**: Support for go-ethereum, Prysm, Lighthouse, Nethermind, Besu
-- **Gemini 1.5 Pro**: Leverages 2M token context window for comprehensive analysis
+- **Multi-EIP Architecture**: Generalized registry-based pipeline — analyze any EIP, not just one
+- **EIP-1559 & EIP-4844 Support**: Full file mappings, keywords, and focus areas for both
+- **Multiple Clients**: Go-ethereum (with per-EIP file paths), Prysm, Lighthouse, Nethermind, Besu
+- **Gemini 2.5 Pro**: Leverages 1M+ token context window for comprehensive analysis
 - **Multiple Output Formats**: JSON, Markdown, and HTML reports
-- **Intelligent Parsing**: Extracts relevant functions using regex and tree-sitter
+- **Intelligent Parsing**: Per-EIP keyword detection extracts relevant functions automatically
+- **Consensus + Execution Specs**: Fetches from both `ethereum/EIPs`, `ethereum/execution-specs`, and `ethereum/consensus-specs`
 - **CLI Interface**: Easy-to-use command line tool with Rich formatting
 
 ## 🎥 Demo
@@ -50,27 +58,42 @@ PRSpec is an LLM-powered tool for analyzing Ethereum client implementations agai
 
 *Live analysis of go-ethereum's EIP-1559 implementation showing detected issues*
 
+## 📝 Supported EIPs
+
+| EIP | Title | Spec | Geth Files | Focus Areas |
+|-----|-------|------|------------|-------------|
+| **1559** | Fee market change | ✅ EIP + Execution | ✅ 3 files | base fee, gas limit, fee cap |
+| **4844** | Shard Blob Transactions | ✅ EIP + Execution + Consensus | ✅ 5 files | blob gas, KZG, max blobs, sidecar |
+| **4788** | Beacon block root in EVM | ✅ EIP + Execution | ✅ 1 file | beacon root |
+| **2930** | Optional access lists | ✅ EIP + Execution | ✅ 2 files | access list validation |
+| **7002** | Execution layer withdrawals | ✅ EIP + Execution | — | withdrawal requests |
+| **7251** | Increase MAX_EFFECTIVE_BALANCE | ✅ EIP + Consensus | — | consolidation |
+
+> Use `python -m src.cli list-eips` to see the live registry.
+
 ## 📋 Project Structure
 
 ```
-prspec/
+PRSpec/
 ├── src/
 │   ├── __init__.py          # Package exports
-│   ├── config.py            # Configuration management
-│   ├── spec_fetcher.py      # Fetches EIP specifications
-│   ├── code_fetcher.py      # Fetches client implementations
-│   ├── parser.py            # Code parsing (Go, Python, etc.)
-│   ├── analyzer.py          # LLM analysis (Gemini/OpenAI)
-│   ├── report_generator.py  # Report generation
+│   ├── config.py            # Configuration management + per-EIP focus areas
+│   ├── spec_fetcher.py      # EIP registry + spec fetching (EIP/execution/consensus)
+│   ├── code_fetcher.py      # Per-client per-EIP file registry + code fetching
+│   ├── parser.py            # Code parsing with per-EIP keyword detection
+│   ├── analyzer.py          # LLM analysis (Gemini/OpenAI) — EIP-agnostic prompt
+│   ├── report_generator.py  # Report generation (JSON/MD/HTML)
 │   └── cli.py               # Command-line interface
 ├── tests/
-│   └── test_eip1559.py      # Unit tests
+│   ├── test_eip1559.py      # EIP-1559 unit tests
+│   └── test_eip4844.py      # EIP-4844 unit tests
 ├── output/                   # Generated reports
 ├── requirements.txt
-├── config.yaml              # Configuration file
+├── config.yaml              # Configuration file (LLM + per-EIP focus areas)
 ├── .env.example             # Environment template
 ├── .env                     # Your API keys (git-ignored)
-├── run_demo.py              # Demo script
+├── run_demo.py              # Demo script (EIP-1559 + EIP-4844)
+├── GRANT_PROPOSAL.md        # ESP grant proposal
 └── README.md
 ```
 
@@ -119,11 +142,17 @@ python run_demo.py --test
 # Analyze EIP-1559 compliance in go-ethereum
 python -m src.cli analyze --eip 1559 --client go-ethereum --output markdown
 
-# Fetch an EIP specification
-python -m src.cli fetch-spec --eip 1559
+# Analyze EIP-4844 (Blob Transactions) compliance
+python -m src.cli analyze --eip 4844 --client go-ethereum --output html
 
-# List implementation files
-python -m src.cli list-files --client go-ethereum --eip 1559
+# Fetch an EIP specification
+python -m src.cli fetch-spec --eip 4844
+
+# List implementation files mapped for an EIP
+python -m src.cli list-files --client go-ethereum --eip 4844
+
+# List all registered EIPs and their metadata
+python -m src.cli list-eips
 
 # Check configuration
 python -m src.cli check-config
@@ -136,12 +165,12 @@ python -m src.cli check-config
 ```yaml
 llm:
   provider: gemini  # or "openai"
-  
+
   gemini:
-    model: gemini-1.5-pro-latest
-    max_output_tokens: 8192
+    model: gemini-2.5-pro-preview-06-05
+    max_output_tokens: 65536
     temperature: 0.1
-  
+
   openai:
     model: gpt-4-turbo-preview
     max_tokens: 4096
@@ -151,15 +180,29 @@ repositories:
   go_ethereum:
     url: https://github.com/ethereum/go-ethereum
     branch: master
-    eip1559_paths:
-      - consensus/misc/eip1559.go
-      - core/types/transaction.go
+  consensus_specs:
+    url: https://github.com/ethereum/consensus-specs
+    branch: dev
+
+eips:
+  1559:
+    focus_areas:
+      - base_fee_calculation
+      - gas_limit_validation
+      - fee_cap_check
+  4844:
+    focus_areas:
+      - blob_gas_price
+      - kzg_commitment
+      - max_blobs_per_block
+      - sidecar_validation
+      - excess_blob_gas
 
 analysis:
-  focus_areas:
-    - base_fee_calculation
-    - gas_limit_validation
-    - fee_cap_check
+  focus_areas:          # default fallback
+    - parameter_validation
+    - edge_case_handling
+    - spec_compliance
 ```
 
 ### Environment Variables
@@ -220,30 +263,42 @@ python -m pytest tests/ --cov=src
 
 ## 🔌 API Usage
 
-### Programmatic Analysis
+### Programmatic Analysis (Generic Pipeline)
 
 ```python
 from src.config import Config
 from src.analyzer import GeminiAnalyzer
 from src.spec_fetcher import SpecFetcher
 from src.code_fetcher import CodeFetcher
+from src.parser import CodeParser
 
 # Initialize
 config = Config()
 analyzer = GeminiAnalyzer(api_key=config.gemini_api_key)
 
-# Fetch spec and code
+# Fetch spec and code for any supported EIP
 spec_fetcher = SpecFetcher()
 code_fetcher = CodeFetcher()
+parser = CodeParser()
 
-spec = spec_fetcher.fetch_eip(1559)
-code = code_fetcher.fetch_geth_file("consensus/misc/eip1559.go")
+eip_number = 4844  # or 1559, 4788, 2930, ...
 
-# Analyze
+spec = spec_fetcher.fetch_eip_spec(eip_number)
+files = code_fetcher.fetch_eip_implementation("go-ethereum", eip_number)
+eip_functions = parser.find_eip_functions(
+    files["core/types/tx_blob.go"], "go", eip_number
+)
+
+# Analyze with EIP-aware context
 result = analyzer.analyze_compliance(
     spec_text=spec,
-    code_text=code,
-    context={"file_name": "eip1559.go", "language": "go"}
+    code_text=files["core/types/tx_blob.go"],
+    context={
+        "file_name": "tx_blob.go",
+        "language": "go",
+        "eip_number": eip_number,
+        "eip_title": spec_fetcher.get_eip_title(eip_number),
+    }
 )
 
 print(f"Status: {result.status}")
@@ -252,24 +307,30 @@ for issue in result.issues:
     print(f"  [{issue['severity']}] {issue['description']}")
 ```
 
-### Quick One-Shot Analysis
+### Discovering Supported EIPs and Clients
 
 ```python
-from src.analyzer import quick_analyze
+from src.spec_fetcher import SpecFetcher
+from src.code_fetcher import CodeFetcher
 
-result = quick_analyze(
-    spec_text="Base fee must increase by 12.5% when blocks are full",
-    code_text="func CalcBaseFee(...) {...}",
-    api_key="your_api_key",
-    provider="gemini"
-)
+sf = SpecFetcher()
+cf = CodeFetcher()
+
+# All registered EIPs
+print(sf.supported_eips())          # [1559, 2930, 4788, 4844, 7002, 7251]
+
+# All clients with file mappings
+print(cf.supported_clients())       # ['go-ethereum', 'prysm', ...]
+
+# EIPs wired for a specific client
+print(cf.supported_eips_for_client("go-ethereum"))  # [1559, 2930, 4788, 4844]
 ```
 
 ## 🤖 Why Gemini 2.5 Pro?
 
 | Feature | Gemini 2.5 Pro | GPT-4 Turbo |
 |---------|----------------|-------------|
-| Context Window | **1M tokens** | 128K tokens |
+| Context Window | **1M+ tokens** | 128K tokens |
 | Code Analysis | Excellent | Excellent |
 | Cost | Lower | Higher |
 | Speed | Fast | Moderate |
@@ -278,13 +339,18 @@ Gemini's massive context window allows PRSpec to:
 - Analyze entire files at once
 - Compare multiple implementation files simultaneously
 - Include full EIP specifications without truncation
+- Handle consensus + execution specs together in a single prompt
 
-## 📝 Supported EIPs
+## 🗺️ Roadmap (ESP Milestones)
 
-- **EIP-1559**: Fee market change (primary focus)
-- **EIP-4844**: Shard Blob Transactions
-- **EIP-2930**: Access lists
-- More coming soon...
+| Phase | Description | Status |
+|-------|-------------|--------|
+| **Phase 1** | Multi-EIP architecture, EIP-4844 support | ✅ Complete |
+| **Phase 2** | Multi-client analysis (Prysm, Lighthouse, etc.) | 🔜 Next |
+| **Phase 3** | Cross-client differential analysis | Planned |
+| **Phase 4** | Real-time monitoring & CI integration | Planned |
+
+See [Milestones](https://github.com/Fosurero/PRSpec/milestones) for detailed issue tracking.
 
 ## 🔐 Security Notes
 

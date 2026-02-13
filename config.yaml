@@ -18,23 +18,44 @@ repositories:
   execution_specs:
     url: https://github.com/ethereum/execution-specs
     branch: master
-    eip1559_path: src/ethereum/paris/fork.py
+  
+  consensus_specs:
+    url: https://github.com/ethereum/consensus-specs
+    branch: dev
   
   go_ethereum:
     url: https://github.com/ethereum/go-ethereum
     branch: master
-    eip1559_paths:
-      - core/eip1559/eip1559.go
-      - core/types/transaction.go
-      - consensus/misc/eip1559.go
+
+# Per-EIP analysis configuration
+eips:
+  1559:
+    title: "Fee market change for ETH 1.0 chain"
+    focus_areas:
+      - base_fee_calculation
+      - gas_limit_validation
+      - fee_cap_check
+      - priority_fee_handling
+      - transaction_validation
+  
+  4844:
+    title: "Shard Blob Transactions"
+    focus_areas:
+      - blob_gas_price_calculation
+      - excess_blob_gas_update
+      - kzg_commitment_validation
+      - max_blobs_per_block_check
+      - blob_transaction_validation
+      - point_evaluation_precompile
+      - blob_sidecar_handling
 
 analysis:
+  # Default focus areas (used when EIP-specific areas are not defined)
   focus_areas:
-    - base_fee_calculation
-    - gas_limit_validation
-    - fee_cap_check
-    - priority_fee_handling
-    - transaction_validation
+    - specification_compliance
+    - edge_case_handling
+    - validation_checks
+    - security_implications
 
 output:
   format: json  # json, markdown, html

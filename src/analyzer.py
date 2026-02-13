@@ -51,11 +51,22 @@ class BaseAnalyzer(ABC):
     
     def _build_analysis_prompt(self, spec_text: str, code_text: str, 
                                context: dict) -> str:
-        """Build the analysis prompt"""
+        """Build the analysis prompt.
+        
+        The prompt is EIP-agnostic: it reads the EIP number and title from
+        *context* so the same method works for EIP-1559, EIP-4844, or any
+        future EIP.
+        """
+        eip_number = context.get("eip_number", "")
+        eip_title = context.get("eip_title", "")
+        eip_label = f"EIP-{eip_number}" if eip_number else "the Ethereum specification"
+        if eip_title:
+            eip_label = eip_title
+        
         return f"""
 You are an expert Ethereum protocol security researcher and auditor.
 
-TASK: Compare the EIP-1559 specification with the implementation code and identify any compliance issues.
+TASK: Compare the {eip_label} specification with the implementation code and identify any compliance issues.
 
 === SPECIFICATION ===
 {spec_text}
@@ -64,6 +75,7 @@ TASK: Compare the EIP-1559 specification with the implementation code and identi
 {code_text}
 
 === CONTEXT ===
+- EIP: {eip_number or 'unknown'}
 - File: {context.get('file_name', 'unknown')}
 - Function: {context.get('function_name', 'unknown')}
 - Language: {context.get('language', 'unknown')}

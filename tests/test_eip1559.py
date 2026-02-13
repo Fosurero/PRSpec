@@ -14,6 +14,9 @@ from pathlib import Path
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Pre-import so that patch('google.generativeai') can resolve the namespace
+import google.generativeai  # noqa: F401
+
 from src.analyzer import GeminiAnalyzer, OpenAIAnalyzer, get_analyzer, AnalysisResult
 from src.spec_fetcher import SpecFetcher
 from src.code_fetcher import CodeFetcher
@@ -57,7 +60,7 @@ class TestAnalyzer(unittest.TestCase):
     
     def test_get_analyzer_gemini(self):
         """Test get_analyzer factory for Gemini"""
-        with patch('analyzer.genai') as mock_genai:
+        with patch('google.generativeai') as mock_genai:
             analyzer = get_analyzer("gemini", api_key="test_key")
             self.assertIsInstance(analyzer, GeminiAnalyzer)
     
@@ -66,7 +69,7 @@ class TestAnalyzer(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_analyzer("invalid_provider", api_key="test")
     
-    @patch('analyzer.genai')
+    @patch('google.generativeai')
     def test_gemini_analyzer_initialization(self, mock_genai):
         """Test GeminiAnalyzer initialization"""
         analyzer = GeminiAnalyzer(api_key="test_key", model="gemini-1.5-pro-latest")
@@ -74,7 +77,7 @@ class TestAnalyzer(unittest.TestCase):
         mock_genai.configure.assert_called_once_with(api_key="test_key")
         self.assertEqual(analyzer.model_name, "gemini-1.5-pro-latest")
     
-    @patch('analyzer.genai')
+    @patch('google.generativeai')
     def test_gemini_analyze_compliance(self, mock_genai):
         """Test GeminiAnalyzer.analyze_compliance"""
         # Mock the model response
