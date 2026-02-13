@@ -104,8 +104,9 @@ class CodeParser:
         lines = content.split('\n')
         
         # Pattern for function definitions
+        # Return-type group handles: single word, pointer (*big.Int), tuple ((a, b)), or nothing.
         func_pattern = re.compile(
-            r'^func\s+(?:\((\w+)\s+\*?(\w+)\)\s+)?(\w+)\s*\(([^)]*)\)\s*(?:\(([^)]*)\)|(\w+))?\s*{'
+            r'^func\s+(?:\((\w+)\s+\*?(\w+)\)\s+)?(\w+)\s*\(([^)]*)\)\s*(?:\(([^)]*)\)|(\*?\w+(?:\.\w+)?))?(?:\s*)\{'
         )
         
         i = 0
@@ -326,21 +327,85 @@ class CodeParser:
         Returns:
             List of relevant CodeBlock objects
         """
-        blocks = self.parse_file(content, language)
+        return self.find_eip_functions(content, language, 1559)
+    
+    def find_eip4844_functions(self, content: str, language: str) -> List[CodeBlock]:
+        """
+        Find EIP-4844 (blob transaction) related functions in source code.
         
-        eip1559_keywords = [
+        Args:
+            content: File content
+            language: Programming language
+            
+        Returns:
+            List of relevant CodeBlock objects
+        """
+        return self.find_eip_functions(content, language, 4844)
+    
+    # Per-EIP keyword sets used by find_eip_functions.
+    # Keys are EIP numbers; values are lists of lowercase search terms.
+    EIP_KEYWORDS: Dict[int, List[str]] = {
+        1559: [
             "basefee", "base_fee", "gaslimit", "gas_limit",
             "feecap", "fee_cap", "tiplimit", "priority",
             "1559", "dynamicfee", "dynamic_fee",
-            "calcbasefee", "calc_base_fee", "verifyeip1559"
-        ]
+            "calcbasefee", "calc_base_fee", "verifyeip1559",
+        ],
+        4844: [
+            "blob", "4844", "kzg", "shard",
+            "blob_gas", "blobgas", "excess_blob_gas", "excessblobgas",
+            "blob_fee", "blobfee", "blobhash", "blob_hash",
+            "blobsidecar", "blob_sidecar", "blobtx", "blob_tx",
+            "max_blob", "maxblob", "validateblobtransaction",
+            "validate_blob", "fakeblobsidecar", "calcexcessblobgas",
+            "calc_excess_blob_gas", "blobbasefee", "blob_base_fee",
+            "point_evaluation", "pointevaluation",
+        ],
+        4788: [
+            "4788", "beacon_root", "beaconroot",
+            "parent_beacon_block_root", "parentbeaconblockroot",
+        ],
+        2930: [
+            "2930", "access_list", "accesslist",
+            "accesslisttx", "access_list_tx",
+        ],
+        7002: [
+            "7002", "withdrawal_request", "withdrawalrequest",
+            "execution_layer_exit", "executionlayerexit",
+        ],
+        7251: [
+            "7251", "max_effective_balance", "maxeffectivebalance",
+            "consolidation",
+        ],
+    }
+    
+    def find_eip_functions(self, content: str, language: str,
+                           eip_number: int) -> List[CodeBlock]:
+        """
+        Find functions related to a specific EIP in source code.
         
-        relevant = []
+        Uses a keyword registry (EIP_KEYWORDS) to match function names and
+        bodies.  Falls back to searching for the bare EIP number string when
+        no keyword set is registered.
+        
+        Args:
+            content: File content
+            language: Programming language
+            eip_number: The EIP number to search for
+            
+        Returns:
+            List of relevant CodeBlock objects
+        """
+        blocks = self.parse_file(content, language)
+        
+        keywords = self.EIP_KEYWORDS.get(eip_number, [str(eip_number)])
+        
+        relevant: List[CodeBlock] = []
         for block in blocks:
             name_lower = block.name.lower()
             content_lower = block.content.lower()
             
-            for keyword in eip1559_keywords:
+            for keyword in keywords:
                 if keyword in name_lower or keyword in content_lower:
                     relevant.append(block)
                     break

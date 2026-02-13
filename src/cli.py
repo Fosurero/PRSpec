@@ -3,6 +3,7 @@ CLI Interface for PRSpec
 Author: Safi El-Hassanine
 
 Command-line interface for the Ethereum specification compliance checker.
+Supports any EIP registered in the spec_fetcher / code_fetcher registries.
 """
 
 import click
@@ -29,7 +30,7 @@ from .report_generator import ReportGenerator, ReportMetadata
 
 
 @click.group()
-@click.version_option(version="1.0.0", prog_name="PRSpec")
+@click.version_option(version="1.1.0", prog_name="PRSpec")
 def cli():
     """
     PRSpec - Ethereum Specification Compliance Checker
@@ -40,6 +41,55 @@ def cli():
     Author: Safi El-Hassanine
     """
     pass
+
+
+# ------------------------------------------------------------------
+# Helper: run the analysis pipeline (shared by rich / non-rich paths)
+# ------------------------------------------------------------------
+
+def _run_analysis(eip: int, client: str, cfg, llm_provider: str):
+    """
+    Fetch spec + code, build analyzer, run compliance analysis.
+    
+    Returns (results, analyzer) where *results* is a list of result dicts.
+    """
+    spec_fetcher = SpecFetcher(github_token=cfg.github_token)
+    code_fetcher = CodeFetcher(github_token=cfg.github_token)
+
+    # --- Fetch specification (generic for any EIP) ---
+    spec_data = spec_fetcher.fetch_eip_spec(eip)
+    eip_title = spec_data.get("title", f"EIP-{eip}")
+
+    # --- Fetch implementation code (generic for any EIP) ---
+    code_files = code_fetcher.fetch_eip_implementation(client, eip)
+    language = CodeFetcher.client_language(client)
+
+    # --- Build analyzer ---
+    if llm_provider == "gemini":
+        analyzer = GeminiAnalyzer(api_key=cfg.gemini_api_key, **cfg.gemini_config)
+    else:
+        analyzer = OpenAIAnalyzer(api_key=cfg.openai_api_key, **cfg.openai_config)
+
+    # --- Run analysis ---
+    focus_areas = cfg.get_eip_focus_areas(eip)
+    spec_text = spec_data.get("eip_markdown", "")
+
+    results = []
+    for file_path, code_content in code_files.items():
+        context = {
+            "eip_number": eip,
+            "eip_title": eip_title,
+            "file_name": file_path,
+            "function_name": f"EIP-{eip} implementation",
+            "language": language,
+            "focus_areas": focus_areas,
+        }
+        result = analyzer.analyze_compliance(spec_text, code_content, context)
+        result_dict = result.to_dict()
+        result_dict["file_name"] = file_path
+        results.append(result_dict)
+
+    return results, analyzer
 
 
 @cli.command()
@@ -54,18 +104,14 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
     """
     Analyze a client implementation against an EIP specification.
     
-    Example:
+    Examples:
         prspec analyze --eip 1559 --client go-ethereum --output markdown
+        prspec analyze --eip 4844 --client go-ethereum --output html
     """
     try:
         # Load configuration
         cfg = Config(config)
-        
-        # Override provider if specified
-        if provider:
-            llm_provider = provider
-        else:
-            llm_provider = cfg.llm_provider
+        llm_provider = provider if provider else cfg.llm_provider
         
         if RICH_AVAILABLE:
             console.print(Panel(
@@ -81,89 +127,20 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             click.echo(f"PRSpec Analysis")
             click.echo(f"EIP: {eip}, Client: {client}, Provider: {llm_provider}")
         
-        # Initialize components
         if RICH_AVAILABLE:
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 console=console,
             ) as progress:
-                # Fetch specification
-                task = progress.add_task("Fetching EIP specification...", total=None)
-                spec_fetcher = SpecFetcher(github_token=cfg.github_token)
-                spec_data = spec_fetcher.fetch_eip1559_spec() if eip == 1559 else {"eip_markdown": spec_fetcher.fetch_eip(eip)}
-                progress.update(task, completed=True)
-                
-                # Fetch implementation code
-                task = progress.add_task("Fetching implementation code...", total=None)
-                code_fetcher = CodeFetcher(github_token=cfg.github_token)
-                code_files = code_fetcher.fetch_eip1559_implementation(client)
-                progress.update(task, completed=True)
-                
-                # Initialize analyzer
-                task = progress.add_task("Initializing LLM analyzer...", total=None)
-                if llm_provider == "gemini":
-                    analyzer = GeminiAnalyzer(
-                        api_key=cfg.gemini_api_key,
-                        **cfg.gemini_config
-                    )
-                else:
-                    analyzer = OpenAIAnalyzer(
-                        api_key=cfg.openai_api_key,
-                        **cfg.openai_config
-                    )
-                progress.update(task, completed=True)
-                
-                # Run analysis
-                task = progress.add_task("Analyzing compliance...", total=None)
-                results = []
-                spec_text = spec_data.get("eip_markdown", "")
-                
-                for file_path, code_content in code_files.items():
-                    context = {
-                        "file_name": file_path,
-                        "function_name": "EIP-1559 implementation",
-                        "language": "go" if client == "go-ethereum" else "unknown",
-                        "focus_areas": cfg.focus_areas
-                    }
-                    
-                    result = analyzer.analyze_compliance(spec_text, code_content, context)
-                    result_dict = result.to_dict()
-                    result_dict["file_name"] = file_path
-                    results.append(result_dict)
-                
+                task = progress.add_task(
+                    f"Analyzing EIP-{eip} compliance in {client}...", total=None
+                )
+                results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
                 progress.update(task, completed=True)
         else:
-            # Non-rich fallback
-            click.echo("Fetching specification...")
-            spec_fetcher = SpecFetcher(github_token=cfg.github_token)
-            spec_data = spec_fetcher.fetch_eip1559_spec() if eip == 1559 else {"eip_markdown": spec_fetcher.fetch_eip(eip)}
-            
-            click.echo("Fetching implementation...")
-            code_fetcher = CodeFetcher(github_token=cfg.github_token)
-            code_files = code_fetcher.fetch_eip1559_implementation(client)
-            
-            click.echo("Initializing analyzer...")
-            if llm_provider == "gemini":
-                analyzer = GeminiAnalyzer(api_key=cfg.gemini_api_key, **cfg.gemini_config)
-            else:
-                analyzer = OpenAIAnalyzer(api_key=cfg.openai_api_key, **cfg.openai_config)
-            
-            click.echo("Analyzing...")
-            results = []
-            spec_text = spec_data.get("eip_markdown", "")
-            
-            for file_path, code_content in code_files.items():
-                context = {
-                    "file_name": file_path,
-                    "function_name": "EIP-1559 implementation",
-                    "language": "go",
-                    "focus_areas": cfg.focus_areas
-                }
-                result = analyzer.analyze_compliance(spec_text, code_content, context)
-                result_dict = result.to_dict()
-                result_dict["file_name"] = file_path
-                results.append(result_dict)
+            click.echo(f"Analyzing EIP-{eip} compliance in {client}...")
+            results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
         
         # Generate report
         report_gen = ReportGenerator(cfg.output_config.get("directory", "output"))
@@ -200,6 +177,7 @@ def fetch_spec(eip: int):
     
     Example:
         prspec fetch-spec --eip 1559
+        prspec fetch-spec --eip 4844
     """
     try:
         spec_fetcher = SpecFetcher()
@@ -225,10 +203,11 @@ def list_files(client: str, eip: int):
     
     Example:
         prspec list-files --client go-ethereum --eip 1559
+        prspec list-files --client go-ethereum --eip 4844
     """
     try:
         code_fetcher = CodeFetcher()
-        files = code_fetcher.fetch_eip1559_implementation(client)
+        files = code_fetcher.fetch_eip_implementation(client, eip)
         
         if RICH_AVAILABLE:
             from rich.table import Table
@@ -245,6 +224,39 @@ def list_files(client: str, eip: int):
             click.echo(f"EIP-{eip} files in {client}:")
             for path, content in files.items():
                 click.echo(f"  - {path} ({len(content.split(chr(10)))} lines)")
+                
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+
+
+@cli.command()
+def list_eips():
+    """List all supported EIPs with full file mappings."""
+    try:
+        spec_fetcher = SpecFetcher()
+        code_fetcher = CodeFetcher()
+        
+        if RICH_AVAILABLE:
+            from rich.table import Table
+            table = Table(title="Supported EIPs")
+            table.add_column("EIP", style="cyan")
+            table.add_column("Title", style="white")
+            table.add_column("Clients with mappings", style="green")
+            
+            for eip_num in spec_fetcher.supported_eips():
+                title = spec_fetcher.get_eip_title(eip_num)
+                clients_with = [
+                    c for c in code_fetcher.supported_clients()
+                    if eip_num in code_fetcher.supported_eips_for_client(c)
+                ]
+                table.add_row(str(eip_num), title, ", ".join(clients_with) or "—")
+            
+            console.print(table)
+        else:
+            click.echo("Supported EIPs:")
+            for eip_num in spec_fetcher.supported_eips():
+                title = spec_fetcher.get_eip_title(eip_num)
+                click.echo(f"  EIP-{eip_num}: {title}")
                 
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)

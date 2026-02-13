@@ -109,8 +109,26 @@ class Config:
     
     @property
     def focus_areas(self) -> list:
-        """Get focus areas for analysis"""
+        """Get default focus areas for analysis"""
         return self.analysis_config.get("focus_areas", [])
+    
+    def get_eip_focus_areas(self, eip_number: int) -> list:
+        """
+        Get focus areas for a specific EIP.
+        
+        Falls back to the default analysis focus areas if no EIP-specific
+        configuration is found.
+        
+        Args:
+            eip_number: The EIP number
+            
+        Returns:
+            List of focus area strings
+        """
+        eips_config = self._config.get("eips", {})
+        eip_config = eips_config.get(eip_number, eips_config.get(str(eip_number), {}))
+        areas = eip_config.get("focus_areas", [])
+        return areas if areas else self.focus_areas
     
     @property
     def output_config(self) -> Dict[str, Any]:
