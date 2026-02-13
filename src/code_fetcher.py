@@ -38,9 +38,8 @@ class CodeFetcher:
                     "core/types/tx_dynamic_fee.go",
                 ],
                 4844: [
-                    "consensus/misc/eip4844.go",
+                    "consensus/misc/eip4844/eip4844.go",
                     "core/types/tx_blob.go",
-                    "core/types/blob_tx_sidecar.go",
                     "crypto/kzg4844/kzg4844.go",
                     "params/protocol_params.go",
                 ],

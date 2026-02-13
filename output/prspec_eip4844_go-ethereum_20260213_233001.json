@@ -1,0 +1,86 @@
+{
+  "metadata": {
+    "title": "EIP-4844 Compliance Report \u2014 go-ethereum",
+    "eip_number": 4844,
+    "client": "go-ethereum",
+    "timestamp": "2026-02-13T23:30:01.772454",
+    "analyzer": "Gemini (gemini-2.5-pro)",
+    "version": "1.0.0",
+    "author": "Safi El-Hassanine"
+  },
+  "summary": {
+    "overall_status": "\u26a0\ufe0f ISSUES FOUND",
+    "average_confidence": 58,
+    "files_analyzed": 5,
+    "total_issues": 3,
+    "high_severity": 1,
+    "medium_severity": 2,
+    "low_severity": 0
+  },
+  "results": [
+    {
+      "status": "FULL_MATCH",
+      "confidence": 100,
+      "issues": [],
+      "summary": "The analyzed code in `consensus/misc/eip4844/eip4844.go` correctly and fully implements the corresponding sections of the EIP-4844 specification. The functions for calculating excess blob gas (`CalcExcessBlobGas`) and the blob gas price (`CalcBlobGasPrice` via `fakeExponential`) are direct and accurate translations of the specification's pseudocode. The header validation logic (`VerifyEIP4844Header`) also correctly implements its specified check. It is important to note that this file only contains a subset of the total EIP-4844 logic; other critical components like transaction validation, precompiles, and networking are implemented elsewhere in the codebase and were not part of this review.",
+      "file_name": "consensus/misc/eip4844.go"
+    },
+    {
+      "status": "ERROR",
+      "confidence": 0,
+      "issues": [],
+      "summary": "Failed to parse response: Unterminated string starting at: line 15 column 16 (char 1916)",
+      "file_name": "core/types/tx_blob.go"
+    },
+    {
+      "status": "UNCERTAIN",
+      "confidence": 0,
+      "issues": [],
+      "summary": "The implementation code from 'core/types/blob_tx_sidecar.go' could not be fetched due to a 404 Not Found error. A compliance analysis against the EIP-4844 specification is impossible without the source code. Please provide the correct and accessible code for review.",
+      "file_name": "core/types/blob_tx_sidecar.go"
+    },
+    {
+      "status": "PARTIAL_MATCH",
+      "confidence": 95,
+      "issues": [
+        {
+          "type": "MISSING_CHECK",
+          "severity": "HIGH",
+          "spec_reference": "KZGCommitment | Bytes48 | Perform IETF BLS signature \"KeyValidate\" check but do allow the identity point",
+          "code_location": "VerifyProof, VerifyBlobProof",
+          "description": "The provided code in `kzg4844.go` is a high-level wrapper around cryptographic backends (`ckzg` and `gokzg`). The function signatures for `VerifyProof`, `VerifyBlobProof`, etc., accept `Commitment` and `Proof` types. However, the code does not show that the mandatory validation checks (e.g., on-curve and subgroup checks, as specified by the IETF BLS 'KeyValidate' check) are performed on these inputs. The specification for `KZGCommitment` and `KZGProof` types explicitly requires this validation. While this check might be performed in the delegated backend implementations, its absence from the visible code or its documentation makes it impossible to confirm compliance from this file alone.",
+          "potential_impact": "If the underlying cryptographic libraries do not perform these checks, the system could be vulnerable to attacks using invalid group elements. This could lead to application crashes (Denial of Service), incorrect verification results, or consensus failures if different Ethereum clients handle invalid points differently.",
+          "suggestion": "Ensure that the backend implementations (`ckzgVerifyProof`, `gokzgVerifyProof`, etc.) perform the full 'KeyValidate' check on commitment and proof inputs. The documentation for the wrapper functions in `kzg4844.go` should also be updated to explicitly state that these validations are performed as per the EIP-4844 specification."
+        },
+        {
+          "type": "MISSING_CHECK",
+          "severity": "MEDIUM",
+          "spec_reference": "The precompile MUST reject non-canonical field elements (i.e. provided field elements MUST be strictly less than `BLS_MODULUS`).",
+          "code_location": "VerifyProof",
+          "description": "The `VerifyProof` function, which is a core component for the Point Evaluation Precompile, accepts `point Point` and `claim Claim` as inputs. The specification mandates that these field elements (referred to as `z` and `y`) must be canonical, meaning their integer representation must be strictly less than `BLS_MODULUS`. The provided code for `kzg4844.go` does not show this validation being performed. The underlying consensus specification for `verify_kzg_proof` also requires this check, implying it should be part of the verification function itself.",
+          "potential_impact": "Accepting non-canonical field elements can lead to ambiguity and potential consensus splits, as different client implementations might interpret the values differently. It can also introduce cryptographic vulnerabilities or malleability issues in the precompile's logic.",
+          "suggestion": "Confirm that the backend implementations (`ckzgVerifyProof` and `gokzgVerifyProof`) validate that the `point` and `claim` inputs are canonical (less than `BLS_MODULUS`) and reject them if they are not. The function's documentation in `kzg4844.go` should also specify this behavior."
+        }
+      ],
+      "summary": "The provided Go code correctly implements the data structures (Blob, Commitment, Proof) and the versioned hash calculation (`CalcBlobHashV1`) as per the EIP-4844 specification. However, the code is a high-level wrapper, and it is not possible to verify from the snippet alone that the critical, spec-mandated validation checks on cryptographic inputs (commitments, proofs, and field elements) are performed, as this logic is delegated to unseen backend implementations. This represents a significant potential compliance gap.",
+      "file_name": "crypto/kzg4844/kzg4844.go"
+    },
+    {
+      "status": "PARTIAL_MATCH",
+      "confidence": 95,
+      "issues": [
+        {
+          "type": "MISSING",
+          "severity": "MEDIUM",
+          "spec_reference": "| Constant | Value |\n| - | - |\n| `MAX_BLOB_GAS_PER_BLOCK` | `786432` |\n| `TARGET_BLOB_GAS_PER_BLOCK` | `393216` |\n| `BLOB_BASE_FEE_UPDATE_FRACTION` | `3338477` |",
+          "code_location": "params/protocol_params.go",
+          "description": "The implementation file `params/protocol_params.go` defines several constants related to EIP-4844, such as `BlobTxBlobGasPerBlob` and `BlobTxMinBlobGasprice`. However, it is missing three critical constants from the specification that are essential for the blob gas fee update mechanism and block validation: `MAX_BLOB_GAS_PER_BLOCK`, `TARGET_BLOB_GAS_PER_BLOCK`, and `BLOB_BASE_FEE_UPDATE_FRACTION`.",
+          "potential_impact": "These constants are fundamental to the EIP-4844 gas market. If they are not defined in this central parameters file, they may be hardcoded elsewhere in the codebase, creating a risk of inconsistency and making future updates more difficult. If different parts of the client inadvertently use different values, it could lead to incorrect fee calculations or invalid block production/validation, potentially causing a local fork or consensus failure.",
+          "suggestion": "Add the missing constants to the `params/protocol_params.go` file alongside the other EIP-4844 parameters to ensure they are sourced from a single, authoritative location within the codebase. For example:\n\n```go\nconst (\n    // ... existing constants\n    BlobTxTargetBlobGas   = 393216  // Corresponds to TARGET_BLOB_GAS_PER_BLOCK\n    BlobTxMaxBlobGas      = 786432  // Corresponds to MAX_BLOB_GAS_PER_BLOCK\n    BlobFeeUpdateFraction = 3338477 // Corresponds to BLOB_BASE_FEE_UPDATE_FRACTION\n    // ... existing constants\n)\n```"
+        }
+      ],
+      "summary": "The provided code file, `params/protocol_params.go`, correctly implements a subset of the constants defined in the EIP-4844 specification. However, it omits several critical parameters that govern the blob gas market and block limits, which is a significant gap for a central protocol parameters file.",
+      "file_name": "params/protocol_params.go"
+    }
+  ]
+}

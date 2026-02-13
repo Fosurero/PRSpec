@@ -111,33 +111,55 @@ Important: If the code correctly implements the spec, return status "FULL_MATCH"
 """
     
     def _parse_json_response(self, response_text: str) -> Dict[str, Any]:
-        """Parse JSON from LLM response, handling markdown code blocks"""
+        """Parse JSON from LLM response, handling markdown code blocks
+        and truncated output from the model."""
         text = response_text.strip()
-        
+
         # Remove markdown code blocks if present
         if text.startswith("```"):
-            # Remove opening ```json or ```
             text = re.sub(r'^```(?:json)?\s*\n?', '', text)
-            # Remove closing ```
             text = re.sub(r'\n?```\s*$', '', text)
-        
+
         try:
             return json.loads(text)
-        except json.JSONDecodeError as e:
-            # Try to extract JSON from the response
-            json_match = re.search(r'\{[\s\S]*\}', text)
-            if json_match:
+        except json.JSONDecodeError:
+            pass
+
+        # Try to extract the outermost JSON object
+        json_match = re.search(r'\{[\s\S]*\}', text)
+        if json_match:
+            try:
+                return json.loads(json_match.group())
+            except json.JSONDecodeError:
+                pass
+
+        # Attempt to repair truncated JSON (common with LLM output limits).
+        # Strategy: find the outermost '{', then try progressively closing
+        # open braces / brackets / strings until json.loads succeeds.
+        brace_start = text.find('{')
+        if brace_start != -1:
+            fragment = text[brace_start:]
+            for suffix in [
+                '}',           # just close object
+                '"}',          # close a truncated string value
+                '"]}',         # close a truncated string inside an array
+                '"}]}',        # close string + issues array + object
+                '"}}',         # nested object
+                '"} ]}',       # string, object, array
+                '"}], "summary": "Truncated response"}',
+            ]:
                 try:
-                    return json.loads(json_match.group())
+                    return json.loads(fragment + suffix)
                 except json.JSONDecodeError:
-                    pass
-            
-            return {
-                "status": "ERROR",
-                "confidence": 0,
-                "issues": [],
-                "summary": f"Failed to parse response: {str(e)}"
-            }
+                    continue
+
+        return {
+            "status": "ERROR",
+            "confidence": 0,
+            "issues": [],
+            "summary": f"Failed to parse Gemini response ({len(text)} chars). "
+                       f"The model output may have been truncated."
+        }
 
 
 class GeminiAnalyzer(BaseAnalyzer):
