@@ -11,6 +11,13 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 
 > This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*. See [GRANT_PROPOSAL.md](GRANT_PROPOSAL.md) for the full proposal.
 
+<details>
+<summary><b>Table of Contents</b></summary>
+
+&nbsp;&nbsp;[Demo Video](#demo-video) · [Screenshots](#screenshots) · [Supported EIPs](#supported-eips) · [Quick start](#quick-start) · [CLI usage](#cli-usage) · [Configuration](#configuration) · [Project layout](#project-layout) · [Example output](#example-output) · [Running tests](#running-tests) · [API usage](#api-usage) · [Contributing](#contributing) · [Changelog](#changelog) · [Roadmap](#roadmap)
+
+</details>
+
 ---
 
 ## Screenshots
