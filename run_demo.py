@@ -113,8 +113,21 @@ func ValidateBlobSidecar(hashes []common.Hash, sidecar *BlobTxSidecar) error {
 }
 
 
+BANNER = """
+\033[36m
+  ██████╗ ██████╗ ███████╗██████╗ ███████╗ ██████╗
+  ██╔══██╗██╔══██╗██╔════╝██╔══██╗██╔════╝██╔════╝
+  ██████╔╝██████╔╝███████╗██████╔╝█████╗  ██║
+  ██╔═══╝ ██╔══██╗╚════██║██╔═══╝ ██╔══╝  ██║
+  ██║     ██║  ██║███████║██║     ███████╗╚██████╗
+  ╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝ ╚═════╝
+\033[0m
+  Ethereum Specification Compliance Checker
+"""
+
+
 def print_banner():
-    print("\n  PRSpec — Ethereum Specification Compliance Checker\n")
+    print(BANNER)
 
 
 def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
@@ -232,10 +245,12 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
         for block in blocks[:5]:
             print(f"      - {block.name} (lines {block.start_line}-{block.end_line})")
 
-    # Run analysis
+    # Run analysis (parallel)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     n_files = len(code_files)
-    est = f"{n_files}-{n_files * 2} min" if n_files > 1 else "~1 min"
-    print(f"\nRunning Gemini analysis on {n_files} files (est. {est})...")
+    est = f"~{max(1, n_files // 2)}-{n_files} min (parallel)" if n_files > 1 else "~1 min"
+    print(f"\nRunning Gemini analysis on {n_files} files ({est})...")
 
     results = []
 
@@ -244,9 +259,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
 
     focus_areas = config.get_eip_focus_areas(eip_number)
 
-    for file_path, code_content in code_files.items():
-        print(f"\n   Analyzing: {file_path}")
-
+    def _analyze_file(file_path, code_content):
         context = {
             "file_name": file_path,
             "function_name": f"EIP-{eip_number} {eip_title}",
@@ -255,40 +268,50 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
             "eip_title": eip_title,
             "focus_areas": focus_areas,
         }
+        result = analyzer.analyze_compliance(spec_text, code_content, context)
+        result_dict = result.to_dict()
+        result_dict["file_name"] = file_path
+        return file_path, result, result_dict
 
-        try:
-            result = analyzer.analyze_compliance(spec_text, code_content, context)
+    futures = {}
+    with ThreadPoolExecutor(max_workers=n_files) as pool:
+        for file_path, code_content in code_files.items():
+            future = pool.submit(_analyze_file, file_path, code_content)
+            futures[future] = file_path
 
-            result_dict = result.to_dict()
-            result_dict["file_name"] = file_path
-            results.append(result_dict)
+        for future in as_completed(futures):
+            try:
+                file_path, result, result_dict = future.result()
+                results.append(result_dict)
 
-            status_marker = {
-                "FULL_MATCH": "[OK]",
-                "PARTIAL_MATCH": "[!!]",
-                "MISSING": "[MISS]",
-                "UNCERTAIN": "[??]",
-                "ERROR": "[ERR]",
-            }.get(result.status, "[??]")
+                status_marker = {
+                    "FULL_MATCH": "[OK]",
+                    "PARTIAL_MATCH": "[!!]",
+                    "MISSING": "[MISS]",
+                    "UNCERTAIN": "[??]",
+                    "ERROR": "[ERR]",
+                }.get(result.status, "[??]")
 
-            print(f"   {status_marker} Status: {result.status}")
-            print(f"   Confidence: {result.confidence}%")
-            print(f"   Summary: {result.summary[:100]}...")
-            if result.issues:
-                print(f"   Issues found: {len(result.issues)}")
-                for issue in result.issues[:3]:
-                    sev = issue.get("severity", "")
-                    print(f"      [{sev}] {issue.get('type', 'Issue')}")
+                print(f"\n   {status_marker} {file_path}")
+                print(f"       Status: {result.status} | Confidence: {result.confidence}%")
+                print(f"       {result.summary[:100]}...")
+                if result.issues:
+                    print(f"       Issues: {len(result.issues)}")
 
-        except Exception as e:
-            print(f"   Analysis error: {e}")
-            results.append({
-                "file_name": file_path,
-                "status": "ERROR",
-                "confidence": 0,
-                "issues": [],
-                "summary": str(e),
-            })
+            except Exception as e:
+                fp = futures[future]
+                print(f"\n   [ERR] {fp}: {e}")
+                results.append({
+                    "file_name": fp,
+                    "status": "ERROR",
+                    "confidence": 0,
+                    "issues": [],
+                    "summary": str(e),
+                })
+
+    # Restore original file order
+    file_order = list(code_files.keys())
+    results.sort(key=lambda r: file_order.index(r["file_name"]))
 
     # Generate report
     print("\nGenerating report...")
