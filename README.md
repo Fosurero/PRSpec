@@ -25,8 +25,8 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 
 | EIP | Title | Specs fetched | Geth files | Key focus areas |
 |-----|-------|---------------|------------|-----------------|
-| 1559 | Fee market change | EIP + execution | 3 | base fee, gas limit, fee cap |
-| 4844 | Shard Blob Transactions | EIP + execution + consensus | 4 | blob gas, KZG, max blobs, sidecar |
+| 1559 | Fee market change | EIP + execution | 5 | base fee, gas limit, fee cap, state transition |
+| 4844 | Shard Blob Transactions | EIP + execution + consensus | 5 | blob gas, KZG, max blobs, sidecar, tx pool |
 | 4788 | Beacon block root in EVM | EIP + execution | 1 | beacon root |
 | 2930 | Optional access lists | EIP + execution | 2 | access list validation |
 | 7002 | Execution layer withdrawals | EIP + execution | — | withdrawal requests |
@@ -196,6 +196,28 @@ print(result.status, result.confidence)
 for issue in result.issues:
     print(f"  [{issue['severity']}] {issue['description']}")
 ```
+
+---
+
+## Changelog
+
+### v1.3.0 (2026-02-14)
+- Parallel analysis — all files analyzed concurrently via thread pool, ~3x faster on multi-file EIPs
+- Expanded file coverage: EIP-1559 and EIP-4844 now analyze 5 files each (added `state_transition.go`, `protocol_params.go`, `legacypool.go`)
+- Restored ASCII art banner in CLI and demo
+- Beautified CLI: progress bar with file counter, styled config panel
+- Migrated to `google-genai` SDK (replaces deprecated `google-generativeai`)
+- Executive summary paragraph at the top of every report
+
+### v1.1.0 (2026-02-03)
+- Multi-EIP architecture: registry-based spec and code fetching
+- Added EIP-4844, EIP-4788, EIP-2930 support
+- HTML report with dark-nav professional layout
+- Comprehensive test suite (37 tests)
+
+### v1.0.0 (2026-01-30)
+- Initial release: EIP-1559 analysis against go-ethereum
+- Gemini and OpenAI support, JSON/Markdown/HTML output
 
 ---
 

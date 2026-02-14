@@ -37,7 +37,7 @@ BANNER = """[cyan]
 
 
 @click.group()
-@click.version_option(version="1.1.0", prog_name="PRSpec")
+@click.version_option(version="1.3.0", prog_name="PRSpec")
 def cli():
     """PRSpec — check Ethereum client code against EIP specifications."""
     pass
