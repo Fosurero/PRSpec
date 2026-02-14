@@ -75,6 +75,10 @@ class CodeParser:
             return self._parse_go(content)
         elif language == "python":
             return self._parse_python(content)
+        elif language in ("csharp", "c#", "cs"):
+            return self._parse_csharp(content)
+        elif language == "java":
+            return self._parse_java(content)
         else:
             return self._parse_generic(content, language)
     
@@ -222,6 +226,139 @@ class CodeParser:
         
         return blocks
     
+    def _extract_methods(self, lines: List[str], start: int, end: int,
+                         language: str, func_pattern: re.Pattern,
+                         class_start_line: int) -> List[CodeBlock]:
+        """Scan lines[start..end] for method definitions inside a class body."""
+        methods = []
+        i = start
+        while i < end:
+            stripped = lines[i].strip()
+            fm = func_pattern.search(stripped)
+            if fm and '{' not in stripped[:stripped.find(fm.group(0))]:
+                name = fm.group(1)
+                m_start = i + 1
+                brace_count = stripped.count('{') - stripped.count('}')
+                m_end = i
+                if brace_count == 0:
+                    for j in range(i + 1, min(i + 4, len(lines))):
+                        if '{' in lines[j]:
+                            brace_count = lines[j].count('{') - lines[j].count('}')
+                            m_end = j
+                            break
+                while brace_count > 0 and m_end < end:
+                    m_end += 1
+                    brace_count += lines[m_end].count('{')
+                    brace_count -= lines[m_end].count('}')
+                if m_end > i:
+                    methods.append(CodeBlock(
+                        name=name, type="method",
+                        content='\n'.join(lines[i:m_end + 1]),
+                        start_line=m_start, end_line=m_end + 1,
+                        language=language, signature=stripped,
+                    ))
+                    i = m_end + 1
+                    continue
+            i += 1
+        return methods
+
+    def _parse_brace_language(self, content: str, language: str,
+                               func_pattern: re.Pattern,
+                               class_pattern: re.Pattern) -> List[CodeBlock]:
+        """Shared parser for brace-delimited languages (C#, Java, etc.)."""
+        blocks = []
+        lines = content.split('\n')
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            stripped = line.strip()
+
+            # Try class/interface/struct
+            cm = class_pattern.search(stripped)
+            if cm:
+                name = cm.group(1)
+                start_line = i + 1
+                brace_count = stripped.count('{') - stripped.count('}')
+                end_line = i
+                # If opening brace not on this line, scan forward
+                if brace_count == 0:
+                    for j in range(i + 1, min(i + 4, len(lines))):
+                        if '{' in lines[j]:
+                            brace_count = lines[j].count('{') - lines[j].count('}')
+                            end_line = j
+                            break
+                while brace_count > 0 and end_line < len(lines) - 1:
+                    end_line += 1
+                    brace_count += lines[end_line].count('{')
+                    brace_count -= lines[end_line].count('}')
+                class_body = '\n'.join(lines[i:end_line + 1])
+                blocks.append(CodeBlock(
+                    name=name, type="class",
+                    content=class_body,
+                    start_line=start_line, end_line=end_line + 1,
+                    language=language, signature=stripped,
+                ))
+                # Also parse methods inside the class body
+                inner_blocks = self._extract_methods(
+                    lines, i + 1, end_line, language, func_pattern, start_line
+                )
+                blocks.extend(inner_blocks)
+                i = end_line + 1
+                continue
+
+            # Try method/function
+            fm = func_pattern.search(stripped)
+            if fm and '{' not in stripped[:stripped.find(fm.group(0))]:
+                name = fm.group(1)
+                start_line = i + 1
+                brace_count = stripped.count('{') - stripped.count('}')
+                end_line = i
+                if brace_count == 0:
+                    for j in range(i + 1, min(i + 4, len(lines))):
+                        if '{' in lines[j]:
+                            brace_count = lines[j].count('{') - lines[j].count('}')
+                            end_line = j
+                            break
+                while brace_count > 0 and end_line < len(lines) - 1:
+                    end_line += 1
+                    brace_count += lines[end_line].count('{')
+                    brace_count -= lines[end_line].count('}')
+                if end_line > i:
+                    blocks.append(CodeBlock(
+                        name=name, type="method",
+                        content='\n'.join(lines[i:end_line + 1]),
+                        start_line=start_line, end_line=end_line + 1,
+                        language=language, signature=stripped,
+                    ))
+                    i = end_line + 1
+                    continue
+            i += 1
+        return blocks
+
+    def _parse_csharp(self, content: str) -> List[CodeBlock]:
+        """Parse C# source files."""
+        func_pat = re.compile(
+            r'(?:public|private|protected|internal|static|override|virtual|abstract|async|sealed|partial)\s+'
+            r'(?:[\w<>\[\],\s\?]+\s+)?(\w+)\s*(?:<[^>]+>)?\s*\([^)]*\)'
+        )
+        class_pat = re.compile(
+            r'(?:public|private|protected|internal|static|abstract|sealed|partial)\s+'
+            r'(?:class|struct|interface|record|enum)\s+(\w+)'
+        )
+        return self._parse_brace_language(content, "csharp", func_pat, class_pat)
+
+    def _parse_java(self, content: str) -> List[CodeBlock]:
+        """Parse Java source files."""
+        func_pat = re.compile(
+            r'(?:public|private|protected|static|final|abstract|synchronized|native)\s+'
+            r'(?:[\w<>\[\],\s\?]+\s+)?(\w+)\s*\([^)]*\)'
+        )
+        class_pat = re.compile(
+            r'(?:public|private|protected|static|final|abstract)\s+'
+            r'(?:class|interface|enum|record)\s+(\w+)'
+        )
+        return self._parse_brace_language(content, "java", func_pat, class_pat)
+
     def _parse_generic(self, content: str, language: str) -> List[CodeBlock]:
         """Generic parsing for unsupported languages"""
         return [CodeBlock(

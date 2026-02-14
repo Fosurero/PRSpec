@@ -6,14 +6,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Powered by: Gemini](https://img.shields.io/badge/Gemini-AI-cyan.svg)](LICENSE)
 
-PRSpec fetches official EIP documents (plus execution and consensus specs from the Ethereum repos), pulls the corresponding implementation files from a client like go-ethereum, and sends both to a large-context LLM (Gemini 2.5 Pro or GPT-4) to find deviations, missing checks, or edge cases.
+
+PRSpec fetches official EIP documents (plus execution and consensus specs from the Ethereum repos), pulls the corresponding implementation files from multiple Ethereum clients (go-ethereum, Nethermind, Besu), and sends both to a large-context LLM (Gemini 2.5 Pro or GPT-4) to find deviations, missing checks, or edge cases.
 
 > This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*. See [GRANT_PROPOSAL.md](GRANT_PROPOSAL.md) for the full proposal.
 
 <details>
 <summary><b>Table of Contents</b></summary>
 
-&nbsp;&nbsp;[Demo Video](#demo-video) · [Screenshots](#screenshots) · [Supported EIPs](#supported-eips) · [Quick start](#quick-start) · [CLI usage](#cli-usage) · [Configuration](#configuration) · [Project layout](#project-layout) · [Example output](#example-output) · [Running tests](#running-tests) · [API usage](#api-usage) · [Contributing](#contributing) · [Changelog](#changelog) · [Roadmap](#roadmap)
+&nbsp;&nbsp;[Demo Video](#demo-video) · [Screenshots](#screenshots) · [Supported EIPs & Clients](#supported-eips--clients) · [Quick start](#quick-start) · [CLI usage](#cli-usage) · [Configuration](#configuration) · [Project layout](#project-layout) · [Example output](#example-output) · [Running tests](#running-tests) · [API usage](#api-usage) · [Contributing](#contributing) · [Changelog](#changelog) · [Roadmap](#roadmap)
 
 </details>
 
@@ -38,14 +39,24 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 
 ---
 
-## Supported EIPs
+## Supported EIPs & Clients
 
-| EIP | Title | Specs fetched | Geth files | Key focus areas |
-|-----|-------|---------------|------------|-----------------|
-| 1559 | Fee market change | EIP + execution | 5 | base fee, gas limit, fee cap, state transition |
-| 4844 | Shard Blob Transactions | EIP + execution + consensus | 5 | blob gas, KZG, max blobs, sidecar, tx pool |
-| 4788 | Beacon block root in EVM | EIP + execution | 1 | beacon root |
-| 2930 | Optional access lists | EIP + execution | 2 | access list validation |
+### Clients
+
+| Client | Language | EIPs supported | Repo |
+|--------|----------|---------------|------|
+| go-ethereum | Go | 1559, 4844, 4788, 2930 | [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) |
+| Nethermind | C# | 1559, 4844 | [NethermindEth/nethermind](https://github.com/NethermindEth/nethermind) |
+| Besu | Java | 1559, 4844 | [hyperledger/besu](https://github.com/hyperledger/besu) |
+
+### EIPs
+
+| EIP | Title | Specs fetched | Files per client | Key focus areas |
+|-----|-------|---------------|------------------|-----------------|
+| 1559 | Fee market change | EIP + execution | geth 5 · nethermind 5 · besu 5 | base fee, gas limit, fee cap, state transition |
+| 4844 | Shard Blob Transactions | EIP + execution + consensus | geth 5 · nethermind 5 · besu 5 | blob gas, KZG, max blobs, sidecar, tx pool |
+| 4788 | Beacon block root in EVM | EIP + execution | geth 1 | beacon root |
+| 2930 | Optional access lists | EIP + execution | geth 2 | access list validation |
 | 7002 | Execution layer withdrawals | EIP + execution | — | withdrawal requests |
 | 7251 | Increase MAX_EFFECTIVE_BALANCE | EIP + consensus | — | consolidation |
 
@@ -80,6 +91,10 @@ Get a Gemini key at https://makersuite.google.com/app/apikey
 ```bash
 # full analysis → produces JSON/Markdown/HTML reports
 python -m src.cli analyze --eip 1559 --client go-ethereum --output html
+
+# analyze Nethermind (C#) or Besu (Java) instead
+python -m src.cli analyze --eip 1559 --client nethermind --output html
+python -m src.cli analyze --eip 4844 --client besu --output html
 
 # other commands
 python -m src.cli fetch-spec --eip 4844
@@ -140,13 +155,14 @@ src/
   config.py            – YAML + env config loader
   spec_fetcher.py      – EIP registry, spec fetching (EIP/execution/consensus)
   code_fetcher.py      – Per-client per-EIP file registry, code fetching
-  parser.py            – Regex + optional tree-sitter parsing, EIP keyword matching
+  parser.py            – Go/Python/C#/Java parsing, EIP keyword matching
   analyzer.py          – Gemini / OpenAI analysis, JSON response parsing
   report_generator.py  – JSON, Markdown, HTML report output
   cli.py               – Click CLI
 tests/
   test_eip1559.py
   test_eip4844.py
+  test_multi_client.py – Nethermind/Besu registry + C#/Java parser tests
 config.yaml
 run_demo.py
 ```
@@ -228,6 +244,13 @@ Contributions are welcome! Please:
 
 ## Changelog
 
+### v1.4.0 (2026-02-15)
+- **Multi-client support**: Nethermind (C#) and Besu (Java) alongside go-ethereum (Go)
+- EIP-1559 and EIP-4844 file mappings for all three clients (5 files each)
+- C# and Java regex parsers with class + method extraction
+- 25 new tests covering registry, parsers, and fetch integration
+- Keyword matching verified language-agnostic (case-insensitive)
+
 ### v1.3.0 (2026-02-14)
 - Parallel analysis — all files analyzed concurrently via thread pool, ~3x faster on multi-file EIPs
 - Expanded file coverage: EIP-1559 and EIP-4844 now analyze 5 files each (added `state_transition.go`, `protocol_params.go`, `legacypool.go`)
@@ -252,8 +275,8 @@ Contributions are welcome! Please:
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Multi-EIP architecture, EIP-4844 support | Done |
-| 2 | Multi-client analysis (Prysm, Lighthouse, etc.) | Next |
-| 3 | Cross-client differential analysis | Planned |
+| 2 | Multi-client analysis (Nethermind, Besu) | Done |
+| 3 | Cross-client differential analysis | Next |
 | 4 | Real-time monitoring and CI integration | Planned |
 
 ---

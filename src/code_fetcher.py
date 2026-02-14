@@ -64,12 +64,42 @@ class CodeFetcher:
         "nethermind": {
             "url": "https://github.com/NethermindEth/nethermind",
             "language": "csharp",
-            "eip_files": {},
+            "eip_files": {
+                1559: [
+                    "src/Nethermind/Nethermind.Core/BaseFeeCalculator.cs",
+                    "src/Nethermind/Nethermind.Core/Eip1559Constants.cs",
+                    "src/Nethermind/Nethermind.Core/Specs/IEip1559Spec.cs",
+                    "src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs",
+                    "src/Nethermind/Nethermind.Core/TxType.cs",
+                ],
+                4844: [
+                    "src/Nethermind/Nethermind.Evm/BlobGasCalculator.cs",
+                    "src/Nethermind/Nethermind.Core/Eip4844Constants.cs",
+                    "src/Nethermind/Nethermind.Crypto/KzgPolynomialCommitments.cs",
+                    "src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs",
+                    "src/Nethermind/Nethermind.Consensus/Validators/HeaderValidator.cs",
+                ],
+            },
         },
         "besu": {
             "url": "https://github.com/hyperledger/besu",
             "language": "java",
-            "eip_files": {},
+            "eip_files": {
+                1559: [
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BaseFeeMarket.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/FeeMarket.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionValidator.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java",
+                ],
+                4844: [
+                    "evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/ExcessBlobGasCalculator.java",
+                    "datatypes/src/main/java/org/hyperledger/besu/datatypes/BlobGas.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/headervalidationrules/BlobGasValidationRule.java",
+                    "evm/src/main/java/org/hyperledger/besu/evm/precompile/KZGPointEvalPrecompiledContract.java",
+                ],
+            },
         },
     }
     
