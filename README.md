@@ -10,6 +10,8 @@
 
 PRSpec fetches official EIP documents (plus execution and consensus specs from the Ethereum repos), pulls the corresponding implementation files from multiple Ethereum clients (go-ethereum, Nethermind, Besu), and sends both to a large-context LLM (Gemini 2.5 Pro or GPT-4) to find deviations, missing checks, or edge cases.
 
+> **Real-world validation:** PRSpec flagged Nethermind's `FeeCollector` property as a deviation from EIP-1559's mandatory fee burn. A Nethermind core developer [confirmed the finding](https://github.com/NethermindEth/nethermind/issues/10522), noting it is a chain-specific extension that "could be refactored better." ([Issue #10522](https://github.com/NethermindEth/nethermind/issues/10522))
+
 > This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*. See [GRANT_PROPOSAL.md](GRANT_PROPOSAL.md) for the full proposal.
 
 <details>

@@ -49,6 +49,8 @@
 
 <p><strong>Example real output:</strong> PRSpec analyzed Nethermind's EIP-1559 implementation (5 C# files) and found 9 issues at 98% confidence, including a non-standard configurable minimum base fee that deviates from the specification, and a <code>FeeCollector</code> property that contradicts the mandatory fee burn mechanism. These are the kinds of findings that automated tools typically miss — they require understanding the <em>intent</em> behind both the spec and the code.</p>
 
+<p><strong>Validated by Nethermind core team:</strong> This finding was <a href="https://github.com/NethermindEth/nethermind/issues/10522">reported to Nethermind</a>, and a core developer (<a href="https://github.com/LukaszRozmej">@LukaszRozmej</a>) confirmed that the <code>FeeCollector</code> is an intentional chain-specific extension (for Gnosis Chain) that &ldquo;could be refactored better not to pollute the default config and spec.&rdquo; PRSpec correctly identified a real spec deviation before any grant funding.</p>
+
 <h2 id="3-background--motivation">3. Background &amp; Motivation</h2>
 
 <h3>The Problem</h3>
