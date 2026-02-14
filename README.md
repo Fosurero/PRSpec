@@ -244,7 +244,7 @@ Contributions are welcome! Please:
 
 ## Changelog
 
-### v1.4.0 (2026-02-15)
+### v1.4.0 (2026-02-14 ❤️)
 - **Multi-client support**: Nethermind (C#) and Besu (Java) alongside go-ethereum (Go)
 - EIP-1559 and EIP-4844 file mappings for all three clients (5 files each)
 - C# and Java regex parsers with class + method extraction
