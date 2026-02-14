@@ -1,15 +1,14 @@
 """Tests for multi-client support (Nethermind, Besu) — Phase 2."""
 
-import unittest
 import sys
+import unittest
 from pathlib import Path
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.code_fetcher import CodeFetcher
-from src.parser import CodeParser, CodeBlock
-
+from src.parser import CodeParser
 
 # ---------------------------------------------------------------------------
 # CodeFetcher registry tests

@@ -1,23 +1,25 @@
 """Tests for EIP-4844 (blob transactions) support."""
 
-import unittest
 import os
 import sys
-from unittest.mock import Mock, patch, MagicMock
+import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Pre-import so that patch('google.genai') can resolve the namespace
-from google import genai  # noqa: F401
+# Pre-import so that patch('google.genai') resolves at mock-time
+try:
+    from google import genai  # noqa: F401
+except ImportError:
+    pass
 
-from src.spec_fetcher import SpecFetcher
+from src.analyzer import BaseAnalyzer, GeminiAnalyzer
 from src.code_fetcher import CodeFetcher
-from src.parser import CodeParser, CodeBlock
-from src.analyzer import GeminiAnalyzer, AnalysisResult, BaseAnalyzer
 from src.config import Config
-
+from src.parser import CodeParser
+from src.spec_fetcher import SpecFetcher
 
 SAMPLE_BLOB_TX_GO = """
 package types

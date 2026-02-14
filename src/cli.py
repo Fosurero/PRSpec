@@ -1,30 +1,29 @@
 """Command-line interface for PRSpec."""
 
-import click
-from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import click
+
+from src import __version__
 
 try:
     from rich.console import Console
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
     from rich.panel import Panel
+    from rich.progress import BarColumn, MofNCompleteColumn, Progress, SpinnerColumn, TextColumn
     from rich.table import Table
-    from rich.text import Text
     RICH_AVAILABLE = True
     console = Console()
 except ImportError:
     RICH_AVAILABLE = False
     console = None
 
-from .config import Config
-from .analyzer import get_analyzer, GeminiAnalyzer, OpenAIAnalyzer
-from .spec_fetcher import SpecFetcher
+from .analyzer import GeminiAnalyzer, OpenAIAnalyzer
 from .code_fetcher import CodeFetcher
-from .parser import CodeParser
+from .config import Config
 from .report_generator import ReportGenerator, ReportMetadata
-
+from .spec_fetcher import SpecFetcher
 
 BANNER = """[cyan]
   ██████╗ ██████╗ ███████╗██████╗ ███████╗ ██████╗
@@ -37,7 +36,7 @@ BANNER = """[cyan]
 
 
 @click.group()
-@click.version_option(version="1.4.0", prog_name="PRSpec")
+@click.version_option(version=__version__, prog_name="PRSpec")
 def cli():
     """PRSpec — check Ethereum client code against EIP specifications."""
     pass
@@ -79,7 +78,7 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
     spec_text = spec_data.get("eip_markdown", "")
 
     futures = {}
-    with ThreadPoolExecutor(max_workers=len(code_files)) as pool:
+    with ThreadPoolExecutor(max_workers=min(len(code_files), 5)) as pool:
         for file_path, code_content in code_files.items():
             context = {
                 "eip_number": eip,
@@ -115,11 +114,11 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
 @click.option('--output', '-o', default='json', help='Output format: json, markdown, html')
 @click.option('--config', '-f', default=None, help='Path to config.yaml')
 @click.option('--verbose', '-v', is_flag=True, help='Verbose output')
-def analyze(eip: int, client: str, provider: Optional[str], output: str, 
+def analyze(eip: int, client: str, provider: Optional[str], output: str,
             config: Optional[str], verbose: bool):
     """
     Analyze a client implementation against an EIP specification.
-    
+
     Examples:
         prspec analyze --eip 1559 --client go-ethereum --output markdown
         prspec analyze --eip 4844 --client go-ethereum --output html
@@ -128,7 +127,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
         # Load configuration
         cfg = Config(config)
         llm_provider = provider if provider else cfg.llm_provider
-        
+
         # Banner + config summary
         if RICH_AVAILABLE:
             console.print(BANNER)
@@ -143,7 +142,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
         else:
             click.echo("\n  PRSpec - Ethereum Specification Compliance Checker\n")
             click.echo(f"  EIP: {eip}  |  Client: {client}  |  Provider: {llm_provider}")
-        
+
         # Get file count for time estimate
         n_files = len(CodeFetcher.CLIENTS.get(client, {}).get("eip_files", {}).get(eip, []))
         est = f"~{max(1, n_files // 2)}-{n_files} min (parallel)" if n_files > 1 else "~1-2 min"
@@ -169,7 +168,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
         else:
             click.echo(f"\n  Analyzing {n_files} files ({est})...")
             results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
-        
+
         # Generate report
         report_gen = ReportGenerator(cfg.output_config.get("directory", "output"))
         metadata = ReportMetadata(
@@ -179,21 +178,27 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             timestamp=datetime.now(),
             analyzer=f"{llm_provider.capitalize()} ({analyzer.get_model_info()['model']})"
         )
-        
+
         report_path = report_gen.generate_report(results, metadata, output)
-        
+
         # Print summary
         if RICH_AVAILABLE:
             report_gen.print_summary(results, metadata)
             console.print(f"\n[green]✓ Report saved to:[/green] {report_path}")
         else:
             click.echo(f"\nReport saved to: {report_path}")
-        
+
     except Exception as e:
         if RICH_AVAILABLE:
             console.print(f"[red]Error:[/red] {str(e)}")
+            if verbose:
+                import traceback
+                console.print(f"[dim]{traceback.format_exc()}[/dim]")
         else:
             click.echo(f"Error: {str(e)}", err=True)
+            if verbose:
+                import traceback
+                click.echo(traceback.format_exc(), err=True)
         raise click.Abort()
 
 
@@ -202,7 +207,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
 def fetch_spec(eip: int):
     """
     Fetch and display an EIP specification.
-    
+
     Example:
         prspec fetch-spec --eip 1559
         prspec fetch-spec --eip 4844
@@ -210,14 +215,14 @@ def fetch_spec(eip: int):
     try:
         spec_fetcher = SpecFetcher()
         content = spec_fetcher.fetch_eip(eip)
-        
+
         if RICH_AVAILABLE:
             from rich.markdown import Markdown
             console.print(Markdown(content[:5000] + "...\n\n[Truncated]"))
         else:
             click.echo(content[:5000])
             click.echo("\n...[Truncated]")
-            
+
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
 
@@ -228,7 +233,7 @@ def fetch_spec(eip: int):
 def list_files(client: str, eip: int):
     """
     List implementation files for an EIP in a client.
-    
+
     Example:
         prspec list-files --client go-ethereum --eip 1559
         prspec list-files --client go-ethereum --eip 4844
@@ -236,23 +241,23 @@ def list_files(client: str, eip: int):
     try:
         code_fetcher = CodeFetcher()
         files = code_fetcher.fetch_eip_implementation(client, eip)
-        
+
         if RICH_AVAILABLE:
             from rich.table import Table
             table = Table(title=f"EIP-{eip} Files in {client}")
             table.add_column("File Path", style="cyan")
             table.add_column("Lines", style="green")
-            
+
             for path, content in files.items():
                 lines = len(content.split('\n'))
                 table.add_row(path, str(lines))
-            
+
             console.print(table)
         else:
             click.echo(f"EIP-{eip} files in {client}:")
             for path, content in files.items():
                 click.echo(f"  - {path} ({len(content.split(chr(10)))} lines)")
-                
+
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
 
@@ -263,14 +268,14 @@ def list_eips():
     try:
         spec_fetcher = SpecFetcher()
         code_fetcher = CodeFetcher()
-        
+
         if RICH_AVAILABLE:
             from rich.table import Table
             table = Table(title="Supported EIPs")
             table.add_column("EIP", style="cyan")
             table.add_column("Title", style="white")
             table.add_column("Clients with mappings", style="green")
-            
+
             for eip_num in spec_fetcher.supported_eips():
                 title = spec_fetcher.get_eip_title(eip_num)
                 clients_with = [
@@ -278,14 +283,14 @@ def list_eips():
                     if eip_num in code_fetcher.supported_eips_for_client(c)
                 ]
                 table.add_row(str(eip_num), title, ", ".join(clients_with) or "—")
-            
+
             console.print(table)
         else:
             click.echo("Supported EIPs:")
             for eip_num in spec_fetcher.supported_eips():
                 title = spec_fetcher.get_eip_title(eip_num)
                 click.echo(f"  EIP-{eip_num}: {title}")
-                
+
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
 
@@ -296,15 +301,15 @@ def clear_cache():
     try:
         spec_fetcher = SpecFetcher()
         code_fetcher = CodeFetcher()
-        
+
         spec_fetcher.clear_cache()
         code_fetcher.clear_cache()
-        
+
         if RICH_AVAILABLE:
             console.print("[green]✓ Cache cleared successfully[/green]")
         else:
             click.echo("Cache cleared successfully")
-            
+
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
 
@@ -314,48 +319,48 @@ def check_config():
     """Verify configuration and API keys."""
     try:
         cfg = Config()
-        
+
         checks = []
-        
+
         # Check Gemini API key
         try:
-            key = cfg.gemini_api_key
+            _ = cfg.gemini_api_key
             checks.append(("Gemini API Key", "✓ Set", "green"))
         except ValueError:
             checks.append(("Gemini API Key", "✗ Not set", "red"))
-        
+
         # Check OpenAI API key
         try:
-            key = cfg.openai_api_key
+            _ = cfg.openai_api_key
             checks.append(("OpenAI API Key", "✓ Set", "green"))
         except ValueError:
             checks.append(("OpenAI API Key", "✗ Not set", "yellow"))
-        
+
         # Check GitHub token
         token = cfg.github_token
         if token:
             checks.append(("GitHub Token", "✓ Set", "green"))
         else:
             checks.append(("GitHub Token", "○ Optional, not set", "yellow"))
-        
+
         # Check provider
         checks.append(("Active Provider", cfg.llm_provider, "cyan"))
-        
+
         if RICH_AVAILABLE:
             from rich.table import Table
             table = Table(title="Configuration Status")
             table.add_column("Setting", style="white")
             table.add_column("Status", style="white")
-            
+
             for name, status, color in checks:
                 table.add_row(name, f"[{color}]{status}[/{color}]")
-            
+
             console.print(table)
         else:
             click.echo("Configuration Status:")
             for name, status, _ in checks:
                 click.echo(f"  {name}: {status}")
-                
+
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
 

@@ -38,6 +38,12 @@ env/
 *.swp
 *.swo
 
+# Linter / type checker caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+
 # Output reports (optional - uncomment to ignore)
 # output/*.json
 # output/*.md

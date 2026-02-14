@@ -2,17 +2,17 @@
 
 __version__ = "1.4.0"
 
-from .config import Config
 from .analyzer import GeminiAnalyzer, OpenAIAnalyzer, get_analyzer
-from .spec_fetcher import SpecFetcher
 from .code_fetcher import CodeFetcher
+from .config import Config
 from .parser import CodeParser
 from .report_generator import ReportGenerator
+from .spec_fetcher import SpecFetcher
 
 __all__ = [
     "Config",
     "GeminiAnalyzer",
-    "OpenAIAnalyzer", 
+    "OpenAIAnalyzer",
     "get_analyzer",
     "SpecFetcher",
     "CodeFetcher",

@@ -1,10 +1,11 @@
-# PRSpec.
+# PRSpec
 
-**Ethereum specification compliance checker:** Compares EIP specs against client source code using LLM analysis and AI.
+**Ethereum specification compliance checker:** Compares EIP specs against client source code using LLM analysis.
 
+[![CI](https://github.com/Fosurero/PRSpec/actions/workflows/ci.yml/badge.svg)](https://github.com/Fosurero/PRSpec/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Powered by: Gemini](https://img.shields.io/badge/Gemini-AI-cyan.svg)](LICENSE)
+[![Powered by: Gemini](https://img.shields.io/badge/Gemini_2.5_Pro-AI-cyan.svg)](https://ai.google.dev/)
 
 
 PRSpec fetches official EIP documents (plus execution and consensus specs from the Ethereum repos), pulls the corresponding implementation files from multiple Ethereum clients (go-ethereum, Nethermind, Besu), and sends both to a large-context LLM (Gemini 2.5 Pro or GPT-4) to find deviations, missing checks, or edge cases.
@@ -14,7 +15,7 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 <details>
 <summary><b>Table of Contents</b></summary>
 
-&nbsp;&nbsp;[Demo Video](#demo-video) · [Screenshots](#screenshots) · [Supported EIPs & Clients](#supported-eips--clients) · [Quick start](#quick-start) · [CLI usage](#cli-usage) · [Configuration](#configuration) · [Project layout](#project-layout) · [Example output](#example-output) · [Running tests](#running-tests) · [API usage](#api-usage) · [Contributing](#contributing) · [Changelog](#changelog) · [Roadmap](#roadmap)
+&nbsp;&nbsp;[Demo Video](#demo-video) · [Screenshots](#screenshots) · [Supported EIPs & Clients](#supported-eips--clients) · [Quick start](#quick-start) · [CLI usage](#cli-usage) · [Configuration](#configuration) · [Project layout](#project-layout) · [Example output](#example-output) · [Running tests](#running-tests) · [API usage](#api-usage) · [Contributing](#contributing) · [Security](#security) · [Changelog](#changelog) · [Roadmap](#roadmap)
 
 </details>
 
@@ -60,8 +61,8 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 | 4844 | Shard Blob Transactions | EIP + execution + consensus | geth 5 · nethermind 5 · besu 5 | blob gas, KZG, max blobs, sidecar, tx pool |
 | 4788 | Beacon block root in EVM | EIP + execution | geth 1 | beacon root |
 | 2930 | Optional access lists | EIP + execution | geth 2 | access list validation |
-| 7002 | Execution layer withdrawals | EIP + execution | — | withdrawal requests |
-| 7251 | Increase MAX_EFFECTIVE_BALANCE | EIP + consensus | — | consolidation |
+| 7002 | Execution layer withdrawals | EIP + execution | spec only | withdrawal requests |
+| 7251 | Increase MAX_EFFECTIVE_BALANCE | EIP + consensus | spec only | consolidation |
 
 Run `python -m src.cli list-eips` to see the live registry.
 
@@ -71,6 +72,7 @@ Run `python -m src.cli list-eips` to see the live registry.
 
 ```bash
 # clone and set up
+git clone https://github.com/Fosurero/PRSpec.git
 cd PRSpec
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
@@ -167,7 +169,11 @@ tests/
   test_eip4844.py
   test_multi_client.py – Nethermind/Besu registry + C#/Java parser tests
 config.yaml
+pyproject.toml         – Package metadata, dependencies, linter config
 run_demo.py
+CONTRIBUTING.md
+SECURITY.md
+LICENSE
 ```
 
 ---
@@ -237,17 +243,27 @@ for issue in result.issues:
 
 ## Contributing
 
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+- Adding new EIP file mappings
+- Adding new client support (Prysm, Lighthouse, etc.)
+- Parser improvements
+- Report enhancements
+
+---
+
+## Security
+
+PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
+- Vulnerability reporting process
+- API key handling
+- Data handling policies
+- LLM provider trust considerations
 
 ---
 
 ## Changelog
 
-### v1.4.0 (2026-02-14 ❤️)
+### v1.4.0 (2026-02-14)
 - **Multi-client support**: Nethermind (C#) and Besu (Java) alongside go-ethereum (Go)
 - EIP-1559 and EIP-4844 file mappings for all three clients (5 files each)
 - C# and Java regex parsers with class + method extraction
@@ -279,8 +295,8 @@ Contributions are welcome! Please:
 |-------|-------------|--------|
 | 1 | Multi-EIP architecture, EIP-4844 support | Done |
 | 2 | Multi-client analysis (Nethermind, Besu) | Done |
-| 3 | Cross-client differential analysis | Next |
-| 4 | Real-time monitoring and CI integration | Planned |
+| 3 | Cross-client differential analysis, Pectra EIPs | Next |
+| 4 | GitHub Action CI integration, security dashboard | Planned |
 
 ---
 

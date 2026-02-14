@@ -10,14 +10,15 @@ Usage:
 
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 # Load environment variables
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
@@ -136,12 +137,12 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
 
     # Import PRSpec components
     try:
-        from src.config import Config
-        from src.analyzer import GeminiAnalyzer, get_analyzer
-        from src.spec_fetcher import SpecFetcher
+        from src.analyzer import GeminiAnalyzer
         from src.code_fetcher import CodeFetcher
+        from src.config import Config
         from src.parser import CodeParser
         from src.report_generator import ReportGenerator, ReportMetadata
+        from src.spec_fetcher import SpecFetcher
     except ImportError as e:
         print(f"Import error: {e}")
         print("Make sure you've installed requirements: pip install -r requirements.txt")
@@ -171,7 +172,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     print("\nChecking API credentials...")
     try:
         api_key = config.gemini_api_key
-        print(f"   ✓ Gemini API key found")
+        print("   ✓ Gemini API key found")
     except ValueError as e:
         print(f"   {e}")
         print("   Please set GEMINI_API_KEY in your .env file")
@@ -195,7 +196,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     analyzer = GeminiAnalyzer(
         api_key=api_key,
         model=gemini_config.get("model", "gemini-2.5-pro"),
-        max_output_tokens=gemini_config.get("max_output_tokens", 65536),
+        max_output_tokens=gemini_config.get("max_output_tokens", 8192),
         temperature=gemini_config.get("temperature", 0.1),
     )
     print(f"   ✓ Analyzer: {analyzer.get_model_info()['model']}")
@@ -339,7 +340,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     print("\n" + "=" * 60)
     print("Done.")
     print("=" * 60)
-    print(f"\nReports are in the 'output' directory.")
+    print("\nReports are in the 'output' directory.")
     print()
 
 
@@ -347,28 +348,28 @@ def quick_test():
     """Quick connectivity check for Gemini API."""
     print("API connectivity test")
     print("-" * 40)
-    
+
     from dotenv import load_dotenv
     load_dotenv()
-    
+
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("GEMINI_API_KEY not set")
         return False
-    
+
     try:
         from google import genai as genai_client
         client = genai_client.Client(api_key=api_key)
-        
+
         response = client.models.generate_content(
             model="gemini-2.5-pro",
             contents="Say 'PRSpec is ready!' in exactly those words.",
         )
-        
-        print(f"OK — Gemini API connected")
+
+        print("OK — Gemini API connected")
         print(f"   Response: {response.text.strip()}")
         return True
-        
+
     except Exception as e:
         print(f"API Error: {e}")
         return False
