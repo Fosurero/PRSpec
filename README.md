@@ -1,13 +1,18 @@
 # PRSpec
 
-**Ethereum specification compliance checker** — compares EIP specs against client source code using LLM analysis.
+**Ethereum specification compliance checker:** — Compares EIP specs against client source code using LLM analysis.
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 PRSpec fetches official EIP documents (plus execution and consensus specs from the Ethereum repos), pulls the corresponding implementation files from a client like go-ethereum, and sends both to a large-context LLM (Gemini 2.5 Pro or GPT-4) to find deviations, missing checks, or edge cases.
 
 > This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*. See [GRANT_PROPOSAL.md](GRANT_PROPOSAL.md) for the full proposal.
+
+---
+
+## Demo Video
+### Video ▶️ [Watch on Youtube](https://www.youtube.com/watch?v=v7UtBAxigKc)
 
 ---
 
@@ -22,10 +27,6 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 ### Detailed Findings
 <img src="docs/report-details.svg" alt="PRSpec detailed issue findings" width="100%">
 
----
-
-## Demo Video
-[![PRSpec Demo](https://img.youtube.com/vi/v7UtBAxigKc/0.jpg)](https://www.youtube.com/watch?v=v7UtBAxigKc)
 
 ---
 
@@ -204,6 +205,16 @@ print(result.status, result.confidence)
 for issue in result.issues:
     print(f"  [{issue['severity']}] {issue['description']}")
 ```
+
+---
+
+## Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Submit a pull request
 
 ---
 
