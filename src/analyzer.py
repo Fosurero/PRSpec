@@ -2,9 +2,9 @@
 
 import json
 import re
-from typing import Dict, List, Any, Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -15,7 +15,7 @@ class AnalysisResult:
     issues: List[Dict[str, Any]]
     summary: str
     raw_response: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "status": self.status,
@@ -23,11 +23,11 @@ class AnalysisResult:
             "issues": self.issues,
             "summary": self.summary,
         }
-    
+
     @property
     def has_issues(self) -> bool:
         return len(self.issues) > 0
-    
+
     @property
     def high_severity_issues(self) -> List[Dict[str, Any]]:
         return [i for i in self.issues if i.get("severity") == "HIGH"]
@@ -35,17 +35,26 @@ class AnalysisResult:
 
 class BaseAnalyzer(ABC):
     """Base class for LLM analyzers"""
-    
+
     @abstractmethod
-    def analyze_compliance(self, spec_text: str, code_text: str, 
+    def analyze_compliance(self, spec_text: str, code_text: str,
                           context: dict) -> AnalysisResult:
         """Analyze code compliance with specification"""
         pass
-    
-    def _build_analysis_prompt(self, spec_text: str, code_text: str, 
+
+    def analyze_multiple_files(self, spec_text: str, code_files: Dict[str, str],
+                               context: dict) -> AnalysisResult:
+        """Concatenate multiple files and analyze in one shot."""
+        code_sections = []
+        for file_path, code in code_files.items():
+            code_sections.append(f"=== FILE: {file_path} ===\n{code}")
+        combined_code = "\n\n".join(code_sections)
+        return self.analyze_compliance(spec_text, combined_code, context)
+
+    def _build_analysis_prompt(self, spec_text: str, code_text: str,
                                context: dict) -> str:
         """Build the analysis prompt.
-        
+
         The prompt is EIP-agnostic: it reads the EIP number and title from
         *context* so the same method works for EIP-1559, EIP-4844, or any
         future EIP.
@@ -55,7 +64,7 @@ class BaseAnalyzer(ABC):
         eip_label = f"EIP-{eip_number}" if eip_number else "the Ethereum specification"
         if eip_title:
             eip_label = eip_title
-        
+
         return f"""
 You are an expert Ethereum protocol security researcher and auditor.
 
@@ -102,7 +111,7 @@ Respond ONLY with valid JSON in this exact format:
 
 Important: If the code correctly implements the spec, return status "FULL_MATCH" with empty issues array.
 """
-    
+
     def _parse_json_response(self, response_text: str) -> Dict[str, Any]:
         """Parse JSON from LLM response, handling markdown code blocks
         and truncated output from the model."""
@@ -173,7 +182,7 @@ Important: If the code correctly implements the spec, return status "FULL_MATCH"
 class GeminiAnalyzer(BaseAnalyzer):
     """Gemini-backed analyzer. Uses the large context window to compare
     full spec text against full source files in a single request."""
-    
+
     def __init__(self, api_key: str, model: str = "gemini-2.5-pro",
                  max_output_tokens: int = 8192, temperature: float = 0.1):
         """Configure the Gemini model and generation params."""
@@ -181,17 +190,17 @@ class GeminiAnalyzer(BaseAnalyzer):
             from google import genai
         except ImportError:
             raise ImportError("google-genai not installed. Run: pip install google-genai")
-        
+
         self.client = genai.Client(api_key=api_key)
         self.model_name = model
         self.max_output_tokens = max_output_tokens
         self.temperature = temperature
-    
-    def analyze_compliance(self, spec_text: str, code_text: str, 
+
+    def analyze_compliance(self, spec_text: str, code_text: str,
                           context: dict) -> AnalysisResult:
         """Send spec + code to Gemini and parse the structured JSON response."""
         prompt = self._build_analysis_prompt(spec_text, code_text, context)
-        
+
         try:
             from google.genai import types
             response = self.client.models.generate_content(
@@ -202,9 +211,9 @@ class GeminiAnalyzer(BaseAnalyzer):
                     max_output_tokens=self.max_output_tokens,
                 ),
             )
-            
+
             result = self._parse_json_response(response.text)
-            
+
             return AnalysisResult(
                 status=result.get("status", "UNCERTAIN"),
                 confidence=result.get("confidence", 0),
@@ -212,7 +221,7 @@ class GeminiAnalyzer(BaseAnalyzer):
                 summary=result.get("summary", ""),
                 raw_response=response.text
             )
-            
+
         except Exception as e:
             return AnalysisResult(
                 status="ERROR",
@@ -220,19 +229,7 @@ class GeminiAnalyzer(BaseAnalyzer):
                 issues=[],
                 summary=f"Gemini analysis failed: {str(e)}"
             )
-    
-    def analyze_multiple_files(self, spec_text: str, code_files: Dict[str, str],
-                               context: dict) -> AnalysisResult:
-        """Concatenate multiple files and analyze in one shot."""
-        # Build combined code section
-        code_sections = []
-        for file_path, code in code_files.items():
-            code_sections.append(f"=== FILE: {file_path} ===\n{code}")
-        
-        combined_code = "\n\n".join(code_sections)
-        
-        return self.analyze_compliance(spec_text, combined_code, context)
-    
+
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model"""
         return {
@@ -240,13 +237,12 @@ class GeminiAnalyzer(BaseAnalyzer):
             "model": self.model_name,
             "max_output_tokens": self.max_output_tokens,
             "temperature": self.temperature,
-            "context_window": "1M tokens"
         }
 
 
 class OpenAIAnalyzer(BaseAnalyzer):
     """GPT-4 backed analyzer, alternative to Gemini."""
-    
+
     def __init__(self, api_key: str, model: str = "gpt-4-turbo-preview",
                  max_tokens: int = 4096, temperature: float = 0.1):
         """Configure the OpenAI client."""
@@ -255,16 +251,16 @@ class OpenAIAnalyzer(BaseAnalyzer):
             self.client = OpenAI(api_key=api_key)
         except ImportError:
             raise ImportError("openai not installed. Run: pip install openai")
-        
+
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
-    
-    def analyze_compliance(self, spec_text: str, code_text: str, 
+
+    def analyze_compliance(self, spec_text: str, code_text: str,
                           context: dict) -> AnalysisResult:
         """Send spec + code to OpenAI and parse the JSON response."""
         prompt = self._build_analysis_prompt(spec_text, code_text, context)
-        
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -281,10 +277,10 @@ class OpenAIAnalyzer(BaseAnalyzer):
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
-            
+
             response_text = response.choices[0].message.content
             result = self._parse_json_response(response_text)
-            
+
             return AnalysisResult(
                 status=result.get("status", "UNCERTAIN"),
                 confidence=result.get("confidence", 0),
@@ -292,7 +288,7 @@ class OpenAIAnalyzer(BaseAnalyzer):
                 summary=result.get("summary", ""),
                 raw_response=response_text
             )
-            
+
         except Exception as e:
             return AnalysisResult(
                 status="ERROR",
@@ -300,7 +296,7 @@ class OpenAIAnalyzer(BaseAnalyzer):
                 issues=[],
                 summary=f"OpenAI analysis failed: {str(e)}"
             )
-    
+
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model"""
         return {
@@ -308,46 +304,26 @@ class OpenAIAnalyzer(BaseAnalyzer):
             "model": self.model,
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
-            "context_window": "128K tokens (GPT-4 Turbo)"
         }
 
 
 def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
     """Factory: return a GeminiAnalyzer or OpenAIAnalyzer."""
     provider = provider.lower()
-    
+
     if provider == "gemini":
         required = ["api_key"]
         for key in required:
             if key not in kwargs:
                 raise ValueError(f"Missing required parameter: {key}")
         return GeminiAnalyzer(**kwargs)
-    
+
     elif provider == "openai":
         required = ["api_key"]
         for key in required:
             if key not in kwargs:
                 raise ValueError(f"Missing required parameter: {key}")
         return OpenAIAnalyzer(**kwargs)
-    
+
     else:
         raise ValueError(f"Unknown provider: {provider}. Use 'gemini' or 'openai'.")
-
-
-# Convenience function for quick analysis
-def quick_analyze(spec_text: str, code_text: str, 
-                  api_key: str, provider: str = "gemini") -> AnalysisResult:
-    """
-    Quick one-shot analysis.
-    
-    Args:
-        spec_text: Specification text
-        code_text: Code to analyze
-        api_key: API key for the provider
-        provider: LLM provider to use
-        
-    Returns:
-        AnalysisResult
-    """
-    analyzer = get_analyzer(provider, api_key=api_key)
-    return analyzer.analyze_compliance(spec_text, code_text, {})

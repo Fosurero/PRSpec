@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prspec"
+version = "1.4.0"
+description = "Ethereum specification compliance checker — compares EIP specs against client source code using LLM analysis"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Safi El-Hassanine"},
+]
+keywords = ["ethereum", "eip", "specification", "compliance", "llm", "security"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "google-genai>=1.0.0",
+    "openai>=1.0.0",
+    "requests",
+    "tree-sitter",
+    "tree-sitter-python",
+    "tree-sitter-go",
+    "pyyaml",
+    "python-dotenv",
+    "click",
+    "rich",
+    "gitpython",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/Fosurero/PRSpec"
+Repository = "https://github.com/Fosurero/PRSpec"
+Issues = "https://github.com/Fosurero/PRSpec/issues"
+
+[project.scripts]
+prspec = "src.cli:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
