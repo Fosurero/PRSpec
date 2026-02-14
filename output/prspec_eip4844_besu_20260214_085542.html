@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EIP-4844 Compliance Report - besu</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f0f2f5; color: #1a1a2e; line-height: 1.6; }
+        .page { max-width: 960px; margin: 40px auto; padding: 0 20px; }
+        header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; padding: 36px 40px; border-radius: 12px 12px 0 0; }
+        header h1 { margin: 0 0 6px; font-size: 1.6em; font-weight: 700; }
+        header .meta { font-size: 0.85em; opacity: 0.8; }
+        .body { background: #fff; padding: 32px 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .kpi { background: #f8f9fb; border: 1px solid #e8eaed; border-radius: 8px; padding: 18px 14px; text-align: center; }
+        .kpi .num { font-size: 1.7em; font-weight: 700; }
+        .kpi .lbl { font-size: 0.78em; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+        h2 { font-size: 1.15em; font-weight: 600; color: #333; border-bottom: 2px solid #e8eaed; padding-bottom: 8px; margin: 28px 0 18px; }
+        .file-card { border: 1px solid #e0e3e8; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+        .file-card .head { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: #fafbfc; border-bottom: 1px solid #e0e3e8; }
+        .file-card .head .path { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 0.88em; font-weight: 500; }
+        .badge { display: inline-block; padding: 3px 12px; border-radius: 12px; color: #fff; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .file-card .content { padding: 16px 18px; }
+        .file-card .content p { margin: 0 0 10px; }
+        .issue { border-left: 3px solid; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; background: #fafbfc; }
+        .issue-high { border-color: #e03e3e; background: #fef2f2; }
+        .issue-medium { border-color: #d4a017; background: #fffbeb; }
+        .issue-low { border-color: #2e7d32; background: #f0fdf4; }
+        .issue .title { font-weight: 600; margin-bottom: 6px; font-size: 0.92em; }
+        .issue .detail { font-size: 0.85em; color: #555; margin: 3px 0; }
+        .issue .detail strong { color: #333; }
+        code { background: #eef0f4; padding: 1px 5px; border-radius: 3px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.88em; }
+        .footer { text-align: center; padding: 24px 0 0; margin-top: 32px; border-top: 1px solid #e8eaed; font-size: 0.8em; color: #888; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>EIP-4844 Compliance Report - besu</h1>
+        <div class="meta">2026-02-14 08:55 &middot; Gemini (gemini-2.5-pro) &middot; v1.4.0</div>
+    </header>
+    <div class="body">
+        <div class="kpi-row">
+            <div class="kpi"><div class="num">ISSUES FOUND</div><div class="lbl">Status</div></div>
+            <div class="kpi"><div class="num">98%</div><div class="lbl">Confidence</div></div>
+            <div class="kpi"><div class="num">5</div><div class="lbl">Files</div></div>
+            <div class="kpi"><div class="num" style="color:#e03e3e">4</div><div class="lbl">High</div></div>
+            <div class="kpi"><div class="num" style="color:#d4a017">0</div><div class="lbl">Medium</div></div>
+            <div class="kpi"><div class="num" style="color:#2e7d32">1</div><div class="lbl">Low</div></div>
+        </div>
+        
+        <div style="background:#f8f9fb;border:1px solid #e8eaed;border-radius:8px;padding:18px 22px;margin-bottom:28px;font-size:0.93em;line-height:1.7;white-space:pre-line;">PRSpec analysed 5 files from besu's EIP-4844 implementation using Gemini (gemini-2.5-pro). Overall verdict: ISSUES FOUND at 98% average confidence. 5 issues detected (4 high, 1 low).
+
+evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java — PARTIAL_MATCH (2 issues): The provided code correctly implements the `GAS_PER_BLOB` constant from EIP-4844, which is used to calculate the total b
+ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/ExcessBlobGasCalculator.java — PARTIAL_MATCH (1 issues): The provided code for calculating `excess_blob_gas` deviates critically from the EIP-4844 specification. It incorrectly 
+datatypes/src/main/java/org/hyperledger/besu/datatypes/BlobGas.java — PARTIAL_MATCH (1 issues): The provided code defines a data type for `BlobGas` using a 64-bit unsigned integer, which is consistent with the EIP-48
+ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/headervalidationrules/BlobGasValidationRule.java — PARTIAL_MATCH (1 issues): The provided code implements a detached header validation rule for EIP-4844, specifically checking the `excess_blob_gas`
+evm/src/main/java/org/hyperledger/besu/evm/precompile/KZGPointEvalPrecompiledContract.java — FULL_MATCH (0 issues): The provided Java code for the KZGPointEvalPrecompiledContract correctly and fully implements the point evaluation preco</div>
+
+        <h2>Findings</h2>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java</span>
+                <span class="badge" style="background:#ffc107">PARTIAL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided code correctly implements the `GAS_PER_BLOB` constant from EIP-4844, which is used to calculate the total blob gas for a transaction. However, the implementation is partial and incomplete as a gas calculator for the Cancun fork, as it is missing the consensus-critical gas costs for the new `BLOBHASH` opcode and the point evaluation precompile.</p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The EIP-4844 specification introduces a new `BLOBHASH` opcode (0x49) with a specified gas cost of 3. The provided `CancunGasCalculator.java` implementation does not define this gas cost. A complete gas calculator for the Cancun hard fork must account for all new or changed gas costs, including for new opcodes.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>HASH_OPCODE_GAS | 3</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>CancunGasCalculator class</code></div>
+                    <div class="detail"><strong>Impact:</strong> If the gas cost for the `BLOBHASH` opcode is not correctly implemented or defaults to an incorrect value (e.g., zero or a value from a parent class), clients will calculate different gas consumption for the same transaction. This would lead to a consensus failure, where different nodes disagree on the validity of a block.</div>
+                    <div class="detail"><strong>Fix:</strong> Override the appropriate method in `CancunGasCalculator` (e.g., a method that provides opcode gas costs) to return a value of 3 for the `BLOBHASH` (0x49) opcode, as required by the specification.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> EIP-4844 specifies a gas cost of 50,000 for the point evaluation precompile at address 0x0A. The `CancunGasCalculator.java` file does not contain logic to enforce this gas cost. While this might be implemented elsewhere in the client, the gas calculator is the canonical location for such constants, and its absence here indicates an incomplete implementation within this module.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>POINT_EVALUATION_PRECOMPILE_GAS | 50000</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>CancunGasCalculator class</code></div>
+                    <div class="detail"><strong>Impact:</strong> Failure to correctly charge 50,000 gas for the point evaluation precompile will cause a consensus split. If the cost is lower, it could be a DoS vector. If it is higher, transactions using the precompile could be incorrectly rejected as out of gas.</div>
+                    <div class="detail"><strong>Fix:</strong> Implement the logic within `CancunGasCalculator` to charge 50,000 gas for a call to the precompile at address 0x0A. This typically involves overriding a `getPrecompileGasCost` method and checking the address.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/ExcessBlobGasCalculator.java</span>
+                <span class="badge" style="background:#ffc107">PARTIAL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided code for calculating `excess_blob_gas` deviates critically from the EIP-4844 specification. It incorrectly introduces a dependency on the EIP-1559 `base_fee_per_gas`, which would lead to consensus failures by causing the node to disagree with the rest of the network on the state of the blob fee market.</p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] DEVIATION</div>
+                    <div class="detail"><strong>Description:</strong> The implementation calculates the excess blob gas by calling `computeExcessBlobGas` with the parent header's EIP-1559 `base_fee_per_gas` as a parameter. The EIP-4844 specification for `calc_excess_blob_gas` is self-contained and depends only on the parent's `excess_blob_gas`, `blob_gas_used`, and the `TARGET_BLOB_GAS_PER_BLOCK` constant. The EIP-1559 gas market and the EIP-4844 blob gas market are designed to be independent, and introducing a dependency from the blob gas calculation to the regular gas base fee is a direct deviation from the specification.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>def calc_excess_blob_gas(parent: Header) -> int:
+    if parent.excess_blob_gas + parent.blob_gas_used < TARGET_BLOB_GAS_PER_BLOCK:
+        return 0
+    else:
+        return parent.excess_blob_gas + parent.blob_gas_used - TARGET_BLOB_GAS_PER_BLOCK</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>ExcessBlobGasCalculator.calculateExcessBlobGasForParent</code></div>
+                    <div class="detail"><strong>Impact:</strong> This deviation will cause the node to calculate an incorrect `excess_blob_gas` value for new blocks. This incorrect value will then be used to calculate the `blob_base_fee`, leading to a different fee than what other correctly implemented clients would calculate. This will result in the node being unable to sync with the rest of the network, causing a consensus split.</div>
+                    <div class="detail"><strong>Fix:</strong> Refactor the `computeExcessBlobGas` method (and its call site in `ExcessBlobGasCalculator`) to remove the dependency on the parent block's `base_fee_per_gas`. The implementation must strictly follow the formula specified in EIP-4844, which is equivalent to `max(0, parent.excess_blob_gas + parent.blob_gas_used - TARGET_BLOB_GAS_PER_BLOCK)`.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">datatypes/src/main/java/org/hyperledger/besu/datatypes/BlobGas.java</span>
+                <span class="badge" style="background:#ffc107">PARTIAL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 95%</p>
+                <p>The provided code defines a data type for `BlobGas` using a 64-bit unsigned integer, which is consistent with the EIP-4844 specification for header fields like `blob_gas_used` and `excess_blob_gas`. However, this file alone does not implement any of the core EIP-4844 logic, such as fee calculation, transaction validation, or the point evaluation precompile. A minor deviation in constant naming was identified which could lead to developer confusion but is not a direct implementation flaw.</p>
+
+                <div class="issue issue-low">
+                    <div class="title">[LOW] DEVIATION</div>
+                    <div class="detail"><strong>Description:</strong> The provided code defines a constant `MAX_BLOB_GAS` which is set to `UInt64.MAX_VALUE` (2^64 - 1). This constant does not correspond to the EIP-4844 protocol parameter `MAX_BLOB_GAS_PER_BLOCK`, which is defined as 786432. The constant in the code represents the maximum possible value for the `BlobGas` data type, not the consensus rule limit for blob gas within a block.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>| MAX_BLOB_GAS_PER_BLOCK | 786432 |</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>public static final BlobGas MAX_BLOB_GAS = of(UInt64.MAX_VALUE); (line 30)</code></div>
+                    <div class="detail"><strong>Impact:</strong> This could cause confusion for developers who might mistakenly use `BlobGas.MAX_BLOB_GAS` in validation logic instead of the correct protocol constant `MAX_BLOB_GAS_PER_BLOCK`. If used incorrectly in block validation, it could lead to a consensus failure, as blocks with blob gas far exceeding the protocol limit would be considered valid by the node.</div>
+                    <div class="detail"><strong>Fix:</strong> To avoid ambiguity, rename the constant to `MAX_VALUE` to align with standard data type practices (e.g., `Long.MAX_VALUE`). The EIP-4844 protocol parameter `MAX_BLOB_GAS_PER_BLOCK` should be defined separately in a dedicated constants or configuration class where protocol rules are enforced.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/headervalidationrules/BlobGasValidationRule.java</span>
+                <span class="badge" style="background:#ffc107">PARTIAL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 95%</p>
+                <p>The provided code implements a detached header validation rule for EIP-4844, specifically checking the `excess_blob_gas` field. However, it deviates from the specification by including the parent's EIP-1559 base fee in the calculation, which poses a high risk of consensus failure. The code also includes an additional valid sanity check that `blob_gas_used` must be a multiple of `GAS_PER_BLOB`, which is correctly derived from the specification.</p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] DEVIATION</div>
+                    <div class="detail"><strong>Description:</strong> The code calculates the expected `excess_blob_gas` for a new block by calling `gasLimitCalculator.computeExcessBlobGas`. This function is passed the parent block's EIP-1559 `base_fee_per_gas` as a third argument. The EIP-4844 specification defines the `excess_blob_gas` calculation based solely on the parent's `excess_blob_gas`, `blob_gas_used`, and the `TARGET_BLOB_GAS_PER_BLOCK` constant. The EIP-1559 base fee is not part of this calculation, as the two fee markets are designed to be independent.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>def calc_excess_blob_gas(parent: Header) -> int:
+    if parent.excess_blob_gas + parent.blob_gas_used < TARGET_BLOB_GAS_PER_BLOCK:
+        return 0
+    else:
+        return parent.excess_blob_gas + parent.blob_gas_used - TARGET_BLOB_GAS_PER_BLOCK</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>BlobGasValidationRule.validate</code></div>
+                    <div class="detail"><strong>Impact:</strong> If the `computeExcessBlobGas` function incorrectly uses the parent's base fee in its calculation, Hyperledger Besu nodes will compute a different `excess_blob_gas` value for new blocks compared to other Ethereum clients that follow the specification strictly. This will lead to the node rejecting valid blocks from the network or producing invalid blocks, causing a consensus split.</div>
+                    <div class="detail"><strong>Fix:</strong> The call to `computeExcessBlobGas` should be modified to not pass the parent's base fee. The `computeExcessBlobGas` function itself should be reviewed and updated to ensure it strictly implements the formula from EIP-4844 without any dependency on the EIP-1559 base fee.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">evm/src/main/java/org/hyperledger/besu/evm/precompile/KZGPointEvalPrecompiledContract.java</span>
+                <span class="badge" style="background:#28a745">FULL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided Java code for the KZGPointEvalPrecompiledContract correctly and fully implements the point evaluation precompile as specified in EIP-4844. All validation checks, gas costing, input parsing, and output formatting align with the specification's requirements. The critical cryptographic validations are correctly delegated to a native library, and potential failures are handled appropriately by halting execution.</p>
+                <p>No issues found.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            PRSpec v1.4.0 &middot; Gemini (gemini-2.5-pro) &middot; EIP-4844 &middot; besu &middot; 2026-02-14 08:55
+        </div>
+    </div>
+</div>
+</body>
+</html>

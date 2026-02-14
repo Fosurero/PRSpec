@@ -31,6 +31,9 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 ### Detailed Findings
 <img src="docs/report-details.svg" alt="PRSpec detailed issue findings" width="100%">
 
+### Multi-Client Analysis (Phase 2)
+<img src="docs/multi-client-analysis.svg" alt="PRSpec multi-client analysis — Nethermind C# and Besu Java" width="100%">
+
 ---
 
 ## Demo Video

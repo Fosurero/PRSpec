@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EIP-1559 Compliance Report - nethermind</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f0f2f5; color: #1a1a2e; line-height: 1.6; }
+        .page { max-width: 960px; margin: 40px auto; padding: 0 20px; }
+        header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; padding: 36px 40px; border-radius: 12px 12px 0 0; }
+        header h1 { margin: 0 0 6px; font-size: 1.6em; font-weight: 700; }
+        header .meta { font-size: 0.85em; opacity: 0.8; }
+        .body { background: #fff; padding: 32px 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .kpi { background: #f8f9fb; border: 1px solid #e8eaed; border-radius: 8px; padding: 18px 14px; text-align: center; }
+        .kpi .num { font-size: 1.7em; font-weight: 700; }
+        .kpi .lbl { font-size: 0.78em; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+        h2 { font-size: 1.15em; font-weight: 600; color: #333; border-bottom: 2px solid #e8eaed; padding-bottom: 8px; margin: 28px 0 18px; }
+        .file-card { border: 1px solid #e0e3e8; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+        .file-card .head { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: #fafbfc; border-bottom: 1px solid #e0e3e8; }
+        .file-card .head .path { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 0.88em; font-weight: 500; }
+        .badge { display: inline-block; padding: 3px 12px; border-radius: 12px; color: #fff; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .file-card .content { padding: 16px 18px; }
+        .file-card .content p { margin: 0 0 10px; }
+        .issue { border-left: 3px solid; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; background: #fafbfc; }
+        .issue-high { border-color: #e03e3e; background: #fef2f2; }
+        .issue-medium { border-color: #d4a017; background: #fffbeb; }
+        .issue-low { border-color: #2e7d32; background: #f0fdf4; }
+        .issue .title { font-weight: 600; margin-bottom: 6px; font-size: 0.92em; }
+        .issue .detail { font-size: 0.85em; color: #555; margin: 3px 0; }
+        .issue .detail strong { color: #333; }
+        code { background: #eef0f4; padding: 1px 5px; border-radius: 3px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.88em; }
+        .footer { text-align: center; padding: 24px 0 0; margin-top: 32px; border-top: 1px solid #e8eaed; font-size: 0.8em; color: #888; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>EIP-1559 Compliance Report - nethermind</h1>
+        <div class="meta">2026-02-14 08:50 &middot; Gemini (gemini-2.5-pro) &middot; v1.4.0</div>
+    </header>
+    <div class="body">
+        <div class="kpi-row">
+            <div class="kpi"><div class="num">ISSUES FOUND</div><div class="lbl">Status</div></div>
+            <div class="kpi"><div class="num">98%</div><div class="lbl">Confidence</div></div>
+            <div class="kpi"><div class="num">5</div><div class="lbl">Files</div></div>
+            <div class="kpi"><div class="num" style="color:#e03e3e">8</div><div class="lbl">High</div></div>
+            <div class="kpi"><div class="num" style="color:#d4a017">1</div><div class="lbl">Medium</div></div>
+            <div class="kpi"><div class="num" style="color:#2e7d32">0</div><div class="lbl">Low</div></div>
+        </div>
+        
+        <div style="background:#f8f9fb;border:1px solid #e8eaed;border-radius:8px;padding:18px 22px;margin-bottom:28px;font-size:0.93em;line-height:1.7;white-space:pre-line;">PRSpec analysed 5 files from nethermind's EIP-1559 implementation using Gemini (gemini-2.5-pro). Overall verdict: ISSUES FOUND at 98% average confidence. 9 issues detected (8 high, 1 medium).
+
+src/Nethermind/Nethermind.Core/BaseFeeCalculator.cs — PARTIAL_MATCH (1 issues): The provided code correctly implements the core base fee adjustment formula from EIP-1559, including the special handlin
+src/Nethermind/Nethermind.Core/Eip1559Constants.cs — FULL_MATCH (0 issues): The provided code snippet from `Eip1559Constants.cs` correctly defines the constant values specified in EIP-1559. The `D
+src/Nethermind/Nethermind.Core/Specs/IEip1559Spec.cs — MISSING (3 issues): The provided code is not an implementation of the EIP-1559 logic, but rather a configuration interface for its parameter
+src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs — PARTIAL_MATCH (4 issues): The provided code in `TxValidator.cs` correctly implements the context-free validation for EIP-1559 transactions, specif
+src/Nethermind/Nethermind.Core/TxType.cs — MISSING (1 issues): The provided code correctly identifies the EIP-1559 transaction type with the integer value 2, which is compliant with t</div>
+
+        <h2>Findings</h2>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">src/Nethermind/Nethermind.Core/BaseFeeCalculator.cs</span>
+                <span class="badge" style="background:#ffc107">PARTIAL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 95%</p>
+                <p>The provided code correctly implements the core base fee adjustment formula from EIP-1559, including the special handling for the fork block. However, it introduces a non-standard configurable minimum base fee, which is a deviation that could cause consensus failures if misconfigured on a public network. The analysis is limited to the base fee calculation, as code for other EIP-1559 validation rules was not provided.</p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] DEVIATION</div>
+                    <div class="detail"><strong>Description:</strong> The implementation introduces a configurable `Eip1559BaseFeeMinValue` which is not part of the EIP-1559 specification. The specification defines a formula for the base fee adjustment where the only implicit floor is zero, allowing the base fee to decrease to 0 if network activity is low enough for a sustained period. This code adds an explicit, configurable minimum value check after the standard calculation is complete.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>else:
+	gas_used_delta = parent_gas_target - parent_gas_used
+	base_fee_per_gas_delta = parent_base_fee_per_gas * gas_used_delta // parent_gas_target // BASE_FEE_MAX_CHANGE_DENOMINATOR
+	expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>DefaultBaseFeeCalculator.Calculate (lines 49-52)</code></div>
+                    <div class="detail"><strong>Impact:</strong> If this configurable value is set to a non-zero value on a public network (e.g., Ethereum Mainnet), the client will calculate a different `base_fee_per_gas` than other clients whenever the fee would otherwise drop below this minimum. This will cause the client to either produce invalid blocks (if mining) or reject valid blocks from the network, leading to a consensus failure and partitioning the node from the canonical chain.</div>
+                    <div class="detail"><strong>Fix:</strong> This feature should be disabled by default for all public Ethereum networks (Mainnet and testnets) by ensuring `Eip1559BaseFeeMinValue` is not set or is configured to 0. Its use should be clearly documented as a deviation intended only for private or custom network configurations.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">src/Nethermind/Nethermind.Core/Eip1559Constants.cs</span>
+                <span class="badge" style="background:#28a745">FULL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided code snippet from `Eip1559Constants.cs` correctly defines the constant values specified in EIP-1559. The `DefaultForkBaseFee` (1 Gwei), `DefaultBaseFeeMaxChangeDenominator` (8), and `DefaultElasticityMultiplier` (2) are all fully compliant with the specification. This analysis is limited to the provided constants file, which does not contain the core logic for fee calculation or block validation, but the constants themselves are correctly implemented.</p>
+                <p>No issues found.</p>
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">src/Nethermind/Nethermind.Core/Specs/IEip1559Spec.cs</span>
+                <span class="badge" style="background:#dc3545">MISSING</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided code is not an implementation of the EIP-1559 logic, but rather a configuration interface for its parameters. As such, it is critically missing all validation logic from the specification. Furthermore, the interface introduces two significant deviations from the EIP: a `FeeCollector` property that contradicts the mandatory fee burn mechanism, and a `Eip1559BaseFeeMinValue` which adds a non-standard consensus rule.</p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] DEVIATION</div>
+                    <div class="detail"><strong>Description:</strong> The specification explicitly requires that the base fee is burned (destroyed). The `IEip1559Spec` interface includes a nullable `Address? FeeCollector` property. This suggests a deviation from the specification where the base fee could be collected by an address instead of being burned. While the comment mentions EIP-4844, its presence in a generic EIP-1559 interface is a significant deviation from the core EIP-1559 economic model.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>An important aspect of this fee system is that miners only get to keep the priority fee. The base fee is always burned (i.e. it is destroyed by the protocol).</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>IEip1559Spec.FeeCollector</code></div>
+                    <div class="detail"><strong>Impact:</strong> Consensus failure. If a client implementation uses this property to transfer the base fee to an address instead of burning it, it will produce blocks with invalid state transitions. These blocks would be rejected by any other client that correctly implements the EIP-1559 burn mechanism, leading to a network split.</div>
+                    <div class="detail"><strong>Fix:</strong> The concept of a `FeeCollector` for the base fee should be strictly separated from the EIP-1559 specification. If this property is intended for other EIPs (like 4844), it should be defined in a separate, more specific interface to avoid misinterpretation and incorrect implementation of EIP-1559's burn mechanism.</div>
+                </div>
+
+                <div class="issue issue-medium">
+                    <div class="title">[MEDIUM] DEVIATION</div>
+                    <div class="detail"><strong>Description:</strong> The EIP-1559 specification defines a precise formula for calculating the `base_fee_per_gas` for a new block. This formula does not include a minimum floor for the base fee; it can decrease towards zero. The provided code includes a property `Eip1559BaseFeeMinValue`, which introduces a consensus rule not present in the specification.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>else: gas_used_delta = parent_gas_target - parent_gas_used; base_fee_per_gas_delta = parent_base_fee_per_gas * gas_used_delta // parent_gas_target // BASE_FEE_MAX_CHANGE_DENOMINATOR; expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>IEip1559Spec.Eip1559BaseFeeMinValue</code></div>
+                    <div class="detail"><strong>Impact:</strong> Consensus failure. If this value is set to a non-zero value, a node using this implementation might consider a block invalid if its `base_fee_per_gas` is correctly calculated to be below this minimum. Other clients following the specification would accept the block, leading to a potential chain split.</div>
+                    <div class="detail"><strong>Fix:</strong> Remove the `Eip1559BaseFeeMinValue` property to ensure strict compliance with the EIP-1559 specification. The base fee should be allowed to decrease according to the formula without an artificial floor.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The provided code file defines an interface for EIP-1559 configuration parameters (`ForkBaseFee`, `BaseFeeMaxChangeDenominator`, `ElasticityMultiplier`, etc.) but does not contain any of the actual validation logic specified in the EIP. The specification's Python reference implementation details the complete block validation process, including base fee calculation, gas limit checks, and transaction validation rules. None of this logic is present in the provided file.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>class World(ABC): def validate_block(self, block: Block) -> None:</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>IEip1559Spec.cs</code></div>
+                    <div class="detail"><strong>Impact:</strong> The code is incomplete as a standalone implementation of EIP-1559. Without the corresponding validation logic that consumes these parameters, it is impossible to verify compliance. The focus areas of `base_fee_calculation`, `gas_limit_validation`, `fee_cap_check`, `priority_fee_handling`, and `transaction_validation` are entirely missing from this file.</div>
+                    <div class="detail"><strong>Fix:</strong> This file should be reviewed alongside the class(es) that implement the block and transaction validation logic using this `IEip1559Spec` interface. The current file only represents the configuration aspect of the EIP, not its enforcement.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs</span>
+                <span class="badge" style="background:#ffc107">PARTIAL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 95%</p>
+                <p>The provided code in `TxValidator.cs` correctly implements the context-free validation for EIP-1559 transactions, specifically the check that `max_fee_per_gas` is not less than `max_priority_fee_per_gas`. However, this file's scope is limited to transaction pool validation; it does not and is not expected to contain the critical block-level consensus rules such as base fee calculation, gas limit validation, and transaction fee processing, which are presumed to be implemented elsewhere in the client.</p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The provided code in `TxValidator.cs` validates transaction structure and fields that can be checked without block context (i.e., for mempool acceptance). However, it is missing the critical consensus check that a transaction's `max_fee_per_gas` must be greater than or equal to the `base_fee_per_gas` of the block it is included in. This check is specified to occur during block validation.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>assert transaction.max_fee_per_gas >= block.base_fee_per_gas</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>EIP1559 transaction validation logic (not present in TxValidator.cs)</code></div>
+                    <div class="detail"><strong>Impact:</strong> While this check is likely performed elsewhere (e.g., during block processing), if it were missing from the client entirely, it would lead to the creation or acceptance of invalid blocks, causing a consensus failure. Transactions could be included that cannot afford the network base fee.</div>
+                    <div class="detail"><strong>Fix:</strong> Ensure that the block validation logic, which is separate from the provided transaction pool validator, includes a check to reject any EIP-1559 transaction where `transaction.max_fee_per_gas` is less than the block's `base_fee_per_gas`.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The provided code does not contain the implementation for calculating and validating the `base_fee_per_gas` for a new block. The EIP specifies a precise formula based on the parent block's gas usage and base fee. This is a core component of the EIP-1559 fee market mechanism and a critical consensus rule for block header validity.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>The entire `if/elif/else` block for calculating `expected_base_fee_per_gas` in the `validate_block` function.</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Block header validation logic (not present in TxValidator.cs)</code></div>
+                    <div class="detail"><strong>Impact:</strong> If the base fee calculation and validation logic is missing or incorrect in the client's block validation module, it would lead to the acceptance of invalid blocks and a definitive consensus failure.</div>
+                    <div class="detail"><strong>Fix:</strong> Verify that the block header validation module correctly implements the base fee calculation formula exactly as described in the EIP-1559 specification.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The EIP-1559 specification constrains how much the `gas_limit` of a block can change relative to its parent (a maximum change of `parent_gas_limit / 1024`). This validation logic is part of block validation and is not present in the provided `TxValidator.cs` file.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>assert block.gas_limit < parent_gas_limit + parent_gas_limit // 1024, 'invalid block: gas limit increased too much'
+assert block.gas_limit > parent_gas_limit - parent_gas_limit // 1024, 'invalid block: gas limit decreased too much'</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Block header validation logic (not present in TxValidator.cs)</code></div>
+                    <div class="detail"><strong>Impact:</strong> Failure to enforce the gas limit adjustment rule would allow the creation and acceptance of invalid blocks, leading to a consensus split on the network.</div>
+                    <div class="detail"><strong>Fix:</strong> Ensure the client's block header validation logic correctly implements the gas limit change constraints as defined in EIP-1559.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The logic for calculating the `effective_gas_price` and the actual `priority_fee_per_gas` paid to the miner is not present. This logic is fundamental to the EIP-1559 fee model, determining how much a user pays, how much the miner receives, and how much is burned. This is part of the state transition process when executing a transaction within a block.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>priority_fee_per_gas = min(transaction.max_priority_fee_per_gas, transaction.max_fee_per_gas - block.base_fee_per_gas)
+effective_gas_price = priority_fee_per_gas + block.base_fee_per_gas</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Transaction execution logic (not present in TxValidator.cs)</code></div>
+                    <div class="detail"><strong>Impact:</strong> An incorrect implementation of fee calculation would break the economic incentives of EIP-1559, lead to incorrect state transitions (wrong account balances), and cause a consensus failure.</div>
+                    <div class="detail"><strong>Fix:</strong> Confirm that the transaction execution engine correctly implements the fee calculation, payment, and burn mechanism precisely as specified in EIP-1559.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">src/Nethermind/Nethermind.Core/TxType.cs</span>
+                <span class="badge" style="background:#dc3545">MISSING</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided code correctly identifies the EIP-1559 transaction type with the integer value 2, which is compliant with the specification. However, this is a trivial part of the EIP; the code is critically incomplete as it lacks all the essential consensus logic for block validation, fee calculation, and transaction processing, making a comprehensive compliance analysis impossible.</p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The provided code snippet only defines an enumeration for transaction types, correctly assigning the value `2` to `EIP1559`. However, it is completely missing the core consensus logic required by EIP-1559. There is no implementation for block validation, base fee calculation, gas limit validation, transaction fee validation (`max_fee_per_gas`, `max_priority_fee_per_gas`), or the fee burning mechanism. The analysis requirements regarding 'base_fee_calculation', 'gas_limit_validation', 'fee_cap_check', 'priority_fee_handling', and 'transaction_validation' cannot be performed as the corresponding logic is absent.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>The entire `validate_block` and `normalize_transaction` logic from the specification's reference implementation.</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>File: src/Nethermind/Nethermind.Core/TxType.cs</code></div>
+                    <div class="detail"><strong>Impact:</strong> A client using only this code would fail to sync the Ethereum blockchain past the London hard fork block. It would be unable to validate new blocks or process EIP-1559 transactions, leading to a definitive consensus failure and a fork from the canonical chain. This represents a critical failure to implement the EIP.</div>
+                    <div class="detail"><strong>Fix:</strong> Implement the full suite of consensus rules detailed in the EIP-1559 specification. This includes creating logic for block header validation (specifically the `base_fee_per_gas` field), transaction validation (checking `max_fee_per_gas` against `base_fee_per_gas`), and the state transition logic for fee distribution (burning the base fee and paying the priority fee to the miner).</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="footer">
+            PRSpec v1.4.0 &middot; Gemini (gemini-2.5-pro) &middot; EIP-1559 &middot; nethermind &middot; 2026-02-14 08:50
+        </div>
+    </div>
+</div>
+</body>
+</html>
