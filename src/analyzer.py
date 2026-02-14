@@ -113,12 +113,15 @@ Important: If the code correctly implements the spec, return status "FULL_MATCH"
             text = re.sub(r'^```(?:json)?\s*\n?', '', text)
             text = re.sub(r'\n?```\s*$', '', text)
 
+        # Strip surrounding prose — some models wrap JSON in explanation text
+        text = text.strip()
+
         try:
             return json.loads(text)
         except json.JSONDecodeError:
             pass
 
-        # Try to extract the outermost JSON object
+        # Try to extract the outermost JSON object (greedy)
         json_match = re.search(r'\{[\s\S]*\}', text)
         if json_match:
             try:
@@ -127,30 +130,42 @@ Important: If the code correctly implements the spec, return status "FULL_MATCH"
                 pass
 
         # Attempt to repair truncated JSON (common with LLM output limits).
-        # Strategy: find the outermost '{', then try progressively closing
-        # open braces / brackets / strings until json.loads succeeds.
         brace_start = text.find('{')
         if brace_start != -1:
             fragment = text[brace_start:]
+            # Try progressively more aggressive closings
             for suffix in [
-                '}',           # just close object
-                '"}',          # close a truncated string value
-                '"]}',         # close a truncated string inside an array
-                '"}]}',        # close string + issues array + object
-                '"}}',         # nested object
-                '"} ]}',       # string, object, array
-                '"}], "summary": "Truncated response"}',
+                '}',
+                '"}',
+                '"]}',
+                '"}]}',
+                '"}}',
+                '"} ]}',
+                '"}],"summary":"Analysis truncated"}',
+                '"}], "summary": "Analysis truncated"}',
+                '"],"summary":"Analysis truncated"}',
+                '"], "summary": "Analysis truncated"}',
+                '"}, "summary": "Analysis truncated"}',
             ]:
                 try:
                     return json.loads(fragment + suffix)
                 except json.JSONDecodeError:
                     continue
 
+            # Last resort: try to find just the first valid JSON object
+            # by scanning closing braces from the end
+            for end in range(len(fragment) - 1, 0, -1):
+                if fragment[end] == '}':
+                    try:
+                        return json.loads(fragment[:end + 1])
+                    except json.JSONDecodeError:
+                        continue
+
         return {
             "status": "ERROR",
             "confidence": 0,
             "issues": [],
-            "summary": f"Failed to parse Gemini response ({len(text)} chars). "
+            "summary": f"Failed to parse response ({len(text)} chars). "
                        f"The model output may have been truncated."
         }
 
@@ -159,7 +174,7 @@ class GeminiAnalyzer(BaseAnalyzer):
     """Gemini-backed analyzer. Uses the large context window to compare
     full spec text against full source files in a single request."""
     
-    def __init__(self, api_key: str, model: str = "gemini-2.5-pro",
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash",
                  max_output_tokens: int = 8192, temperature: float = 0.1):
         """Configure the Gemini model and generation params."""
         try:

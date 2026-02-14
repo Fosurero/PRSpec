@@ -181,7 +181,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     gemini_config = config.gemini_config
     analyzer = GeminiAnalyzer(
         api_key=api_key,
-        model=gemini_config.get("model", "gemini-2.5-pro"),
+        model=gemini_config.get("model", "gemini-2.5-flash"),
         max_output_tokens=gemini_config.get("max_output_tokens", 65536),
         temperature=gemini_config.get("temperature", 0.1),
     )
@@ -336,7 +336,7 @@ def quick_test():
         import google.generativeai as genai
         genai.configure(api_key=api_key)
         
-        model = genai.GenerativeModel("gemini-2.5-pro")
+        model = genai.GenerativeModel("gemini-2.5-flash")
         response = model.generate_content("Say 'PRSpec is ready!' in exactly those words.")
         
         print(f"OK — Gemini API connected")
