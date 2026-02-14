@@ -251,20 +251,20 @@ Contributions are welcome! Please:
 - 25 new tests covering registry, parsers, and fetch integration
 - Keyword matching verified language-agnostic (case-insensitive)
 
-### v1.3.0 (2026-02-14)
+### v1.3.0 (2026-02-6)
 - Parallel analysis — all files analyzed concurrently via thread pool, ~3x faster on multi-file EIPs
 - Expanded file coverage: EIP-1559 and EIP-4844 now analyze 5 files each (added `state_transition.go`, `protocol_params.go`, `legacypool.go`)
 - Beautified CLI: progress bar with file counter, styled config panel
 - Migrated to `google-genai` SDK (replaces deprecated `google-generativeai`)
 - Executive summary paragraph at the top of every report
 
-### v1.1.0 (2026-02-03)
+### v1.1.0 (2026-02-01)
 - Multi-EIP architecture: registry-based spec and code fetching
 - Added EIP-4844, EIP-4788, EIP-2930 support
 - HTML report with dark-nav professional layout
 - Comprehensive test suite (37 tests)
 
-### v1.0.0 (2026-01-30)
+### v1.0.0 (2026-01-22)
 - Initial release: EIP-1559 analysis against go-ethereum
 - Gemini and OpenAI support, JSON/Markdown/HTML output
 
