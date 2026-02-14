@@ -217,6 +217,8 @@
 <p><strong>Total across both milestones: $35,000</strong><br>
 <strong>Initial request: $15,000</strong> — ESP bears no risk on Phase 4 until Phase 3 is proven.</p>
 
+<p><strong>Open to discussion:</strong> These numbers reflect estimated costs, not fixed requirements. I am fully open to lower amounts or alternative structures — partial funding, deferred payments, or a smaller scope per phase. I built Phases 1–2 entirely self-funded because I believe in this project; the budget is about sustaining momentum, not a precondition for building. What matters most is ESP's support and alignment, not the specific dollar amount.</p>
+
 <h2 id="8-team-qualifications">8. Team Qualifications</h2>
 
 <p><strong>Safi El-Hassanine</strong> — Principal Engineer</p>
