@@ -174,7 +174,7 @@ class GeminiAnalyzer(BaseAnalyzer):
     """Gemini-backed analyzer. Uses the large context window to compare
     full spec text against full source files in a single request."""
     
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash",
+    def __init__(self, api_key: str, model: str = "gemini-2.5-pro",
                  max_output_tokens: int = 8192, temperature: float = 0.1):
         """Configure the Gemini model and generation params."""
         try:
