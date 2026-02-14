@@ -9,8 +9,8 @@ from pathlib import Path
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Pre-import so that patch('google.generativeai') can resolve the namespace
-import google.generativeai  # noqa: F401
+# Pre-import so that patch('google.genai') can resolve the namespace
+from google import genai  # noqa: F401
 
 from src.analyzer import GeminiAnalyzer, OpenAIAnalyzer, get_analyzer, AnalysisResult
 from src.spec_fetcher import SpecFetcher
@@ -55,7 +55,7 @@ class TestAnalyzer(unittest.TestCase):
     
     def test_get_analyzer_gemini(self):
         """Test get_analyzer factory for Gemini"""
-        with patch('google.generativeai') as mock_genai:
+        with patch('google.genai.Client'):
             analyzer = get_analyzer("gemini", api_key="test_key")
             self.assertIsInstance(analyzer, GeminiAnalyzer)
     
@@ -64,24 +64,23 @@ class TestAnalyzer(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_analyzer("invalid_provider", api_key="test")
     
-    @patch('google.generativeai')
-    def test_gemini_analyzer_initialization(self, mock_genai):
+    @patch('google.genai.Client')
+    def test_gemini_analyzer_initialization(self, mock_client_cls):
         """Test GeminiAnalyzer initialization"""
         analyzer = GeminiAnalyzer(api_key="test_key", model="gemini-1.5-pro-latest")
         
-        mock_genai.configure.assert_called_once_with(api_key="test_key")
+        mock_client_cls.assert_called_once_with(api_key="test_key")
         self.assertEqual(analyzer.model_name, "gemini-1.5-pro-latest")
     
-    @patch('google.generativeai')
-    def test_gemini_analyze_compliance(self, mock_genai):
+    @patch('google.genai.Client')
+    def test_gemini_analyze_compliance(self, mock_client_cls):
         """Test GeminiAnalyzer.analyze_compliance"""
-        # Mock the model response
         mock_response = Mock()
         mock_response.text = '{"status": "FULL_MATCH", "confidence": 90, "issues": [], "summary": "Test"}'
         
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_client_cls.return_value = mock_client
         
         analyzer = GeminiAnalyzer(api_key="test_key")
         result = analyzer.analyze_compliance(

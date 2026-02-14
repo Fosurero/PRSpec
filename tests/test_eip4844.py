@@ -9,8 +9,8 @@ from pathlib import Path
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Pre-import so that patch('google.generativeai') can resolve the namespace
-import google.generativeai  # noqa: F401
+# Pre-import so that patch('google.genai') can resolve the namespace
+from google import genai  # noqa: F401
 
 from src.spec_fetcher import SpecFetcher
 from src.code_fetcher import CodeFetcher
