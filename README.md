@@ -1,9 +1,11 @@
-# PRSpec
+# PRSpec <strong>{Supercharged by AI}.</strong>
 
 **Ethereum specification compliance checker:** — Compares EIP specs against client source code using LLM analysis.
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Powered by: Gemini](https://img.shields.io/badge/Gemini-AI-cyan.svg)](LICENSE)
+
 
 PRSpec fetches official EIP documents (plus execution and consensus specs from the Ethereum repos), pulls the corresponding implementation files from a client like go-ethereum, and sends both to a large-context LLM (Gemini 2.5 Pro or GPT-4) to find deviations, missing checks, or edge cases.
 
