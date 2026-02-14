@@ -99,13 +99,14 @@ class ReportGenerator:
 
 ## Executive Summary
 
-- **Overall Status**: {summary['overall_status']}
-- **Confidence**: {summary['average_confidence']}%
-- **Files Analyzed**: {summary['files_analyzed']}
-- **Total Issues**: {summary['total_issues']}
-- **High Severity**: {summary['high_severity']}
-- **Medium Severity**: {summary['medium_severity']}
-- **Low Severity**: {summary['low_severity']}
+{self._build_narrative(results, metadata)}
+
+| Metric | Value |
+|--------|-------|
+| Status | {summary['overall_status']} |
+| Confidence | {summary['average_confidence']}% |
+| Files analysed | {summary['files_analyzed']} |
+| Issues | {summary['total_issues']} (H:{summary['high_severity']} M:{summary['medium_severity']} L:{summary['low_severity']}) |
 
 ## Detailed Findings
 
@@ -229,6 +230,8 @@ against the official EIP-{metadata.eip_number} specification.
             <div class="kpi"><div class="num" style="color:#2e7d32">{summary['low_severity']}</div><div class="lbl">Low</div></div>
         </div>
         
+        <div style="background:#f8f9fb;border:1px solid #e8eaed;border-radius:8px;padding:18px 22px;margin-bottom:28px;font-size:0.93em;line-height:1.7;white-space:pre-line;">{self._build_narrative(results, metadata)}</div>
+
         <h2>Findings</h2>
 """
         
@@ -287,6 +290,53 @@ against the official EIP-{metadata.eip_number} specification.
         
         return str(filepath)
     
+    def _build_narrative(self, results: List[Dict[str, Any]],
+                          metadata: ReportMetadata) -> str:
+        """Build a short, readable paragraph summarising the analysis."""
+        s = self._generate_summary(results)
+        n_files = s['files_analyzed']
+        total = s['total_issues']
+
+        # Opening sentence
+        parts = [
+            f"PRSpec analysed {n_files} file{'s' if n_files != 1 else ''} from "
+            f"{metadata.client}'s EIP-{metadata.eip_number} implementation "
+            f"using {metadata.analyzer}."
+        ]
+
+        # Verdict
+        parts.append(
+            f"Overall verdict: {s['overall_status']} "
+            f"at {s['average_confidence']}% average confidence."
+        )
+
+        # Issue breakdown (only when there are issues)
+        if total:
+            severity_bits = []
+            if s['high_severity']:
+                severity_bits.append(f"{s['high_severity']} high")
+            if s['medium_severity']:
+                severity_bits.append(f"{s['medium_severity']} medium")
+            if s['low_severity']:
+                severity_bits.append(f"{s['low_severity']} low")
+            parts.append(
+                f"{total} issue{'s' if total != 1 else ''} detected "
+                f"({', '.join(severity_bits)})."
+            )
+        else:
+            parts.append("No compliance issues were detected.")
+
+        # Per-file one-liners
+        for r in results:
+            fname = r.get('file_name', '?')
+            fstatus = r.get('status', '?')
+            n_issues = len(r.get('issues', []))
+            short = r.get('summary', '')[:120]
+            if short:
+                parts.append(f"{fname} — {fstatus} ({n_issues} issues): {short}")
+
+        return " ".join(parts[:3]) + "\n\n" + "\n".join(parts[3:])
+
     def _generate_summary(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate summary statistics from results"""
         total_issues = 0
@@ -339,8 +389,17 @@ against the official EIP-{metadata.eip_number} specification.
             return
         
         summary = self._generate_summary(results)
-        
-        # Create summary table
+        narrative = self._build_narrative(results, metadata)
+
+        # Narrative box first
+        self.console.print(Panel(
+            narrative,
+            title="[bold]Executive Summary[/bold]",
+            border_style="blue",
+            padding=(1, 2),
+        ))
+
+        # KPI table
         table = Table(title=metadata.title, box=box.ROUNDED)
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="white")
