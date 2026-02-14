@@ -75,7 +75,7 @@ class Config:
     def gemini_config(self) -> Dict[str, Any]:
         """Get Gemini-specific configuration"""
         return self._config.get("llm", {}).get("gemini", {
-            "model": "gemini-2.5-pro",
+            "model": "gemini-2.5-flash",
             "max_output_tokens": 8192,
             "temperature": 0.1
         })
