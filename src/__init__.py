@@ -1,6 +1,6 @@
 """PRSpec — Ethereum spec compliance checker."""
 
-__version__ = "1.1.0"
+__version__ = "1.3.0"
 
 from .config import Config
 from .analyzer import GeminiAnalyzer, OpenAIAnalyzer, get_analyzer
