@@ -13,11 +13,6 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 
 ---
 
-## Demo Video
-### Video ▶️ [Watch on Youtube](https://www.youtube.com/watch?v=v7UtBAxigKc)
-
----
-
 ## Screenshots
 
 ### CLI Analysis
@@ -31,8 +26,9 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 
 ---
 
-### Terminal Recording
-[![asciicast](https://asciinema.org/a/FSqTk0tKOx8TFiQu.svg)](https://asciinema.org/a/FSqTk0tKOx8TFiQu)
+## Demo Video
+### Video ▶️ [Watch on Youtube](https://www.youtube.com/watch?v=v7UtBAxigKc)
+### Version 1.3 Terminal Video Demo ▶️ [Watch on ASCiinma](https://asciinema.org/a/FSqTk0tKOx8TFiQu)
 
 ---
 
