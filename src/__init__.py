@@ -1,13 +1,6 @@
-"""
-PRSpec - Ethereum Specification Compliance Checker
-Author: Safi El-Hassanine
-
-A tool to analyze Ethereum client implementations against official specifications
-using LLM-powered analysis (Google Gemini 2.5 Pro / OpenAI GPT-4).
-"""
+"""PRSpec — Ethereum spec compliance checker."""
 
 __version__ = "1.1.0"
-__author__ = "Safi El-Hassanine"
 
 from .config import Config
 from .analyzer import GeminiAnalyzer, OpenAIAnalyzer, get_analyzer

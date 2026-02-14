@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """
-PRSpec Demo Script
-Author: Safi El-Hassanine
-
-Demonstrates the PRSpec Ethereum specification compliance checker
-using Google Gemini 2.5 Pro for analysis.
+Demo script for PRSpec — runs a full analysis pipeline against a single EIP.
 
 Usage:
     python run_demo.py                  # Analyze EIP-1559 (default)
@@ -118,24 +114,7 @@ func ValidateBlobSidecar(hashes []common.Hash, sidecar *BlobTxSidecar) error {
 
 
 def print_banner():
-    """Print the PRSpec banner"""
-    banner = """
-╔═══════════════════════════════════════════════════════════════════╗
-║                                                                   ║
-║   ██████╗ ██████╗ ███████╗██████╗ ███████╗ ██████╗               ║
-║   ██╔══██╗██╔══██╗██╔════╝██╔══██╗██╔════╝██╔════╝               ║
-║   ██████╔╝██████╔╝███████╗██████╔╝█████╗  ██║                    ║
-║   ██╔═══╝ ██╔══██╗╚════██║██╔═══╝ ██╔══╝  ██║                    ║
-║   ██║     ██║  ██║███████║██║     ███████╗╚██████╗               ║
-║   ╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝ ╚═════╝               ║
-║                                                                   ║
-║   Ethereum Specification Compliance Checker                       ║
-║   Author: Safi El-Hassanine                                       ║
-║   LLM: Google Gemini 2.5 Pro                                      ║
-║                                                                   ║
-╚═══════════════════════════════════════════════════════════════════╝
-"""
-    print(banner)
+    print("\n  PRSpec — Ethereum Specification Compliance Checker\n")
 
 
 def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
@@ -151,7 +130,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
         from src.parser import CodeParser
         from src.report_generator import ReportGenerator, ReportMetadata
     except ImportError as e:
-        print(f"❌ Import error: {e}")
+        print(f"Import error: {e}")
         print("Make sure you've installed requirements: pip install -r requirements.txt")
         return
 
@@ -166,22 +145,22 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
         print("Note: Install 'rich' for better output formatting")
 
     # Load configuration
-    print("\n📋 Loading configuration...")
+    print("\nLoading configuration...")
     try:
         config = Config()
         print(f"   ✓ Provider: {config.llm_provider}")
         print(f"   ✓ Config loaded from: {config.config_path}")
     except Exception as e:
-        print(f"   ❌ Error loading config: {e}")
+        print(f"   Error loading config: {e}")
         return
 
     # Check API key
-    print("\n🔑 Checking API credentials...")
+    print("\nChecking API credentials...")
     try:
         api_key = config.gemini_api_key
         print(f"   ✓ Gemini API key found")
     except ValueError as e:
-        print(f"   ❌ {e}")
+        print(f"   {e}")
         print("   Please set GEMINI_API_KEY in your .env file")
         return
 
@@ -191,18 +170,18 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     parser = CodeParser()
 
     if eip_number not in spec_fetcher.supported_eips():
-        print(f"   ❌ EIP-{eip_number} is not in the registry. "
+        print(f"   EIP-{eip_number} is not in the registry. "
               f"Supported: {spec_fetcher.supported_eips()}")
         return
 
     eip_title = spec_fetcher.get_eip_title(eip_number)
-    print(f"\n🎯 Target: EIP-{eip_number} ({eip_title}) — {client}")
+    print(f"\nTarget: EIP-{eip_number} ({eip_title}) -- {client}")
 
     # Initialize analyzer
     gemini_config = config.gemini_config
     analyzer = GeminiAnalyzer(
         api_key=api_key,
-        model=gemini_config.get("model", "gemini-2.5-pro-preview-06-05"),
+        model=gemini_config.get("model", "gemini-2.5-pro"),
         max_output_tokens=gemini_config.get("max_output_tokens", 65536),
         temperature=gemini_config.get("temperature", 0.1),
     )
@@ -210,7 +189,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     print(f"   ✓ Context window: {analyzer.get_model_info()['context_window']}")
 
     # Fetch spec
-    print(f"\n📚 Fetching EIP-{eip_number} specification...")
+    print(f"\nFetching EIP-{eip_number} specification...")
     try:
         spec_data = spec_fetcher.fetch_eip_spec(eip_number)
         eip_content = spec_data.get("eip_markdown", "")
@@ -220,11 +199,11 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
         if spec_data.get("consensus_spec"):
             print(f"   ✓ Consensus spec: {len(spec_data['consensus_spec'])} characters")
     except Exception as e:
-        print(f"   ❌ Error fetching spec: {e}")
+        print(f"   Error fetching spec: {e}")
         return
 
     # Fetch client implementation
-    print(f"\n💻 Fetching {client} implementation...")
+    print(f"\nFetching {client} implementation...")
     try:
         code_files = code_fetcher.fetch_eip_implementation(client, eip_number)
         print(f"   ✓ Found {len(code_files)} implementation files:")
@@ -232,21 +211,21 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
             lines = len(content.split("\n"))
             print(f"      - {path} ({lines} lines)")
     except Exception as e:
-        print(f"   ❌ Error fetching code: {e}")
+        print(f"   Error fetching code: {e}")
         code_files = {}
 
     # Fall back to sample code when live fetch fails
     if not code_files:
         if eip_number in SAMPLE_CODE:
-            print("\n📝 Using sample code for demonstration...")
+            print("\nUsing sample code for demonstration...")
             code_files = SAMPLE_CODE[eip_number]
         else:
-            print("   ❌ No sample code available for this EIP. Exiting.")
+            print("   No sample code available for this EIP. Exiting.")
             return
 
     # Parse the code
     language = code_fetcher.client_language(client)
-    print("\n🔍 Parsing implementation code...")
+    print("\nParsing implementation code...")
     for path, content in code_files.items():
         blocks = parser.find_eip_functions(content, language, eip_number)
         print(f"   ✓ {path}: Found {len(blocks)} EIP-{eip_number} related functions")
@@ -254,7 +233,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
             print(f"      - {block.name} (lines {block.start_line}-{block.end_line})")
 
     # Run analysis
-    print("\n🤖 Running Gemini analysis...")
+    print("\nRunning Gemini analysis...")
     print("   This may take a moment...")
 
     results = []
@@ -283,26 +262,25 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
             result_dict["file_name"] = file_path
             results.append(result_dict)
 
-            status_emoji = {
-                "FULL_MATCH": "✅",
-                "PARTIAL_MATCH": "⚠️",
-                "MISSING": "❌",
-                "UNCERTAIN": "❓",
-                "ERROR": "💥",
-            }.get(result.status, "❓")
+            status_marker = {
+                "FULL_MATCH": "[OK]",
+                "PARTIAL_MATCH": "[!!]",
+                "MISSING": "[MISS]",
+                "UNCERTAIN": "[??]",
+                "ERROR": "[ERR]",
+            }.get(result.status, "[??]")
 
-            print(f"   {status_emoji} Status: {result.status}")
-            print(f"   📊 Confidence: {result.confidence}%")
-            print(f"   📝 Summary: {result.summary[:100]}...")
+            print(f"   {status_marker} Status: {result.status}")
+            print(f"   Confidence: {result.confidence}%")
+            print(f"   Summary: {result.summary[:100]}...")
             if result.issues:
-                print(f"   ⚠️  Issues found: {len(result.issues)}")
+                print(f"   Issues found: {len(result.issues)}")
                 for issue in result.issues[:3]:
                     sev = issue.get("severity", "")
-                    emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(sev, "⚪")
-                    print(f"      {emoji} [{sev}] {issue.get('type', 'Issue')}")
+                    print(f"      [{sev}] {issue.get('type', 'Issue')}")
 
         except Exception as e:
-            print(f"   ❌ Analysis error: {e}")
+            print(f"   Analysis error: {e}")
             results.append({
                 "file_name": file_path,
                 "status": "ERROR",
@@ -312,42 +290,38 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
             })
 
     # Generate report
-    print("\n📊 Generating report...")
+    print("\nGenerating report...")
 
     report_gen = ReportGenerator(config.output_config.get("directory", "output"))
     metadata = ReportMetadata(
-        title=f"EIP-{eip_number} Compliance Report — {client}",
+        title=f"EIP-{eip_number} Compliance Report -- {client}",
         eip_number=eip_number,
         client=client,
         timestamp=datetime.now(),
         analyzer=f"Gemini ({analyzer.get_model_info()['model']})",
-        author="Safi El-Hassanine",
     )
 
     for fmt in ["json", "markdown", "html"]:
         try:
             report_path = report_gen.generate_report(results, metadata, fmt)
-            print(f"   ✓ {fmt.upper()} report: {report_path}")
+            print(f"   {fmt.upper()}: {report_path}")
         except Exception as e:
-            print(f"   ❌ Error generating {fmt} report: {e}")
+            print(f"   Error generating {fmt} report: {e}")
 
     if use_rich and results:
         console.print("\n")
         report_gen.print_summary(results, metadata)
 
-    print("\n" + "=" * 70)
-    print("🎉 Demo completed!")
-    print("=" * 70)
-    print(f"\nNext steps:")
-    print(f"  1. Check the 'output' directory for generated reports")
-    print(f"  2. Run 'python -m src.cli analyze --eip {eip_number} --help' for CLI options")
-    print(f"  3. Try another EIP: python run_demo.py --eip 4844")
+    print("\n" + "=" * 60)
+    print("Done.")
+    print("=" * 60)
+    print(f"\nReports are in the 'output' directory.")
     print()
 
 
 def quick_test():
-    """Quick test of Gemini API connection"""
-    print("🔬 Quick API Test")
+    """Quick connectivity check for Gemini API."""
+    print("API connectivity test")
     print("-" * 40)
     
     from dotenv import load_dotenv
@@ -355,22 +329,22 @@ def quick_test():
     
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ GEMINI_API_KEY not set")
+        print("GEMINI_API_KEY not set")
         return False
     
     try:
         import google.generativeai as genai
         genai.configure(api_key=api_key)
         
-        model = genai.GenerativeModel("gemini-2.5-pro-preview-06-05")
+        model = genai.GenerativeModel("gemini-2.5-pro")
         response = model.generate_content("Say 'PRSpec is ready!' in exactly those words.")
         
-        print(f"✅ Gemini API connected successfully")
+        print(f"OK — Gemini API connected")
         print(f"   Response: {response.text.strip()}")
         return True
         
     except Exception as e:
-        print(f"❌ API Error: {e}")
+        print(f"API Error: {e}")
         return False
 
 

@@ -1,10 +1,4 @@
-"""
-Specification Fetcher for PRSpec
-Author: Safi El-Hassanine
-
-Fetches Ethereum specifications from official sources.
-Supports multiple EIPs with dynamic routing and execution spec resolution.
-"""
+"""Fetches Ethereum EIP specs, execution specs, and consensus specs from GitHub."""
 
 import requests
 from typing import Dict, Optional, List
@@ -15,12 +9,7 @@ import os
 class SpecFetcher:
     """Fetches Ethereum specifications from GitHub and other sources"""
     
-    # Registry of supported EIPs with metadata and execution spec paths.
-    # Each entry contains:
-    #   - title: human-readable title
-    #   - fork: the Ethereum fork that introduced this EIP
-    #   - execution_spec_paths: ordered list of paths to try in execution-specs repo
-    #   - consensus_spec_paths: (optional) paths in consensus-specs repo
+    # Supported EIPs: title, fork, and where to find their specs.
     EIP_REGISTRY = {
         1559: {
             "title": "EIP-1559: Fee market change for ETH 1.0 chain",
@@ -83,13 +72,7 @@ class SpecFetcher:
     }
     
     def __init__(self, github_token: Optional[str] = None, cache_dir: Optional[str] = None):
-        """
-        Initialize the spec fetcher.
-        
-        Args:
-            github_token: Optional GitHub token for higher rate limits
-            cache_dir: Directory to cache fetched specs
-        """
+        """Set up HTTP session and local cache directory."""
         self.github_token = github_token
         self.cache_dir = Path(cache_dir) if cache_dir else Path.cwd() / ".spec_cache"
         self.session = requests.Session()
@@ -100,9 +83,7 @@ class SpecFetcher:
         # Create cache directory
         self.cache_dir.mkdir(parents=True, exist_ok=True)
     
-    # ------------------------------------------------------------------
-    # Supported EIP helpers
-    # ------------------------------------------------------------------
+    # ---- Supported EIP helpers ----
     
     @classmethod
     def supported_eips(cls) -> List[int]:
@@ -117,24 +98,10 @@ class SpecFetcher:
             return info["title"]
         return f"EIP-{eip_number}"
     
-    # ------------------------------------------------------------------
-    # Core fetchers
-    # ------------------------------------------------------------------
+    # ---- Core fetchers ----
     
     def fetch_eip(self, eip_number: int, use_cache: bool = True) -> str:
-        """
-        Fetch an EIP specification document.
-        
-        Works for *any* EIP number — registered or not — since the URL
-        pattern is predictable.
-        
-        Args:
-            eip_number: The EIP number (e.g., 1559, 4844)
-            use_cache: Whether to use cached version if available
-            
-        Returns:
-            The EIP specification text
-        """
+        """Fetch the raw EIP markdown. Works for any EIP number."""
         cache_file = self.cache_dir / f"eip-{eip_number}.md"
         
         # Check cache
@@ -155,17 +122,7 @@ class SpecFetcher:
     
     def fetch_execution_spec(self, file_path: str, branch: str = "master", 
                              use_cache: bool = True) -> str:
-        """
-        Fetch Python execution specification from ethereum/execution-specs.
-        
-        Args:
-            file_path: Path to file within the execution-specs repo
-            branch: Git branch to fetch from
-            use_cache: Whether to use cached version
-            
-        Returns:
-            The specification source code
-        """
+        """Fetch a Python file from ethereum/execution-specs."""
         cache_file = self.cache_dir / f"exec_spec_{file_path.replace('/', '_')}"
         
         if use_cache and cache_file.exists():
@@ -182,17 +139,7 @@ class SpecFetcher:
     
     def fetch_consensus_spec(self, file_path: str, branch: str = "dev",
                              use_cache: bool = True) -> str:
-        """
-        Fetch a file from ethereum/consensus-specs.
-        
-        Args:
-            file_path: Path to file within the consensus-specs repo
-            branch: Git branch to fetch from
-            use_cache: Whether to use cached version
-            
-        Returns:
-            The specification text
-        """
+        """Fetch a file from ethereum/consensus-specs."""
         cache_file = self.cache_dir / f"consensus_spec_{file_path.replace('/', '_')}"
         
         if use_cache and cache_file.exists():
@@ -207,28 +154,10 @@ class SpecFetcher:
         
         return content
     
-    # ------------------------------------------------------------------
-    # Generic EIP spec fetcher (replaces per-EIP methods)
-    # ------------------------------------------------------------------
+    # ---- Generic EIP spec fetcher ----
     
     def fetch_eip_spec(self, eip_number: int) -> Dict[str, str]:
-        """
-        Fetch complete specification materials for any supported EIP.
-        
-        For registered EIPs this includes the EIP markdown *and* any
-        execution / consensus spec files listed in EIP_REGISTRY.
-        For unregistered EIPs it falls back to the EIP markdown only.
-        
-        Args:
-            eip_number: The EIP number
-            
-        Returns:
-            Dictionary with keys:
-                - eip_markdown: the raw EIP text
-                - execution_spec: combined execution spec code (or None)
-                - consensus_spec: combined consensus spec text (or None)
-                - title: human-readable title
-        """
+        """Fetch EIP markdown + any execution/consensus specs for this EIP."""
         info = self.EIP_REGISTRY.get(eip_number, {})
         title = info.get("title", f"EIP-{eip_number}")
         
@@ -259,42 +188,20 @@ class SpecFetcher:
         
         return result
     
-    # ------------------------------------------------------------------
-    # Legacy per-EIP convenience methods (delegate to generic fetcher)
-    # ------------------------------------------------------------------
+    # ---- Legacy convenience methods ----
     
     def fetch_eip1559_spec(self) -> Dict[str, str]:
-        """
-        Fetch complete EIP-1559 specification materials.
-        
-        Returns:
-            Dictionary with EIP markdown and execution spec code
-        """
+        """Shortcut for fetch_eip_spec(1559)."""
         return self.fetch_eip_spec(1559)
     
     def fetch_eip4844_spec(self) -> Dict[str, str]:
-        """
-        Fetch complete EIP-4844 (Shard Blob Transactions) specification materials.
-        
-        Returns:
-            Dictionary with EIP markdown, execution spec, and consensus spec
-        """
+        """Shortcut for fetch_eip_spec(4844)."""
         return self.fetch_eip_spec(4844)
     
-    # ------------------------------------------------------------------
-    # Section extraction helpers
-    # ------------------------------------------------------------------
+    # ---- Section extraction ----
     
     def extract_eip_sections(self, eip_content: str) -> Dict[str, str]:
-        """
-        Extract sections from an EIP markdown document.
-        
-        Args:
-            eip_content: Raw EIP markdown content
-            
-        Returns:
-            Dictionary mapping section names to content
-        """
+        """Split an EIP markdown into its ## sections."""
         sections = {}
         current_section = "header"
         current_content: List[str] = []
@@ -318,18 +225,7 @@ class SpecFetcher:
         return sections
     
     def get_eip_specification_section(self, eip_number: int) -> str:
-        """
-        Extract the 'Specification' section from any EIP.
-        
-        Falls back to the first 10 000 characters of the full EIP text
-        if no explicit specification section is found.
-        
-        Args:
-            eip_number: The EIP number
-            
-        Returns:
-            The specification text
-        """
+        """Return just the Specification section, or the first 10k chars as fallback."""
         eip_content = self.fetch_eip(eip_number)
         sections = self.extract_eip_sections(eip_content)
         return sections.get("specification", eip_content[:10000])
@@ -362,9 +258,7 @@ class SpecFetcher:
         
         return '\n'.join(base_fee_spec) if base_fee_spec else spec_section
     
-    # ------------------------------------------------------------------
-    # Cache management
-    # ------------------------------------------------------------------
+    # ---- Cache management ----
     
     def clear_cache(self):
         """Clear the specification cache"""

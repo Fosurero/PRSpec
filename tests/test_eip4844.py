@@ -1,9 +1,4 @@
-"""
-Tests for EIP-4844 (Shard Blob Transactions) Support
-Author: Safi El-Hassanine
-
-Unit tests for the multi-EIP pipeline with a focus on EIP-4844.
-"""
+"""Tests for EIP-4844 (blob transactions) support."""
 
 import unittest
 import os
@@ -23,10 +18,6 @@ from src.parser import CodeParser, CodeBlock
 from src.analyzer import GeminiAnalyzer, AnalysisResult, BaseAnalyzer
 from src.config import Config
 
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 SAMPLE_BLOB_TX_GO = """
 package types
@@ -83,10 +74,6 @@ func CalcExcessBlobGas(parent *Header) uint64 {
 }
 """
 
-
-# ---------------------------------------------------------------------------
-# SpecFetcher tests
-# ---------------------------------------------------------------------------
 
 class TestSpecFetcherEIP4844(unittest.TestCase):
     """Tests for SpecFetcher EIP-4844 support."""
@@ -148,10 +135,6 @@ class TestSpecFetcherEIP4844(unittest.TestCase):
             self.assertIn("eip_markdown", result)
 
 
-# ---------------------------------------------------------------------------
-# CodeFetcher tests
-# ---------------------------------------------------------------------------
-
 class TestCodeFetcherEIP4844(unittest.TestCase):
     """Tests for CodeFetcher EIP-4844 support."""
 
@@ -205,10 +188,6 @@ class TestCodeFetcherEIP4844(unittest.TestCase):
             fetcher.fetch_eip_implementation("nonexistent-client", 4844)
 
 
-# ---------------------------------------------------------------------------
-# Parser tests
-# ---------------------------------------------------------------------------
-
 class TestParserEIP4844(unittest.TestCase):
     """Tests for CodeParser EIP-4844 keyword matching."""
 
@@ -250,10 +229,6 @@ func CalcBaseFee(parent *Header) *big.Int {
         self.assertIn("CalcBaseFee", names)
 
 
-# ---------------------------------------------------------------------------
-# Analyzer context tests
-# ---------------------------------------------------------------------------
-
 class _ConcreteAnalyzer(BaseAnalyzer):
     """Minimal concrete subclass so we can test _build_analysis_prompt
     without needing a real Gemini/OpenAI connection."""
@@ -294,10 +269,6 @@ class TestAnalyzerEIP4844Context(unittest.TestCase):
         self.assertGreater(len(prompt), 0)
 
 
-# ---------------------------------------------------------------------------
-# Config tests
-# ---------------------------------------------------------------------------
-
 class TestConfigEIP4844(unittest.TestCase):
     """Tests for per-EIP focus areas in Config."""
 
@@ -315,10 +286,6 @@ class TestConfigEIP4844(unittest.TestCase):
         areas = config.get_eip_focus_areas(99999)
         self.assertIsInstance(areas, list)
 
-
-# ---------------------------------------------------------------------------
-# Integration test
-# ---------------------------------------------------------------------------
 
 class TestEIP4844Integration(unittest.TestCase):
     """Integration test for the full EIP-4844 pipeline (requires API key)."""

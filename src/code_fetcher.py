@@ -1,10 +1,4 @@
-"""
-Code Fetcher for PRSpec
-Author: Safi El-Hassanine
-
-Fetches implementation code from Ethereum client repositories.
-Supports multiple EIPs and multiple clients with per-EIP file registries.
-"""
+"""Fetches implementation files from Ethereum client repos (geth, prysm, etc.)."""
 
 import requests
 from typing import Dict, Optional, List, Any
@@ -22,11 +16,7 @@ except ImportError:
 class CodeFetcher:
     """Fetches code from Ethereum client implementations"""
     
-    # Known Ethereum client repositories with per-EIP file paths.
-    # Each client entry contains:
-    #   - url: GitHub repository URL
-    #   - language: primary implementation language
-    #   - eip_files: mapping of EIP number → list of relevant file paths
+    # Client repos and per-EIP file paths.
     CLIENTS: Dict[str, Dict[str, Any]] = {
         "go-ethereum": {
             "url": "https://github.com/ethereum/go-ethereum",
@@ -81,13 +71,7 @@ class CodeFetcher:
     }
     
     def __init__(self, github_token: Optional[str] = None, cache_dir: Optional[str] = None):
-        """
-        Initialize the code fetcher.
-        
-        Args:
-            github_token: Optional GitHub token for API access
-            cache_dir: Directory to cache fetched code
-        """
+        """Set up HTTP session and local cache directory."""
         self.github_token = github_token
         self.cache_dir = Path(cache_dir) if cache_dir else Path.cwd() / ".code_cache"
         self.session = requests.Session()
@@ -98,9 +82,7 @@ class CodeFetcher:
         
         self.cache_dir.mkdir(parents=True, exist_ok=True)
     
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
+    # ---- Helpers ----
     
     @classmethod
     def supported_clients(cls) -> List[str]:
@@ -123,25 +105,11 @@ class CodeFetcher:
             raise ValueError(f"Unknown client: {client}")
         return sorted(info.get("eip_files", {}).keys())
     
-    # ------------------------------------------------------------------
-    # Core fetchers
-    # ------------------------------------------------------------------
+    # ---- Core fetchers ----
     
     def fetch_file(self, owner: str, repo: str, path: str, 
                    branch: str = "master", use_cache: bool = True) -> str:
-        """
-        Fetch a single file from a GitHub repository.
-        
-        Args:
-            owner: Repository owner
-            repo: Repository name
-            path: File path within the repository
-            branch: Branch to fetch from
-            use_cache: Whether to use cached version
-            
-        Returns:
-            File contents as string
-        """
+        """Fetch a single file from a GitHub repo via raw URL."""
         cache_key = f"{owner}_{repo}_{path.replace('/', '_')}_{branch}"
         cache_file = self.cache_dir / cache_key
         
@@ -160,38 +128,13 @@ class CodeFetcher:
     
     def fetch_geth_file(self, path: str, branch: str = "master", 
                         use_cache: bool = True) -> str:
-        """
-        Fetch a file from go-ethereum repository.
-        
-        Args:
-            path: File path within the go-ethereum repo
-            branch: Branch to fetch from
-            use_cache: Whether to use cached version
-            
-        Returns:
-            File contents
-        """
+        """Shortcut for fetching from go-ethereum."""
         return self.fetch_file("ethereum", "go-ethereum", path, branch, use_cache)
     
-    # ------------------------------------------------------------------
-    # Generic EIP implementation fetcher
-    # ------------------------------------------------------------------
+    # ---- Generic EIP implementation fetcher ----
     
     def fetch_eip_implementation(self, client: str, eip_number: int) -> Dict[str, str]:
-        """
-        Fetch implementation files for any registered EIP / client combo.
-        
-        Args:
-            client: Client name (e.g., "go-ethereum")
-            eip_number: EIP number (e.g., 4844)
-            
-        Returns:
-            Dictionary mapping file paths to their contents.
-            Files that fail to fetch are included with an error comment.
-            
-        Raises:
-            ValueError: if the client is unknown or has no files for the EIP
-        """
+        """Fetch all registered implementation files for an EIP/client pair."""
         if client not in self.CLIENTS:
             raise ValueError(
                 f"Unknown client: {client}. "
@@ -223,70 +166,29 @@ class CodeFetcher:
         
         return files
     
-    # ------------------------------------------------------------------
-    # Legacy per-EIP convenience methods (delegate to generic fetcher)
-    # ------------------------------------------------------------------
+    # ---- Legacy convenience methods ----
     
     def fetch_eip1559_implementation(self, client: str = "go-ethereum") -> Dict[str, str]:
-        """
-        Fetch EIP-1559 implementation files from a client.
-        
-        Args:
-            client: Client name (e.g., "go-ethereum")
-            
-        Returns:
-            Dictionary mapping file paths to their contents
-        """
+        """Shortcut for fetch_eip_implementation(client, 1559)."""
         return self.fetch_eip_implementation(client, 1559)
     
     def fetch_eip4844_implementation(self, client: str = "go-ethereum") -> Dict[str, str]:
-        """
-        Fetch EIP-4844 (blob transaction) implementation files from a client.
-        
-        Args:
-            client: Client name (e.g., "go-ethereum")
-            
-        Returns:
-            Dictionary mapping file paths to their contents
-        """
+        """Shortcut for fetch_eip_implementation(client, 4844)."""
         return self.fetch_eip_implementation(client, 4844)
     
     def fetch_geth_eip1559(self) -> Dict[str, str]:
-        """
-        Fetch all EIP-1559 related files from go-ethereum.
-        
-        Returns:
-            Dictionary mapping file paths to contents
-        """
+        """Fetch EIP-1559 files from go-ethereum."""
         return self.fetch_eip_implementation("go-ethereum", 1559)
     
     def fetch_geth_eip4844(self) -> Dict[str, str]:
-        """
-        Fetch all EIP-4844 related files from go-ethereum.
-        
-        Returns:
-            Dictionary mapping file paths to contents
-        """
+        """Fetch EIP-4844 files from go-ethereum."""
         return self.fetch_eip_implementation("go-ethereum", 4844)
     
-    # ------------------------------------------------------------------
-    # Search & clone helpers
-    # ------------------------------------------------------------------
+    # ---- Search & clone ----
     
     def search_repository(self, owner: str, repo: str, query: str, 
                           language: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Search for code within a repository using GitHub API.
-        
-        Args:
-            owner: Repository owner
-            repo: Repository name
-            query: Search query
-            language: Optional language filter
-            
-        Returns:
-            List of search results
-        """
+        """Search for code in a GitHub repo via the search API."""
         search_query = f"{query} repo:{owner}/{repo}"
         if language:
             search_query += f" language:{language}"
@@ -301,18 +203,7 @@ class CodeFetcher:
     
     def clone_repository(self, url: str, target_dir: Optional[str] = None,
                          branch: str = "master", shallow: bool = True) -> str:
-        """
-        Clone a repository locally for deeper analysis.
-        
-        Args:
-            url: Repository URL
-            target_dir: Target directory (uses temp if not specified)
-            branch: Branch to clone
-            shallow: Whether to do a shallow clone
-            
-        Returns:
-            Path to cloned repository
-        """
+        """Clone a repo locally for deeper analysis. Requires gitpython."""
         if not GIT_AVAILABLE:
             raise RuntimeError("GitPython not installed. Install with: pip install gitpython")
         
@@ -328,17 +219,7 @@ class CodeFetcher:
         return target_dir
     
     def get_file_functions(self, content: str, language: str = "go") -> List[Dict[str, Any]]:
-        """
-        Extract function signatures from file content.
-        Simple regex-based extraction (parser.py has full implementation).
-        
-        Args:
-            content: File content
-            language: Programming language
-            
-        Returns:
-            List of function info dictionaries
-        """
+        """Quick regex-based function extraction (parser.py has the full version)."""
         import re
         
         functions: List[Dict[str, Any]] = []
@@ -365,9 +246,7 @@ class CodeFetcher:
         
         return functions
     
-    # ------------------------------------------------------------------
-    # Cache management
-    # ------------------------------------------------------------------
+    # ---- Cache management ----
     
     def clear_cache(self):
         """Clear the code cache"""
