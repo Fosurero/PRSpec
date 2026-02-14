@@ -29,6 +29,10 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 ### Detailed Findings
 <img src="docs/report-details.svg" alt="PRSpec detailed issue findings" width="100%">
 
+---
+
+### Terminal Recording
+[![asciicast](https://asciinema.org/a/FSqTk0tKOx8TFiQu.svg)](https://asciinema.org/a/FSqTk0tKOx8TFiQu)
 
 ---
 
