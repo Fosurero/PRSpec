@@ -11,13 +11,21 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 
 ---
 
-## Demo
+## Screenshots
 
-### Video
+### CLI Analysis
+<img src="docs/cli-analysis.svg" alt="PRSpec CLI running EIP-1559 analysis" width="100%">
+
+### Report Overview
+<img src="docs/report-overview.svg" alt="PRSpec compliance report overview" width="100%">
+
+### Detailed Findings
+<img src="docs/report-details.svg" alt="PRSpec detailed issue findings" width="100%">
+
+---
+
+## Demo Video
 [![PRSpec Demo](https://img.youtube.com/vi/v7UtBAxigKc/0.jpg)](https://www.youtube.com/watch?v=v7UtBAxigKc)
-
-### Screenshot
-![PRSpec Analysis Results](docs/demo-result.png)
 
 ---
 
