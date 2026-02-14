@@ -1,8 +1,8 @@
 <h1>PRSpec: Continuous Specification Compliance for Ethereum Clients</h1>
 <p><strong>Applicant:</strong> Safi El-Hassanine<br>
 <strong>Project:</strong> PRSpec — Automated EIP Specification Compliance Checker<br>
-<strong>Requested Funding:</strong> $35,000<br>
-<strong>Note:</strong> The requested grant can be reduced, or payments can be deferred until after each milestone is delivered, as proof of credibility, execution quality, and alignment with Ethereum's vision.<br>
+<strong>Requested Funding:</strong> $15,000 (Phase 3 initial milestone) — with Phase 4 ($20,000) contingent on successful Phase 3 delivery<br>
+<strong>Note:</strong> I have intentionally structured this as a milestone-based request. Phase 3 can be funded independently, and Phase 4 funding is only requested after Phase 3 deliverables are verified. This reduces risk for ESP and demonstrates my confidence in execution — Phases 1–2 were completed entirely without funding.<br>
 <strong>Duration:</strong> 6 months<br>
 <strong>RFP Reference:</strong> Ethereum Foundation ESP — Integrating LLMs into Ethereum Protocol Security Research</p>
 
@@ -193,15 +193,29 @@
 
 <h2 id="7-budget-breakdown">7. Budget Breakdown</h2>
 
-<p><strong>Total Requested: $35,000</strong></p>
+<h3>Milestone 1 — Phase 3: Cross-Client Intelligence ($15,000)</h3>
+<p>This is the initial funding request. Phase 3 is a self-contained deliverable.</p>
 
 <table>
 <tr><th>Category</th><th>Amount</th><th>Details</th></tr>
-<tr><td>Development</td><td>$25,000</td><td>Full-time engineering: cross-client differential engine, GitHub Action, PR-level analysis, dashboard</td></tr>
-<tr><td>Infrastructure</td><td>$5,000</td><td>LLM API costs (Gemini/GPT), testing infrastructure, GitHub Actions compute, CI runners</td></tr>
-<tr><td>Security Audit</td><td>$3,000</td><td>Third-party review of GitHub Action permissions and data handling</td></tr>
-<tr><td>Documentation &amp; Community</td><td>$2,000</td><td>Technical writing, example configurations, onboarding materials for client teams</td></tr>
+<tr><td>Development</td><td>$11,000</td><td>Cross-client differential engine, Pectra/Fusaka EIP coverage, Prysm + Lighthouse support</td></tr>
+<tr><td>Infrastructure</td><td>$2,500</td><td>LLM API costs (Gemini/GPT) for testing and analysis across all clients</td></tr>
+<tr><td>Documentation</td><td>$1,500</td><td>Technical writing, cross-client report examples, onboarding materials</td></tr>
 </table>
+
+<h3>Milestone 2 — Phase 4: Production &amp; CI Integration ($20,000)</h3>
+<p>Requested only after Phase 3 deliverables are verified and accepted.</p>
+
+<table>
+<tr><th>Category</th><th>Amount</th><th>Details</th></tr>
+<tr><td>Development</td><td>$14,000</td><td>GitHub Action, PR-level analysis, security dashboard, Ollama local LLM</td></tr>
+<tr><td>Infrastructure</td><td>$2,500</td><td>CI runners, GitHub Actions compute, hosting for dashboard</td></tr>
+<tr><td>Security Audit</td><td>$2,000</td><td>Third-party review of GitHub Action permissions and data handling</td></tr>
+<tr><td>Community &amp; Pilots</td><td>$1,500</td><td>Onboarding materials, pilot coordination with 2+ client teams</td></tr>
+</table>
+
+<p><strong>Total across both milestones: $35,000</strong><br>
+<strong>Initial request: $15,000</strong> — ESP bears no risk on Phase 4 until Phase 3 is proven.</p>
 
 <h2 id="8-team-qualifications">8. Team Qualifications</h2>
 
