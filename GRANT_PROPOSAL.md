@@ -1,7 +1,8 @@
 <h1>PRSpec: Continuous Specification Intelligence</h1>
 <p><strong>Applicant:</strong> Safi El-Hassanine<br>
 <strong>Project:</strong> PRSpec - Continuous Specification Intelligence<br>
-<strong>Requested Funding:</strong> $35,000<br>
+<strong>Requested Funding:</strong> $35,000 <br>
+<strong>Important Note: </strong>The requested grant can be reduced, or payments can be deferred until after each milestone is delivered, as proof of credibility, execution quality, and alignment with Ethereum’s vision and community service.<br>
 <strong>Duration:</strong> 6 months<br>
 <strong>RFP Reference:</strong> Ethereum Foundation ESP - Integrating LLMs into Ethereum Protocol Security Research</p>
 <h2>Table of Contents</h2>
