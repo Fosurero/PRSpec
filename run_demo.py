@@ -181,7 +181,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     gemini_config = config.gemini_config
     analyzer = GeminiAnalyzer(
         api_key=api_key,
-        model=gemini_config.get("model", "gemini-2.5-flash"),
+        model=gemini_config.get("model", "gemini-2.5-pro"),
         max_output_tokens=gemini_config.get("max_output_tokens", 65536),
         temperature=gemini_config.get("temperature", 0.1),
     )
@@ -233,8 +233,9 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
             print(f"      - {block.name} (lines {block.start_line}-{block.end_line})")
 
     # Run analysis
-    print("\nRunning Gemini analysis...")
-    print("   This may take a moment...")
+    n_files = len(code_files)
+    est = f"{n_files}-{n_files * 2} min" if n_files > 1 else "~1 min"
+    print(f"\nRunning Gemini analysis on {n_files} files (est. {est})...")
 
     results = []
 
@@ -337,7 +338,7 @@ def quick_test():
         client = genai_client.Client(api_key=api_key)
         
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-pro",
             contents="Say 'PRSpec is ready!' in exactly those words.",
         )
         

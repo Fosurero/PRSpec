@@ -82,7 +82,7 @@ llm:
   provider: gemini
 
   gemini:
-    model: gemini-2.5-flash
+    model: gemini-2.5-pro
     max_output_tokens: 8192
     temperature: 0.1
 

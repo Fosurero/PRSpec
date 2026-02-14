@@ -108,6 +108,10 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             click.echo(f"PRSpec Analysis")
             click.echo(f"EIP: {eip}, Client: {client}, Provider: {llm_provider}")
         
+        # Get file count for time estimate
+        n_files = len(CodeFetcher.CLIENTS.get(client, {}).get("eip_files", {}).get(eip, []))
+        est = f"~{n_files}-{n_files * 2} min" if n_files > 1 else "~1-2 min"
+
         if RICH_AVAILABLE:
             with Progress(
                 SpinnerColumn(),
@@ -115,12 +119,13 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
                 console=console,
             ) as progress:
                 task = progress.add_task(
-                    f"Analyzing EIP-{eip} compliance in {client}...", total=None
+                    f"Analyzing EIP-{eip} in {client} — {n_files} files, {est}...", total=None
                 )
                 results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
                 progress.update(task, completed=True)
         else:
             click.echo(f"Analyzing EIP-{eip} compliance in {client}...")
+            click.echo(f"  ({n_files} files, {est} — please wait)")
             results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
         
         # Generate report
