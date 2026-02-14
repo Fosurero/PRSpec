@@ -25,7 +25,7 @@ class ReportMetadata:
     client: str
     timestamp: datetime
     analyzer: str
-    version: str = "1.3.0"
+    version: str = "1.4.0"
 
 
 class ReportGenerator:
