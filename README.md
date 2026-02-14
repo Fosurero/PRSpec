@@ -204,7 +204,6 @@ for issue in result.issues:
 ### v1.3.0 (2026-02-14)
 - Parallel analysis — all files analyzed concurrently via thread pool, ~3x faster on multi-file EIPs
 - Expanded file coverage: EIP-1559 and EIP-4844 now analyze 5 files each (added `state_transition.go`, `protocol_params.go`, `legacypool.go`)
-- Restored ASCII art banner in CLI and demo
 - Beautified CLI: progress bar with file counter, styled config panel
 - Migrated to `google-genai` SDK (replaces deprecated `google-generativeai`)
 - Executive summary paragraph at the top of every report
