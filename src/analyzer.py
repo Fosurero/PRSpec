@@ -1,11 +1,4 @@
-"""
-LLM Analyzer for PRSpec
-Author: Safi El-Hassanine
-
-Analyzes specification compliance using LLM (Google Gemini or OpenAI GPT-4).
-Primary: Google Gemini 1.5 Pro (supports up to 2M tokens!)
-Alternative: OpenAI GPT-4
-"""
+"""LLM-based spec compliance analysis (Gemini and OpenAI backends)."""
 
 import json
 import re
@@ -163,27 +156,12 @@ Important: If the code correctly implements the spec, return status "FULL_MATCH"
 
 
 class GeminiAnalyzer(BaseAnalyzer):
-    """
-    Analyzer using Google Gemini 2.5 Pro
-    
-    Advantages:
-    - Up to 1 million token context window (huge!)
-    - Can analyze entire files or multiple files at once
-    - Better for long code + spec comparison
-    - More cost-effective than GPT-4
-    """
+    """Gemini-backed analyzer. Uses the large context window to compare
+    full spec text against full source files in a single request."""
     
     def __init__(self, api_key: str, model: str = "gemini-2.5-pro",
                  max_output_tokens: int = 8192, temperature: float = 0.1):
-        """
-        Initialize Gemini analyzer.
-        
-        Args:
-            api_key: Google API key from https://makersuite.google.com/app/apikey
-            model: Gemini model to use
-            max_output_tokens: Maximum tokens in response
-            temperature: Temperature for generation (0.0-1.0)
-        """
+        """Configure the Gemini model and generation params."""
         try:
             import google.generativeai as genai
             self.genai = genai
@@ -198,17 +176,7 @@ class GeminiAnalyzer(BaseAnalyzer):
     
     def analyze_compliance(self, spec_text: str, code_text: str, 
                           context: dict) -> AnalysisResult:
-        """
-        Analyze code compliance with specification using Gemini.
-        
-        Args:
-            spec_text: The specification text
-            code_text: The implementation code
-            context: Additional context (file_name, function_name, etc.)
-            
-        Returns:
-            AnalysisResult with findings
-        """
+        """Send spec + code to Gemini and parse the structured JSON response."""
         prompt = self._build_analysis_prompt(spec_text, code_text, context)
         
         try:
@@ -240,18 +208,7 @@ class GeminiAnalyzer(BaseAnalyzer):
     
     def analyze_multiple_files(self, spec_text: str, code_files: Dict[str, str],
                                context: dict) -> AnalysisResult:
-        """
-        Analyze multiple code files against a specification.
-        Gemini's large context window makes this feasible.
-        
-        Args:
-            spec_text: The specification text
-            code_files: Dictionary mapping file paths to code content
-            context: Additional context
-            
-        Returns:
-            AnalysisResult with findings across all files
-        """
+        """Concatenate multiple files and analyze in one shot."""
         # Build combined code section
         code_sections = []
         for file_path, code in code_files.items():
@@ -273,25 +230,11 @@ class GeminiAnalyzer(BaseAnalyzer):
 
 
 class OpenAIAnalyzer(BaseAnalyzer):
-    """
-    Analyzer using OpenAI GPT-4
-    
-    Alternative to Gemini, useful when:
-    - You need GPT-4's specific reasoning patterns
-    - Gemini API is unavailable
-    """
+    """GPT-4 backed analyzer, alternative to Gemini."""
     
     def __init__(self, api_key: str, model: str = "gpt-4-turbo-preview",
                  max_tokens: int = 4096, temperature: float = 0.1):
-        """
-        Initialize OpenAI analyzer.
-        
-        Args:
-            api_key: OpenAI API key
-            model: Model to use (gpt-4, gpt-4-turbo-preview, etc.)
-            max_tokens: Maximum tokens in response
-            temperature: Temperature for generation
-        """
+        """Configure the OpenAI client."""
         try:
             from openai import OpenAI
             self.client = OpenAI(api_key=api_key)
@@ -304,17 +247,7 @@ class OpenAIAnalyzer(BaseAnalyzer):
     
     def analyze_compliance(self, spec_text: str, code_text: str, 
                           context: dict) -> AnalysisResult:
-        """
-        Analyze code compliance with specification using OpenAI.
-        
-        Args:
-            spec_text: The specification text
-            code_text: The implementation code
-            context: Additional context
-            
-        Returns:
-            AnalysisResult with findings
-        """
+        """Send spec + code to OpenAI and parse the JSON response."""
         prompt = self._build_analysis_prompt(spec_text, code_text, context)
         
         try:
@@ -365,16 +298,7 @@ class OpenAIAnalyzer(BaseAnalyzer):
 
 
 def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
-    """
-    Factory function to get the appropriate analyzer.
-    
-    Args:
-        provider: "gemini" or "openai"
-        **kwargs: Provider-specific configuration
-        
-    Returns:
-        Configured analyzer instance
-    """
+    """Factory: return a GeminiAnalyzer or OpenAIAnalyzer."""
     provider = provider.lower()
     
     if provider == "gemini":

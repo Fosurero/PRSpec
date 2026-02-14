@@ -1,10 +1,5 @@
 <h1>PRSpec: Continuous Specification Intelligence</h1>
-<p><strong>Applicant:</strong> Safi El-Hassanine, Egyptian Engineer<br>
-<p align="center">
-  <img src="https://img.shields.io/badge/ESP-Program-627EEA?logo=ethereum&logoColor=white&style=for-the-badge" alt="ESP Program"/>
-  <img src="https://img.shields.io/badge/Status-Active-green?logo=ethereum&logoColor=white&style=for-the-badge" alt="Status Active"/>
-  <img src="https://img.shields.io/badge/Grant-Application-627EEA?logo=ethereum&logoColor=white&style=for-the-badge" alt="Grant Application"/>
-</p>
+<p><strong>Applicant:</strong> Safi El-Hassanine<br>
 <strong>Project:</strong> PRSpec - Continuous Specification Intelligence<br>
 <strong>Requested Funding:</strong> $35,000<br>
 <strong>Duration:</strong> 6 months<br>
@@ -24,11 +19,11 @@
 <h2 id="1-executive-summary">1. Executive Summary</h2>
 <p>Ethereum upgrades are accelerating—Dencun, Pectra, Fusaka—yet manual specification review remains the critical bottleneck. Security researchers currently spend hundreds of hours per upgrade reconciling <strong>consensus specs</strong> and <strong>execution specs</strong> against <strong>client implementations</strong>, often catching <strong>specification drift</strong> only after testnet deployment.</p>
 <p><strong>PRSpec</strong> embeds LLM-powered compliance checks directly into CI pipelines. Unlike generic analysis tools, PRSpec understands <em>semantic intent</em>—distinguishing superficial refactoring from protocol-critical changes. It parses specifications, analyzes pull requests against canonical specs, and flags mismatches before code reaches testnet.</p>
-<p>By integrating as a native GitHub Action, PRSpec brings zero-friction specification alignment to client teams. Our goal is not to replace human security researchers, but to amplify their capacity—catching <strong>specification drift</strong> at PR time rather than during audit phases, reducing review cycles by an estimated 40%, and strengthening Ethereum's security posture as protocol complexity grows.</p>
+<p>By integrating as a native GitHub Action, PRSpec brings specification alignment to client teams with minimal setup. The goal is not to replace human security researchers, but to handle the mechanical comparison work—catching specification drift at PR time rather than during audit phases, reducing review cycles by an estimated 40%.</p>
 <h2 id="2-background--motivation">2. Background & Motivation</h2>
 <h3>Personal Motivation</h3>
 <p>As an engineer following Ethereum's development, I watched the Shanghai upgrade delays in 2023 with growing concern. Not from technical limitations, but from the sheer human coordination required to verify that five different <strong>client implementations</strong> correctly interpreted the withdrawal specifications. The <strong>consensus specs</strong> were clear to protocol researchers, yet subtle ambiguities led to weeks of cross-client reconciliation.</p>
-<p>This experience crystallized a pattern across protocol upgrades: <strong>specification drift</strong> doesn't occur from negligence, but from cognitive overload. Security researchers are Ethereum's scarcest resource; they shouldn't spend hours on mechanical spec-to-code comparison.</p>
+<p>This experience crystallized a pattern across protocol upgrades: specification drift doesn’t come from negligence, but from cognitive overload. Security researchers are Ethereum’s scarcest resource; they shouldn’t spend hours on mechanical spec-to-code comparison.</p>
 <h3>Problem Quantification</h3>
 <p>Current manual review processes require approximately:</p>
 <ul>
@@ -38,7 +33,7 @@
 </ul>
 <h3>Gap Analysis</h3>
 <p>Existing tools address critical but distinct problems. Formal verification proves mathematical correctness but requires manual specification translation. Transaction analysis monitors runtime behavior but offers only post-hoc detection. Static analysis checks code quality but lacks semantic understanding of protocol specs. Fuzzing discovers edge cases but cannot verify spec alignment.</p>
-<p><strong>PRSpec fills the critical gap:</strong> automated specification↔code alignment with semantic understanding. We don't compete with formal verification—we clear the manual bottleneck preventing researchers from focusing on formal methods.</p>
+<p><strong>PRSpec fills an unoccupied gap:</strong> automated specification↔code alignment with semantic understanding. It doesn’t compete with formal verification—it clears the manual bottleneck preventing researchers from focusing on formal methods.</p>
 <h2 id="3-technical-approach">3. Technical Approach</h2>
 <h3>Architecture Overview</h3>
 <pre><code>┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
@@ -54,7 +49,7 @@
 <p><strong>Parser Layer:</strong> Ingests <strong>consensus specs</strong> and <strong>execution specs</strong>, extracting machine-readable constraints from EIP specifications and markdown documentation.</p>
 <p><strong>Analyzer (LLM):</strong> Core semantic engine performing intent analysis, constraint mapping, and drift detection using constrained prompting with structured output schemas.</p>
 <p><strong>Reporter Layer:</strong> Native GitHub Action integration, web dashboard for security team oversight, and CLI interface for local development.</p>
-<h3>Core Innovation: Semantic Diff</h3>
+<h3>How it works: Semantic Diff</h3>
 <p>Traditional diff tools compare text; PRSpec compares <em>intent</em>. Our LLM analyzer:</p>
 <ol>
 <li>Extracts semantic constraints from specifications (e.g., "validator effective balance increments must be tracked per-epoch")</li>
@@ -82,7 +77,7 @@ jobs:
 <h3>Model Strategy</h3>
 <p>We employ a tiered approach: GPT-4/Claude 3.5 for initial constraint extraction (high accuracy, complex reasoning), local 7B models for routine diff analysis (privacy, cost efficiency), and modular design allowing model swapping without architecture changes.</p>
 <h2 id="4-deliverables">4. Deliverables</h2>
-<h3>Hard Requirements ✅</h3>
+<h3>Hard Requirements</h3>
 <table>
 <tr><th>Requirement</th><th>Deliverable</th></tr>
 <tr><td>Technical Architecture & Design</td><td>Comprehensive system architecture document with data flow diagrams</td></tr>
@@ -92,7 +87,7 @@ jobs:
 <tr><td>Documentation & Examples</td><td>Setup guides, API docs, example configurations for major clients</td></tr>
 <tr><td>Secure Data Handling</td><td>Zero data retention, optional local-only processing, audit logs</td></tr>
 </table>
-<h3>Soft Requirements ✅</h3>
+<h3>Soft Requirements</h3>
 <table>
 <tr><th>Requirement</th><th>Approach</th></tr>
 <tr><td>Modular Design</td><td>Pluggable LLM backends, swappable prompt templates, extensible spec parsers</td></tr>
@@ -145,12 +140,12 @@ jobs:
 <li>Deep familiarity with Ethereum protocol specs through independent research and client codebase contributions</li>
 <li>Experience with LLM application development (RAG systems, prompt engineering, local model deployment)</li>
 </ul>
-<p><strong>Why I'm the Right Person:</strong></p>
+<p><strong>Why I’m a good fit:</strong></p>
 <ol>
-<li><strong>Engineering + Protocol Passion:</strong> Dual fluency in code and protocol design decisions</li>
-<li><strong>User Empathy:</strong> I've experienced manual spec review pain through client discussions</li>
-<li><strong>Execution Focus:</strong> Solo-founder approach brings concentrated velocity, no coordination overhead</li>
-<li><strong>Security Culture Alignment:</strong> Understanding that false confidence is worse than no confidence</li>
+<li>Dual fluency in production engineering and protocol design</li>
+<li>Experienced the pain of manual spec review through client discussions</li>
+<li>Solo-founder approach means concentrated velocity with no coordination overhead</li>
+<li>Deep belief that false confidence is worse than no confidence</li>
 </ol>
 <h2 id="8-success-metrics">8. Success Metrics</h2>
 <table>
@@ -169,7 +164,7 @@ jobs:
 <p><strong>Long-term Support:</strong> I commit to 12 months of advisory support post-grant (1-2 hours weekly) to ensure smooth knowledge transfer.</p>
 <hr>
 <p>Ethereum's security relies on careful reconciliation of specifications and implementations—a task perfectly suited for LLM augmentation, provided we build tools that understand protocol semantics rather than surface syntax.</p>
-<p>PRSpec respects the expertise of Ethereum's security researchers by handling the mechanical, error-prone work of <strong>specification drift</strong> detection, allowing human intelligence to focus on the nuanced judgment calls that only experienced protocol engineers can make.</p>
+<p>PRSpec handles the mechanical, error-prone work of specification drift detection, letting human intelligence focus on the nuanced judgment calls that only experienced protocol engineers can make.</p>
 <p>We're not replacing the security process. We're making it scale.</p>
 <hr>
 <p><strong>Contact Information:</strong><br>

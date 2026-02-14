@@ -1,9 +1,4 @@
-"""
-Tests for EIP-1559 Compliance Checking
-Author: Safi El-Hassanine
-
-Unit tests for PRSpec EIP-1559 analysis functionality.
-"""
+"""Tests for EIP-1559 analysis pipeline."""
 
 import unittest
 import os

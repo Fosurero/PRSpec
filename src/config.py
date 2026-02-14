@@ -1,7 +1,4 @@
-"""
-Configuration management for PRSpec
-Author: Safi El-Hassanine
-"""
+"""Configuration management for PRSpec."""
 
 import os
 import yaml
@@ -14,12 +11,7 @@ class Config:
     """Configuration manager for PRSpec"""
     
     def __init__(self, config_path: Optional[str] = None):
-        """
-        Initialize configuration from YAML file and environment variables.
-        
-        Args:
-            config_path: Path to config.yaml file. If None, looks in current directory.
-        """
+        """Load config from YAML + environment. Searches cwd if no path given."""
         # Load environment variables
         load_dotenv()
         
@@ -113,18 +105,7 @@ class Config:
         return self.analysis_config.get("focus_areas", [])
     
     def get_eip_focus_areas(self, eip_number: int) -> list:
-        """
-        Get focus areas for a specific EIP.
-        
-        Falls back to the default analysis focus areas if no EIP-specific
-        configuration is found.
-        
-        Args:
-            eip_number: The EIP number
-            
-        Returns:
-            List of focus area strings
-        """
+        """Focus areas for a specific EIP, falling back to defaults."""
         eips_config = self._config.get("eips", {})
         eip_config = eips_config.get(eip_number, eips_config.get(str(eip_number), {}))
         areas = eip_config.get("focus_areas", [])
@@ -139,7 +120,7 @@ class Config:
         })
     
     def get_repo_config(self, repo_name: str) -> Dict[str, Any]:
-        """Get configuration for a specific repository"""
+        """Look up a named repository config block."""
         repos = self.repositories
         if repo_name not in repos:
             raise ValueError(f"Repository '{repo_name}' not found in config")

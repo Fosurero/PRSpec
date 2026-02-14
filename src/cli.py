@@ -1,10 +1,4 @@
-"""
-CLI Interface for PRSpec
-Author: Safi El-Hassanine
-
-Command-line interface for the Ethereum specification compliance checker.
-Supports any EIP registered in the spec_fetcher / code_fetcher registries.
-"""
+"""Command-line interface for PRSpec."""
 
 import click
 from pathlib import Path
@@ -32,27 +26,14 @@ from .report_generator import ReportGenerator, ReportMetadata
 @click.group()
 @click.version_option(version="1.1.0", prog_name="PRSpec")
 def cli():
-    """
-    PRSpec - Ethereum Specification Compliance Checker
-    
-    Analyze Ethereum client implementations against official EIP specifications
-    using LLM-powered analysis (Google Gemini / OpenAI GPT-4).
-    
-    Author: Safi El-Hassanine
-    """
+    """PRSpec — check Ethereum client code against EIP specifications."""
     pass
 
 
-# ------------------------------------------------------------------
-# Helper: run the analysis pipeline (shared by rich / non-rich paths)
-# ------------------------------------------------------------------
+# ---- Helper: shared analysis pipeline ----
 
 def _run_analysis(eip: int, client: str, cfg, llm_provider: str):
-    """
-    Fetch spec + code, build analyzer, run compliance analysis.
-    
-    Returns (results, analyzer) where *results* is a list of result dicts.
-    """
+    """Fetch spec+code, build analyzer, return (results_list, analyzer)."""
     spec_fetcher = SpecFetcher(github_token=cfg.github_token)
     code_fetcher = CodeFetcher(github_token=cfg.github_token)
 

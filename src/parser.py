@@ -1,9 +1,4 @@
-"""
-Code Parser for PRSpec
-Author: Safi El-Hassanine
-
-Parses source code to extract functions, classes, and relevant code blocks.
-"""
+"""Source code parser — extracts functions, classes, and EIP-relevant blocks."""
 
 import re
 from typing import Dict, List, Any, Optional, Tuple
@@ -43,12 +38,7 @@ class CodeParser:
     """
     
     def __init__(self, use_tree_sitter: bool = False):
-        """
-        Initialize the parser.
-        
-        Args:
-            use_tree_sitter: Whether to use tree-sitter for parsing (more accurate)
-        """
+        """Optionally enable tree-sitter for more accurate parsing."""
         self.use_tree_sitter = use_tree_sitter
         self._ts_parsers = {}
         
@@ -74,17 +64,7 @@ class CodeParser:
     
     def parse_file(self, content: str, language: str, 
                    filename: Optional[str] = None) -> List[CodeBlock]:
-        """
-        Parse a source file and extract code blocks.
-        
-        Args:
-            content: File content
-            language: Programming language
-            filename: Optional filename for context
-            
-        Returns:
-            List of CodeBlock objects
-        """
+        """Parse source code and return a list of CodeBlock entries."""
         language = language.lower()
         
         if self.use_tree_sitter and language in self._ts_parsers:
@@ -297,17 +277,7 @@ class CodeParser:
     
     def find_function(self, content: str, function_name: str, 
                       language: str) -> Optional[CodeBlock]:
-        """
-        Find a specific function in source code.
-        
-        Args:
-            content: File content
-            function_name: Name of function to find
-            language: Programming language
-            
-        Returns:
-            CodeBlock if found, None otherwise
-        """
+        """Find a specific function by name."""
         blocks = self.parse_file(content, language)
         
         for block in blocks:
@@ -317,33 +287,14 @@ class CodeParser:
         return None
     
     def find_eip1559_functions(self, content: str, language: str) -> List[CodeBlock]:
-        """
-        Find EIP-1559 related functions in source code.
-        
-        Args:
-            content: File content
-            language: Programming language
-            
-        Returns:
-            List of relevant CodeBlock objects
-        """
+        """Find EIP-1559 related functions. Delegates to find_eip_functions."""
         return self.find_eip_functions(content, language, 1559)
     
     def find_eip4844_functions(self, content: str, language: str) -> List[CodeBlock]:
-        """
-        Find EIP-4844 (blob transaction) related functions in source code.
-        
-        Args:
-            content: File content
-            language: Programming language
-            
-        Returns:
-            List of relevant CodeBlock objects
-        """
+        """Find EIP-4844 related functions. Delegates to find_eip_functions."""
         return self.find_eip_functions(content, language, 4844)
     
-    # Per-EIP keyword sets used by find_eip_functions.
-    # Keys are EIP numbers; values are lists of lowercase search terms.
+    # Per-EIP keyword sets for find_eip_functions.
     EIP_KEYWORDS: Dict[int, List[str]] = {
         1559: [
             "basefee", "base_fee", "gaslimit", "gas_limit",
@@ -381,21 +332,8 @@ class CodeParser:
     
     def find_eip_functions(self, content: str, language: str,
                            eip_number: int) -> List[CodeBlock]:
-        """
-        Find functions related to a specific EIP in source code.
-        
-        Uses a keyword registry (EIP_KEYWORDS) to match function names and
-        bodies.  Falls back to searching for the bare EIP number string when
-        no keyword set is registered.
-        
-        Args:
-            content: File content
-            language: Programming language
-            eip_number: The EIP number to search for
-            
-        Returns:
-            List of relevant CodeBlock objects
-        """
+        """Return all code blocks whose name or body matches registered keywords
+        for the given EIP.  Falls back to the bare EIP number string."""
         blocks = self.parse_file(content, language)
         
         keywords = self.EIP_KEYWORDS.get(eip_number, [str(eip_number)])
@@ -413,16 +351,7 @@ class CodeParser:
         return relevant
     
     def extract_comments(self, content: str, language: str) -> List[Dict[str, Any]]:
-        """
-        Extract comments from source code.
-        
-        Args:
-            content: File content
-            language: Programming language
-            
-        Returns:
-            List of comment dictionaries
-        """
+        """Pull out single-line comments, multi-line comments, and docstrings."""
         comments = []
         
         if language == "go":

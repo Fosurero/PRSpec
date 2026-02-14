@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EIP-4844 Compliance Report - go-ethereum</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        h2 { color: #555; margin-top: 30px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin: 20px 0; }
+        .summary-card { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }
+        .summary-card .value { font-size: 2em; font-weight: bold; color: #007bff; }
+        .summary-card .label { color: #666; margin-top: 5px; }
+        .result-card { border: 1px solid #ddd; border-radius: 8px; margin: 20px 0; overflow: hidden; }
+        .result-header { background: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .result-body { padding: 20px; }
+        .status-badge { padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; font-size: 0.9em; }
+        .issue { background: #f8f9fa; border-left: 4px solid; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .issue-high { border-color: #dc3545; }
+        .issue-medium { border-color: #ffc107; }
+        .issue-low { border-color: #28a745; }
+        .issue-title { font-weight: bold; margin-bottom: 10px; }
+        .issue-detail { margin: 5px 0; color: #555; }
+        .issue-detail strong { color: #333; }
+        code { background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 EIP-4844 Compliance Report - go-ethereum</h1>
+        
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="value">⚠️ ISSUES FOUND</div>
+                <div class="label">Overall Status</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">92%</div>
+                <div class="label">Confidence</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">4</div>
+                <div class="label">Files Analyzed</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" style="color: #dc3545;">1</div>
+                <div class="label">High Severity</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" style="color: #ffc107;">1</div>
+                <div class="label">Medium Severity</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" style="color: #28a745;">2</div>
+                <div class="label">Low Severity</div>
+            </div>
+        </div>
+        
+        <h2>📋 Detailed Findings</h2>
+
+        <div class="result-card">
+            <div class="result-header">
+                <strong>consensus/misc/eip4844/eip4844.go</strong>
+                <span class="status-badge" style="background: #28a745;">FULL_MATCH</span>
+            </div>
+            <div class="result-body">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided Go implementation correctly and fully implements the EIP-4844 specification for the blob gas fee mechanism and header validation rules. The logic for calculating excess blob gas and the blob gas base fee via the `fake_exponential` function is a direct and accurate translation of the specification's pseudocode. The header validation checks are also correctly implemented as per the spec.</p>
+<p>✅ No issues found in this file.</p>
+            </div>
+        </div>
+
+        <div class="result-card">
+            <div class="result-header">
+                <strong>core/types/tx_blob.go</strong>
+                <span class="status-badge" style="background: #ffc107;">PARTIAL_MATCH</span>
+            </div>
+            <div class="result-body">
+                <p><strong>Confidence:</strong> 95%</p>
+                <p>The Go implementation correctly defines the EIP-4844 blob transaction structure and its associated signature scheme. However, it exhibits a medium-severity issue by failing to perform critical length-consistency checks during the deserialization of the transaction's network format, creating a minor DoS vector. Additionally, it introduces a sidecar versioning scheme not present in the specification, which is a low-severity deviation.</p>
+<h4>Issues:</h4>
+                <div class="issue issue-medium">
+                    <div class="issue-title">[MEDIUM] MISSING_CHECK</div>
+                    <div class="issue-detail"><strong>Description:</strong> The RLP decoding logic for a blob transaction that includes its sidecar (the network representation) does not validate that the number of items in the `blobs`, `commitments`, and `proofs` lists are equal to each other and to the number of `blob_versioned_hashes` present in the transaction body. The code successfully decodes RLP streams with mismatched list lengths into a `BlobTx` object, deferring this fundamental validity check to later stages.</div>
+                    <div class="issue-detail"><strong>Spec Reference:</strong> <code>The node MUST validate `tx_payload_body` and verify the wrapped data against it. To do so, ensure that: - There are an equal number of `tx_payload_body.blob_versioned_hashes`, `blobs`, `commitments`, and `proofs`.</code></div>
+                    <div class="issue-detail"><strong>Code Location:</strong> <code>func (tx *BlobTx) decode(input []byte) and its helper methods `assign` for `blobTxWithBlobsV0` and `blobTxWithBlobsV1`</code></div>
+                    <div class="issue-detail"><strong>Potential Impact:</strong> A remote peer could send a malformed blob transaction with mismatched sidecar components (e.g., 1 blob hash but 100 large blobs). The node would successfully decode this and allocate memory for the invalid object, only to reject it later in the transaction pool. This creates a minor Denial-of-Service vector by allowing malformed data to pass the initial network parsing stage, consuming resources unnecessarily.</div>
+                    <div class="issue-detail"><strong>Suggestion:</strong> In the `assign` methods for `blobTxWithBlobsV0` and `blobTxWithBlobsV1`, add checks to ensure the lengths of the sidecar component slices match the length of `btx.BlobTx.BlobHashes`. If the lengths are inconsistent, the function should return an error, causing the top-level `decode` to fail and immediately reject the malformed data.</div>
+                </div>
+
+                <div class="issue issue-low">
+                    <div class="issue-title">[LOW] DEVIATION</div>
+                    <div class="issue-detail"><strong>Description:</strong> The implementation introduces a versioning scheme for the blob sidecar (`BlobSidecarVersion0`, `BlobSidecarVersion1`) which is not described in the EIP-4844 specification. The code distinguishes between the EIP-specified format (handled as `v0`) and a new `v1` format by inspecting the second element of the outer RLP list. While the implementation correctly handles the format defined in the EIP, the addition of a versioning scheme is a deviation from the specification.</div>
+                    <div class="issue-detail"><strong>Spec Reference:</strong> <code>Blob transactions have two network representations. During transaction gossip responses (`PooledTransactions`), the EIP-2718 `TransactionPayload` of the blob transaction is wrapped to become: `rlp([tx_payload_body, blobs, commitments, proofs])`</code></div>
+                    <div class="issue-detail"><strong>Code Location:</strong> <code>`decode` method, `BlobSidecarVersion0/1` constants, `blobTxWithBlobsV0/V1` structs</code></div>
+                    <div class="issue-detail"><strong>Potential Impact:</strong> This deviation is unlikely to cause consensus issues, as the specified format is correctly handled. However, it represents an implementation-specific extension that could lead to minor interoperability friction if other clients are not aware of the `v1` format. It adds complexity not captured by the standard.</div>
+                    <div class="issue-detail"><strong>Suggestion:</strong> This is an implementation choice for forward compatibility and does not require a code change. It is recommended to clearly document this versioning scheme within the codebase and any relevant developer documentation to prevent confusion.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="result-card">
+            <div class="result-header">
+                <strong>crypto/kzg4844/kzg4844.go</strong>
+                <span class="status-badge" style="background: #ffc107;">PARTIAL_MATCH</span>
+            </div>
+            <div class="result-body">
+                <p><strong>Confidence:</strong> 75%</p>
+                <p>The provided Go code correctly implements the high-level API and helper functions for EIP-4844's cryptographic components, such as versioned hash calculation. However, the code is an abstraction layer, and critical, security-sensitive validation checks for cryptographic objects (commitments, proofs, field elements) are not visible, as they are expected to be handled by the underlying cryptographic backend. The absence of these checks in the backend would constitute a severe security risk and a deviation from the specification, making verification of the backend's implementation essential for ensuring full compliance.</p>
+<h4>Issues:</h4>
+                <div class="issue issue-high">
+                    <div class="issue-title">[HIGH] MISSING_CHECK</div>
+                    <div class="issue-detail"><strong>Description:</strong> The EIP-4844 specification mandates several critical validation checks on the cryptographic inputs. Specifically, `KZGCommitment` and `KZGProof` objects must be validated (e.g., subgroup checks via `KeyValidate`), and field elements (`z`, `y`) provided to the point evaluation precompile must be checked for canonical representation (i.e., value < `BLS_MODULUS`). The provided code in `kzg4844.go` is a high-level wrapper around underlying cryptographic libraries (`gokzg` and `c-kzg-go`). These essential validation checks are not performed in the visible wrapper code. While it is assumed they are handled by the underlying libraries, their absence cannot be confirmed from the provided code. Failure to perform these checks would be a critical deviation from the specification.</div>
+                    <div class="issue-detail"><strong>Spec Reference:</strong> <code>Type aliases
+| Type | Base type | Additional checks |
+| - | - | - |
+| `KZGCommitment` | `Bytes48` | Perform IETF BLS signature "KeyValidate" check but do allow the identity point |
+| `KZGProof` | `Bytes48` | Same as for `KZGCommitment` |
+
+Point evaluation precompile
+... The precompile MUST reject non-canonical field elements (i.e. provided field elements MUST be strictly less than `BLS_MODULUS`).</code></div>
+                    <div class="issue-detail"><strong>Code Location:</strong> <code>VerifyProof, VerifyBlobProof</code></div>
+                    <div class="issue-detail"><strong>Potential Impact:</strong> If invalid commitments, proofs, or non-canonical field elements are accepted by the cryptographic functions, it could lead to severe security vulnerabilities. For example, it might be possible to create a proof for a statement that is actually false, breaking the security assumptions of rollups that rely on the point evaluation precompile for fraud proofs or validity proofs. This could lead to consensus failures or theft of funds on L2.</div>
+                    <div class="issue-detail"><strong>Suggestion:</strong> Ensure that the underlying cryptographic libraries, which are called by functions like `VerifyProof` and `VerifyBlobProof`, rigorously implement all specified validation checks. This includes performing the IETF BLS `KeyValidate` check on all commitment and proof inputs, and verifying that all field element inputs (`point`, `claim`) are in canonical form (less than the BLS modulus). This should be confirmed through direct audit of the `gokzg` and `c-kzg-go` backend implementations.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="result-card">
+            <div class="result-header">
+                <strong>params/protocol_params.go</strong>
+                <span class="status-badge" style="background: #dc3545;">MISSING</span>
+            </div>
+            <div class="result-body">
+                <p><strong>Confidence:</strong> 100%</p>
+                <p>The provided code file, `params/protocol_params.go`, only defines a subset of the constants required by EIP-4844 and is missing all core implementation logic. While the defined constants are compliant, the file lacks the logic for critical components like blob gas calculation, block validation, and the point evaluation precompile, making a full compliance audit impossible. A minor deviation was found where the code defines a `BlobBaseCost` for intrinsic execution gas, a detail not specified in the EIP.</p>
+<h4>Issues:</h4>
+                <div class="issue issue-low">
+                    <div class="issue-title">[LOW] DEVIATION</div>
+                    <div class="issue-detail"><strong>Description:</strong> The implementation defines a constant `BlobBaseCost = 1 << 13` (8192), which is used in the go-ethereum client to calculate the intrinsic *execution gas* cost per blob hash in a transaction. The EIP-4844 specification details the new *blob gas* market but does not specify any additional *execution gas* costs for blob transactions beyond standard EIP-1559 semantics. This constant introduces a per-blob execution gas fee that is not explicitly mentioned in the EIP.</div>
+                    <div class="issue-detail"><strong>Spec Reference:</strong> <code>The fields `chain_id`, `nonce`, `max_priority_fee_per_gas`, `max_fee_per_gas`, `gas_limit`, `value`, `data`, and `access_list` follow the same semantics as [EIP-1559](./eip-1559.md).</code></div>
+                    <div class="issue-detail"><strong>Code Location:</strong> <code>params/protocol_params.go (line 252)</code></div>
+                    <div class="issue-detail"><strong>Potential Impact:</strong> This is unlikely to cause a consensus failure as long as all clients implement the same intrinsic gas formula. However, it represents a deviation from a strict reading of the EIP, which is silent on this specific cost. This could lead to confusion or inconsistencies if other clients interpret the intrinsic gas calculation differently.</div>
+                    <div class="issue-detail"><strong>Suggestion:</strong> The EIP could be clarified to explicitly mention the intrinsic execution gas overhead associated with processing each blob's versioned hash. Alternatively, this cost should be documented as a client-specific implementation detail that requires cross-client consensus to ensure uniform behavior.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Generated by PRSpec v1.0.0 | Analyzer: Gemini (gemini-2.5-pro)</p>
+            <p>EIP-4844 | Client: go-ethereum | 2026-02-13 23:42:28</p>
+        </div>
+    </div>
+</body>
+</html>
