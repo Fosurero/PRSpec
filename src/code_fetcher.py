@@ -26,12 +26,15 @@ class CodeFetcher:
                     "consensus/misc/eip1559.go",
                     "core/types/transaction.go",
                     "core/types/tx_dynamic_fee.go",
+                    "params/protocol_params.go",
+                    "core/state_transition.go",
                 ],
                 4844: [
                     "consensus/misc/eip4844/eip4844.go",
                     "core/types/tx_blob.go",
                     "crypto/kzg4844/kzg4844.go",
                     "params/protocol_params.go",
+                    "core/txpool/legacypool/legacypool.go",
                 ],
                 4788: [
                     "core/vm/contracts.go",

@@ -4,11 +4,14 @@ import click
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     from rich.console import Console
-    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
     from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
     RICH_AVAILABLE = True
     console = Console()
 except ImportError:
@@ -23,6 +26,16 @@ from .parser import CodeParser
 from .report_generator import ReportGenerator, ReportMetadata
 
 
+BANNER = """[cyan]
+  ██████╗ ██████╗ ███████╗██████╗ ███████╗ ██████╗
+  ██╔══██╗██╔══██╗██╔════╝██╔══██╗██╔════╝██╔════╝
+  ██████╔╝██████╔╝███████╗██████╔╝█████╗  ██║
+  ██╔═══╝ ██╔══██╗╚════██║██╔═══╝ ██╔══╝  ██║
+  ██║     ██║  ██║███████║██║     ███████╗╚██████╗
+  ╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝ ╚═════╝
+[/cyan]"""
+
+
 @click.group()
 @click.version_option(version="1.1.0", prog_name="PRSpec")
 def cli():
@@ -30,10 +43,20 @@ def cli():
     pass
 
 
-# ---- Helper: shared analysis pipeline ----
+def _analyze_one_file(analyzer, spec_text, file_path, code_content, context):
+    """Analyze a single file — designed to run inside a thread pool."""
+    result = analyzer.analyze_compliance(spec_text, code_content, context)
+    result_dict = result.to_dict()
+    result_dict["file_name"] = file_path
+    return result_dict
 
-def _run_analysis(eip: int, client: str, cfg, llm_provider: str):
-    """Fetch spec+code, build analyzer, return (results_list, analyzer)."""
+
+# ---- Helper: shared analysis pipeline (parallel) ----
+
+def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
+                  progress_callback=None):
+    """Fetch spec+code, build analyzer, return (results_list, analyzer).
+    Runs all file analyses in parallel via threads for speed."""
     spec_fetcher = SpecFetcher(github_token=cfg.github_token)
     code_fetcher = CodeFetcher(github_token=cfg.github_token)
 
@@ -51,24 +74,36 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str):
     else:
         analyzer = OpenAIAnalyzer(api_key=cfg.openai_api_key, **cfg.openai_config)
 
-    # --- Run analysis ---
+    # --- Run analysis (parallel) ---
     focus_areas = cfg.get_eip_focus_areas(eip)
     spec_text = spec_data.get("eip_markdown", "")
 
-    results = []
-    for file_path, code_content in code_files.items():
-        context = {
-            "eip_number": eip,
-            "eip_title": eip_title,
-            "file_name": file_path,
-            "function_name": f"EIP-{eip} implementation",
-            "language": language,
-            "focus_areas": focus_areas,
-        }
-        result = analyzer.analyze_compliance(spec_text, code_content, context)
-        result_dict = result.to_dict()
-        result_dict["file_name"] = file_path
-        results.append(result_dict)
+    futures = {}
+    with ThreadPoolExecutor(max_workers=len(code_files)) as pool:
+        for file_path, code_content in code_files.items():
+            context = {
+                "eip_number": eip,
+                "eip_title": eip_title,
+                "file_name": file_path,
+                "function_name": f"EIP-{eip} implementation",
+                "language": language,
+                "focus_areas": focus_areas,
+            }
+            future = pool.submit(
+                _analyze_one_file, analyzer, spec_text,
+                file_path, code_content, context
+            )
+            futures[future] = file_path
+
+        results = []
+        for future in as_completed(futures):
+            results.append(future.result())
+            if progress_callback:
+                progress_callback(futures[future])
+
+    # Keep original file order
+    file_order = list(code_files.keys())
+    results.sort(key=lambda r: file_order.index(r["file_name"]))
 
     return results, analyzer
 
@@ -94,38 +129,45 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
         cfg = Config(config)
         llm_provider = provider if provider else cfg.llm_provider
         
+        # Banner + config summary
         if RICH_AVAILABLE:
-            console.print(Panel(
-                f"[bold blue]PRSpec - Ethereum Specification Compliance Checker[/bold blue]\n\n"
-                f"EIP: {eip}\n"
-                f"Client: {client}\n"
-                f"Provider: {llm_provider}\n"
-                f"Output: {output}",
-                title="Configuration",
-                border_style="blue"
-            ))
+            console.print(BANNER)
+            info_table = Table(show_header=False, box=None, padding=(0, 2))
+            info_table.add_column(style="bold white")
+            info_table.add_column(style="cyan")
+            info_table.add_row("EIP", str(eip))
+            info_table.add_row("Client", client)
+            info_table.add_row("Provider", llm_provider)
+            info_table.add_row("Output", output)
+            console.print(Panel(info_table, title="[bold]Configuration[/bold]", border_style="blue"))
         else:
-            click.echo(f"PRSpec Analysis")
-            click.echo(f"EIP: {eip}, Client: {client}, Provider: {llm_provider}")
+            click.echo("\n  PRSpec - Ethereum Specification Compliance Checker\n")
+            click.echo(f"  EIP: {eip}  |  Client: {client}  |  Provider: {llm_provider}")
         
         # Get file count for time estimate
         n_files = len(CodeFetcher.CLIENTS.get(client, {}).get("eip_files", {}).get(eip, []))
-        est = f"~{n_files}-{n_files * 2} min" if n_files > 1 else "~1-2 min"
+        est = f"~{max(1, n_files // 2)}-{n_files} min (parallel)" if n_files > 1 else "~1-2 min"
 
         if RICH_AVAILABLE:
+            console.print()
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
+                BarColumn(bar_width=30),
+                MofNCompleteColumn(),
                 console=console,
             ) as progress:
                 task = progress.add_task(
-                    f"Analyzing EIP-{eip} in {client} — {n_files} files, {est}...", total=None
+                    f"Analyzing {n_files} files ({est})", total=n_files
                 )
-                results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
-                progress.update(task, completed=True)
+                def on_file_done(fname):
+                    progress.advance(task)
+                results, analyzer = _run_analysis(
+                    eip, client, cfg, llm_provider,
+                    progress_callback=on_file_done
+                )
         else:
-            click.echo(f"Analyzing EIP-{eip} compliance in {client}...")
-            click.echo(f"  ({n_files} files, {est} — please wait)")
+            click.echo(f"\n  Analyzing {n_files} files ({est})...")
             results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
         
         # Generate report
