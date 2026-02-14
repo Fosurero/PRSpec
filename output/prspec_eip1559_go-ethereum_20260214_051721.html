@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EIP-1559 Compliance Report - go-ethereum</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f0f2f5; color: #1a1a2e; line-height: 1.6; }
+        .page { max-width: 960px; margin: 40px auto; padding: 0 20px; }
+        header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; padding: 36px 40px; border-radius: 12px 12px 0 0; }
+        header h1 { margin: 0 0 6px; font-size: 1.6em; font-weight: 700; }
+        header .meta { font-size: 0.85em; opacity: 0.8; }
+        .body { background: #fff; padding: 32px 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .kpi { background: #f8f9fb; border: 1px solid #e8eaed; border-radius: 8px; padding: 18px 14px; text-align: center; }
+        .kpi .num { font-size: 1.7em; font-weight: 700; }
+        .kpi .lbl { font-size: 0.78em; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+        h2 { font-size: 1.15em; font-weight: 600; color: #333; border-bottom: 2px solid #e8eaed; padding-bottom: 8px; margin: 28px 0 18px; }
+        .file-card { border: 1px solid #e0e3e8; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+        .file-card .head { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: #fafbfc; border-bottom: 1px solid #e0e3e8; }
+        .file-card .head .path { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 0.88em; font-weight: 500; }
+        .badge { display: inline-block; padding: 3px 12px; border-radius: 12px; color: #fff; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .file-card .content { padding: 16px 18px; }
+        .file-card .content p { margin: 0 0 10px; }
+        .issue { border-left: 3px solid; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; background: #fafbfc; }
+        .issue-high { border-color: #e03e3e; background: #fef2f2; }
+        .issue-medium { border-color: #d4a017; background: #fffbeb; }
+        .issue-low { border-color: #2e7d32; background: #f0fdf4; }
+        .issue .title { font-weight: 600; margin-bottom: 6px; font-size: 0.92em; }
+        .issue .detail { font-size: 0.85em; color: #555; margin: 3px 0; }
+        .issue .detail strong { color: #333; }
+        code { background: #eef0f4; padding: 1px 5px; border-radius: 3px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.88em; }
+        .footer { text-align: center; padding: 24px 0 0; margin-top: 32px; border-top: 1px solid #e8eaed; font-size: 0.8em; color: #888; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>EIP-1559 Compliance Report - go-ethereum</h1>
+        <div class="meta">2026-02-14 05:17 &middot; Gemini (gemini-2.5-flash) &middot; v1.1.0</div>
+    </header>
+    <div class="body">
+        <div class="kpi-row">
+            <div class="kpi"><div class="num">ISSUES FOUND</div><div class="lbl">Status</div></div>
+            <div class="kpi"><div class="num">63%</div><div class="lbl">Confidence</div></div>
+            <div class="kpi"><div class="num">3</div><div class="lbl">Files</div></div>
+            <div class="kpi"><div class="num" style="color:#e03e3e">7</div><div class="lbl">High</div></div>
+            <div class="kpi"><div class="num" style="color:#d4a017">0</div><div class="lbl">Medium</div></div>
+            <div class="kpi"><div class="num" style="color:#2e7d32">0</div><div class="lbl">Low</div></div>
+        </div>
+        
+        <div style="background:#f8f9fb;border:1px solid #e8eaed;border-radius:8px;padding:18px 22px;margin-bottom:28px;font-size:0.93em;line-height:1.7;white-space:pre-line;">PRSpec analysed 3 files from go-ethereum's EIP-1559 implementation using Gemini (gemini-2.5-flash). Overall verdict: ISSUES FOUND at 63% average confidence. 7 issues detected (7 high).
+
+consensus/misc/eip1559.go — MISSING (0 issues): The provided code implementation for EIP-1559 was not found. Therefore, a comparison between the specification and the i
+core/types/tx_dynamic_fee.go — PARTIAL_MATCH (6 issues): The provided Go file `core/types/tx_dynamic_fee.go` accurately implements the EIP-1559 transaction structure and the `ef</div>
+
+        <h2>Findings</h2>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">consensus/misc/eip1559.go</span>
+                <span class="badge" style="background:#dc3545">MISSING</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 0%</p>
+                <p>The provided code implementation for EIP-1559 was not found. Therefore, a comparison between the specification and the implementation code cannot be performed to identify compliance issues.</p>
+                <p>No issues found.</p>
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">core/types/transaction.go</span>
+                <span class="badge" style="background:#ffc107">PARTIAL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 95%</p>
+                <p></p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The EIP-1559 specification's reference implementation includes an explicit assertion within the `validate_block` function: `assert transaction.max_fee_per_gas >= transaction.max_priority_fee_per_gas`. This implies that any transaction where the maximum total fee per gas is less than the maximum priority fee per gas should be considered invalid. The provided Go implementation's `calcEffectiveGasTip` function, which computes the effective priority fee, does not include an explicit check for this condition. While the calculation correctly caps the `priority_fee_per_gas` at `max_fee_per_gas - base_fee_per_gas` (effectively preventing overpayment to the miner beyond the `max_fee_per_gas` limit), the transaction itself is not rejected for violating this specified invariant.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>assert transaction.max_fee_per_gas >= transaction.max_priority_fee_per_gas</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Transaction.calcEffectiveGasTip (approx line 270)</code></div>
+                    <div class="detail"><strong>Impact:</strong> This deviation could lead to consensus failures if different client implementations enforce this validation rule differently. Clients strictly adhering to the specification would reject blocks containing such transactions, while clients that do not enforce</div>
+                    <div class="detail"><strong>Fix:</strong> N/A</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="file-card">
+            <div class="head">
+                <span class="path">core/types/tx_dynamic_fee.go</span>
+                <span class="badge" style="background:#ffc107">PARTIAL_MATCH</span>
+            </div>
+            <div class="content">
+                <p><strong>Confidence:</strong> 95%</p>
+                <p>The provided Go file `core/types/tx_dynamic_fee.go` accurately implements the EIP-1559 transaction structure and the `effectiveGasPrice` calculation. However, it is a partial implementation of the EIP-1559 specification, as it critically lacks the block-level</p>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_IMPLEMENTATION</div>
+                    <div class="detail"><strong>Description:</strong> The core logic for calculating the `base_fee_per_gas` for a new block, based on the parent block's gas usage and target, is entirely absent from the provided `tx_dynamic_fee.go` file. This includes the initial base fee setting at the fork block and the dynamic adjustment mechanism.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>Block validity is defined in the reference implementation below. ... if INITIAL_FORK_BLOCK_NUMBER == block.number: expected_base_fee_per_gas = INITIAL_BASE_FEE ...</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Not present in tx_dynamic_fee.go</code></div>
+                    <div class="detail"><strong>Impact:</strong> Without this fundamental calculation, the EIP-1559 fee market mechanism cannot function as specified. Blocks would not have a dynamically adjusted base fee, leading to consensus failures, incorrect fee burning, and a breakdown of the transaction pricing model.</div>
+                    <div class="detail"><strong>Fix:</strong> Implement the `base_fee_per_gas` calculation algorithm as detailed in the specification's `World.validate_block` method, likely within a block validation or state transition component of the client.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The specification includes several critical assertions for validating a block's gas usage and its `gas_limit` against the parent block's `gas_limit`. These checks ensure network stability and prevent malicious manipulation of block capacity. None of these validation checks are present in the provided code.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>assert block.gas_used <= block.gas_limit, 'invalid block: too much gas used'
+assert block.gas_limit < parent_gas_limit + parent_gas_limit // 1024, 'invalid block: gas limit increased too much'
+assert block.gas_limit > parent_gas_limit - parent_gas_limit // 1024, 'invalid block: gas limit decreased too much'
+assert block.gas_limit >= 5000</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Not present in tx_dynamic_fee.go</code></div>
+                    <div class="detail"><strong>Impact:</strong> Malicious or malformed blocks could be accepted into the chain if these checks are not performed. This could lead to network instability, denial-of-service attacks (e.g., by proposing blocks with excessively large gas limits or usage), or consensus forks.</div>
+                    <div class="detail"><strong>Fix:</strong> Implement the block gas usage and gas limit validation checks as specified, likely within a block validation component.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_CHECK</div>
+                    <div class="detail"><strong>Description:</strong> The specification outlines several crucial pre-execution validation checks for EIP-1559 transactions, including ensuring the sender can afford the maximum possible transaction cost, is willing to pay at least the block's base fee, and that the fee parameters (`max_fee_per_gas`, `max_priority_fee_per_gas`) are well-formed and within bounds. These checks are absent from the provided code.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>assert signer.balance >= transaction.gas_limit * transaction.max_fee_per_gas
+assert transaction.max_fee_per_gas >= block.base_fee_per_gas
+assert transaction.max_fee_per_gas < 2**256
+assert transaction.max_priority_fee_per_gas < 2**256
+assert transaction.max_fee_per_gas >= transaction.max_priority_fee_per_gas</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Not present in tx_dynamic_fee.go</code></div>
+                    <div class="detail"><strong>Impact:</strong> Processing transactions that fail these checks could lead to various issues: transactions from accounts with insufficient funds might be included, transactions unwilling to pay the base fee could bypass the mechanism, or transactions with malformed fee parameters could cause unexpected behavior or errors during execution. This could result in incorrect state transitions or economic exploits.</div>
+                    <div class="detail"><strong>Fix:</strong> Implement these pre-execution transaction validation checks as specified, likely within a transaction pool or block processing component before transaction execution.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_IMPLEMENTATION</div>
+                    <div class="detail"><strong>Description:</strong> The calculation for the intrinsic gas cost of the EIP-1559 transaction type (Type 2), which includes costs related to calldata and the access list, is not present in the provided code.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>The intrinsic cost of the new transaction is inherited from [EIP-2930](./eip-2930.md), specifically `21000 + 16 * non-zero calldata bytes + 4 * zero calldata bytes + 1900 * access list storage key count + 2400 * access list address count`.</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Not present in tx_dynamic_fee.go</code></div>
+                    <div class="detail"><strong>Impact:</strong> Without correctly calculating the intrinsic gas cost, transactions might consume an incorrect amount of gas. This could lead to inaccurate gas accounting, state inconsistencies, or potential denial-of-service attacks if transactions are cheaper to process than they should be, allowing attackers to fill blocks cheaply.</div>
+                    <div class="detail"><strong>Fix:</strong> Implement the intrinsic transaction cost calculation as specified, likely within a transaction processing or EVM execution component.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_IMPLEMENTATION</div>
+                    <div class="detail"><strong>Description:</strong> While the `effectiveGasPrice` calculation logic is correctly implemented within the `DynamicFeeTx` struct, the actual implementation of the `GASPRICE` EVM opcode (0x3a) to return this calculated value is not present in the provided file. This opcode is part of the EVM's execution environment.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>The `GASPRICE` (`0x3a`) opcode **MUST** return the `effective_gas_price` as defined in the reference implementation below.</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Not present in tx_dynamic_fee.go</code></div>
+                    <div class="detail"><strong>Impact:</strong> Decentralized applications (DApps) and smart contracts that query the `GASPRICE` opcode would receive an incorrect or undefined value, potentially breaking their internal logic, causing unexpected behavior, or leading to incorrect economic calculations within contracts.</div>
+                    <div class="detail"><strong>Fix:</strong> Ensure the EVM implementation correctly updates the `GASPRICE` opcode to return the `effective_gas_price` for EIP-1559 transactions during execution.</div>
+                </div>
+
+                <div class="issue issue-high">
+                    <div class="title">[HIGH] MISSING_IMPLEMENTATION</div>
+                    <div class="detail"><strong>Description:</strong> The specification details the crucial state transition logic for updating account balances during transaction processing. This includes deducting the transaction amount, deducting the `effective_gas_price` for gas used, refunding unused gas, and crediting the miner with the `priority_fee_per_gas`. This entire set of balance updates is missing from the provided code.</div>
+                    <div class="detail"><strong>Spec ref:</strong> <code>signer.balance -= transaction.amount
+assert signer.balance >= 0, 'invalid transaction: signer does not have enough ETH to cover attached value'
+signer.balance -= transaction.gas_limit * effective_gas_price
+assert signer.balance >= 0, 'invalid transaction: signer does not have enough ETH to cover gas'
+signer.balance += gas_refund * effective_gas_price
+self.account(block.author).balance += gas_used * priority_fee_per_gas</code></div>
+                    <div class="detail"><strong>Location:</strong> <code>Not present in tx_dynamic_fee.go</code></div>
+                    <div class="detail"><strong>Impact:</strong> Without these balance updates, the economic model of EIP-1559 (fee burning, miner incentives, gas refunds) would not be enforced. This would lead to an incorrect blockchain state, economic instability, and potential exploits where fees are not correctly handled or burned.</div>
+                    <div class="detail"><strong>Fix:</strong> Implement the account balance updates as specified, likely within the state transition or EVM execution component responsible for applying transaction effects.</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="footer">
+            PRSpec v1.1.0 &middot; Gemini (gemini-2.5-flash) &middot; EIP-1559 &middot; go-ethereum &middot; 2026-02-14 05:17
+        </div>
+    </div>
+</div>
+</body>
+</html>

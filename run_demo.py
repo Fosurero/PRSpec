@@ -333,11 +333,13 @@ def quick_test():
         return False
     
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
+        from google import genai as genai_client
+        client = genai_client.Client(api_key=api_key)
         
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content("Say 'PRSpec is ready!' in exactly those words.")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents="Say 'PRSpec is ready!' in exactly those words.",
+        )
         
         print(f"OK — Gemini API connected")
         print(f"   Response: {response.text.strip()}")
