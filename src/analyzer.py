@@ -187,10 +187,12 @@ class GeminiAnalyzer(BaseAnalyzer):
                  max_output_tokens: int = 8192, temperature: float = 0.1):
         """Configure the Gemini model and generation params."""
         try:
-            from google import genai
+            from google import genai  # type: ignore[import-untyped]
+            from google.genai import types as genai_types  # type: ignore[import-untyped]
         except ImportError:
             raise ImportError("google-genai not installed. Run: pip install google-genai")
 
+        self._genai_types = genai_types
         self.client = genai.Client(api_key=api_key)
         self.model_name = model
         self.max_output_tokens = max_output_tokens
@@ -202,11 +204,10 @@ class GeminiAnalyzer(BaseAnalyzer):
         prompt = self._build_analysis_prompt(spec_text, code_text, context)
 
         try:
-            from google.genai import types
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=prompt,
-                config=types.GenerateContentConfig(
+                config=self._genai_types.GenerateContentConfig(
                     temperature=self.temperature,
                     max_output_tokens=self.max_output_tokens,
                 ),
