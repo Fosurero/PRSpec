@@ -299,6 +299,7 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 | 2 | Multi-client analysis (Nethermind, Besu) | Done |
 | 3 | Cross-client differential analysis, Pectra EIPs | Next |
 | 4 | GitHub Action CI integration, security dashboard | Planned |
+| 5 | Spec quality analysis — flag underspecified EIPs (community-suggested) | Exploring |
 
 ---
 
