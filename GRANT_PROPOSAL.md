@@ -193,6 +193,9 @@
 <li>Transition documentation and community onboarding</li>
 </ul>
 
+<h3>Future Direction: Spec Quality Analysis (Community-Suggested)</h3>
+<p>Following discussion with Nethermind core developers (<a href="https://github.com/NethermindEth/nethermind/issues/10522#issuecomment-3902025542">issue #10522</a>), a promising direction emerged: using PRSpec to analyze the specifications <em>themselves</em> — flagging EIPs and devp2p specs that lack type sizes, constraints, or precise may/should/must logic. This would shift PRSpec from detecting code-vs-spec drift to also detecting <strong>spec ambiguity</strong> that causes implementation divergence in the first place. This direction will be explored after Phase 4 delivery.</p>
+
 <h2 id="7-budget-breakdown">7. Budget Breakdown</h2>
 
 <h3>Milestone 1 — Phase 3: Cross-Client Intelligence ($15,000)</h3>
