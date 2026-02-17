@@ -12,6 +12,8 @@ PRSpec fetches official EIP documents (plus execution and consensus specs from t
 
 > **Real-world validation:** PRSpec flagged Nethermind's `FeeCollector` property as a deviation from EIP-1559's mandatory fee burn. A Nethermind core developer [confirmed the finding](https://github.com/NethermindEth/nethermind/issues/10522), noting it is a chain-specific extension that "could be refactored better." ([Issue #10522](https://github.com/NethermindEth/nethermind/issues/10522))
 
+> **Ethereum Foundation engagement:** The execution-specs team [provided architectural guidance](https://github.com/ethereum/execution-specs/issues/2212#issuecomment-3915461994) on using fork-to-fork diffs for EIP boundary detection — directly improving PRSpec's spec extraction pipeline. ([Issue #2212](https://github.com/ethereum/execution-specs/issues/2212))
+
 > This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*. See [GRANT_PROPOSAL.md](GRANT_PROPOSAL.md) for the full proposal.
 
 <details>
