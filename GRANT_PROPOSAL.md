@@ -3,7 +3,7 @@
 <strong>Project:</strong> PRSpec — Automated EIP Specification Compliance Checker<br>
 <strong>Requested Funding:</strong> $15,000 (Phase 3 initial milestone) — with Phase 4 ($20,000) contingent on successful Phase 3 delivery<br>
 <strong>Note:</strong> I have intentionally structured this as a milestone-based request. Phase 3 can be funded independently, and Phase 4 funding is only requested after Phase 3 deliverables are verified. This reduces risk for ESP and demonstrates my confidence in execution — Phases 1–2 were completed entirely without funding.<br>
-<strong>Duration:</strong> 6 months<br>
+<strong>Duration:</strong> 4 to 6 months<br>
 <strong>RFP Reference:</strong> Ethereum Foundation ESP — Integrating LLMs into Ethereum Protocol Security Research</p>
 
 <h2>Table of Contents</h2>
