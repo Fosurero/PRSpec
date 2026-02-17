@@ -51,6 +51,8 @@
 
 <p><strong>Validated by Nethermind core team:</strong> This finding was <a href="https://github.com/NethermindEth/nethermind/issues/10522">reported to Nethermind</a>, and a core developer (<a href="https://github.com/LukaszRozmej">@LukaszRozmej</a>) confirmed that the <code>FeeCollector</code> is an intentional chain-specific extension (for Gnosis Chain) that &ldquo;could be refactored better not to pollute the default config and spec.&rdquo; PRSpec correctly identified a real spec deviation before any grant funding.</p>
 
+<p><strong>Ethereum Foundation engagement:</strong> The <code>execution-specs</code> team (<a href="https://github.com/danceratopz">@danceratopz</a>, #2 contributor to <a href="https://github.com/ethereum/execution-specs">ethereum/execution-specs</a>) <a href="https://github.com/ethereum/execution-specs/issues/2212#issuecomment-3915461994">provided architectural guidance</a> on using fork-to-fork diffs (the WET principle) for precise EIP boundary detection — directly informing PRSpec's spec extraction pipeline.</p>
+
 <h2 id="3-background--motivation">3. Background &amp; Motivation</h2>
 
 <h3>The Problem</h3>
