@@ -159,7 +159,7 @@
 
 <p><strong>Duration:</strong> 6 months (Feb 2026 – Aug 2026)</p>
 
-<h3>Phase 1–2: Foundation &amp; Multi-Client (Months 1–2) — COMPLETED</h3>
+<h3>Phase 1–2: Foundation &amp; Multi-Client (Months 1→2) — COMPLETED (Started 10)th Jan 2026</h3>
 <p><em>Completed ahead of schedule, pre-grant, demonstrating execution capability.</em></p>
 <ul>
 <li>&#9745; Multi-EIP architecture supporting 6 EIPs (1559, 4844, 4788, 2930, 7002, 7251)</li>
@@ -171,7 +171,7 @@
 <li>&#9745; CI pipeline (GitHub Actions, Python 3.9–3.12)</li>
 </ul>
 
-<h3>Phase 3: Cross-Client Intelligence (Months 3–4)</h3>
+<h3>Phase 3: Cross-Client Intelligence — Timeline: Month 3 → Month 4 Scheduled for 1st Mar 2026</h3>
 <p><strong>Goal:</strong> Enable differential analysis to find where client implementations diverge from each other.</p>
 <ul>
 <li>Build cross-client comparison engine that analyzes the same EIP across multiple clients in a single run</li>
@@ -181,7 +181,7 @@
 <li>Implement spec embedding cache for faster repeated analysis</li>
 </ul>
 
-<h3>Phase 4: Production &amp; CI Integration (Months 5–6)</h3>
+<h3>Phase 4: Production &amp; CI Integration — Timeline: Month 5 → Month 6</h3>
 <p><strong>Goal:</strong> Ship production-ready GitHub Action, pilot with real client teams.</p>
 <ul>
 <li>Build and publish <code>prspec/action@v1</code> GitHub Action</li>
@@ -219,7 +219,7 @@
 <tr><td>Community &amp; Pilots</td><td>$1,500</td><td>Onboarding materials, pilot coordination with 2+ client teams</td></tr>
 </table>
 
-<p><strong>Total across both milestones: $35,000</strong><br>
+<p><strong>Total across both milestones: $25,000 - $35,000</strong><br>
 <strong>Initial request: $15,000</strong> — ESP bears no risk on Phase 4 until Phase 3 is proven.</p>
 
 <p><strong>Open to discussion:</strong> These numbers reflect estimated costs, not fixed requirements. I am fully open to lower amounts or alternative structures — partial funding, deferred payments, or a smaller scope per phase. I built Phases 1–2 entirely self-funded because I believe in this project; the budget is about sustaining momentum, not a precondition for building. What matters most is ESP's support and alignment, not the specific dollar amount.</p>
