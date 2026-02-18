@@ -307,6 +307,16 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum #giveth
 ---
 
+## Support This Public Good
+
+PRSpec is built entirely in the open and provided free under the MIT license. If this tool is useful to the Ethereum ecosystem — or if you believe cross-client spec compliance deserves better tooling — consider supporting continued development:
+
+[![Support on Giveth](https://img.shields.io/badge/Support%20on-Giveth-purple.svg)](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
+
+Every contribution goes directly toward LLM API costs, infrastructure, and full-time development of new features like cross-client differential analysis and GitHub Action integration.
+
+---
+
 ## License
 
 MIT
