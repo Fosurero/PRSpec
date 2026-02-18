@@ -304,6 +304,8 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 | 5 | Spec quality analysis — flag underspecified EIPs (community-suggested) | Exploring |
 
 ---
+https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum #giveth
+---
 
 ## License
 
