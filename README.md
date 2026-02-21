@@ -6,6 +6,8 @@
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Powered by: Gemini](https://img.shields.io/badge/Gemini_2.5_Pro-AI-cyan.svg)](https://ai.google.dev/)
+[![Support on Giveth](https://img.shields.io/badge/Support%20on-Giveth-purple.svg)](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
+
 
 
 PRSpec fetches official EIP documents (plus execution and consensus specs from the Ethereum repos), pulls the corresponding implementation files from multiple Ethereum clients (go-ethereum, Nethermind, Besu), and sends both to a large-context LLM (Gemini 2.5 Pro or GPT-4) to find deviations, missing checks, or edge cases.
@@ -241,6 +243,39 @@ result = analyzer.analyze_compliance(
 print(result.status, result.confidence)
 for issue in result.issues:
     print(f"  [{issue['severity']}] {issue['description']}")
+```
+
+---
+
+## Library API (Engine)
+
+PRSpec can also be used as a Python library for programmatic scanning.
+The engine module discovers source files and identifies EIP-relevant code
+blocks without requiring LLM API keys.
+
+```python
+from src.engine import scan_path
+
+result = scan_path("path/to/client/source", ruleset="ethereum")
+
+print(f"Scanned {result['summary']['files_scanned']} files")
+print(f"Found {len(result['findings'])} EIP-relevant code blocks")
+
+for finding in result["findings"]:
+    print(f"  [{finding['severity']}] {finding['title']}")
+    print(f"    {finding['file']}:{finding['line']} — {finding['message']}")
+```
+
+The returned dict has the structure:
+
+```json
+{
+  "tool": "PRSpec",
+  "tool_version": "1.4.0",
+  "ruleset": "ethereum",
+  "findings": [{"id", "severity", "title", "message", "file", "line", "hint"}],
+  "summary": {"high": 0, "med": 0, "low": 0, "info": 5, "files_scanned": 12}
+}
 ```
 
 ---
