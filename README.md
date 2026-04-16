@@ -1,6 +1,6 @@
-# PRSpec: Automated EIP Compliance & Protocol Security Research
+# PRSpec
 
-**Bridging the gap between Ethereum Specifications and Client Implementations through Semantic LLM Analysis.**
+**Ethereum specification compliance checker:** Compares EIP specs against client source code using LLM analysis.
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -9,30 +9,54 @@
 
 ---
 
-## Strategic Value & Technical Differentiation
+## What PRSpec Does — And Why Nothing Else Does It
 
-Unlike traditional static analysis tools (Linters/Static Analyzers) that only detect syntax errors, **PRSpec** addresses the **"Semantic Compliance Gap."** It understands the *intent* of an Ethereum Improvement Proposal (EIP) and verifies if the implementation logic across multiple languages actually follows the protocol's rules.
+Most Ethereum security tooling (Slither, Mythril, Echidna) is designed to catch **bugs in smart contracts** through static analysis, symbolic execution, or fuzzing. They operate entirely within code — they have no knowledge of the EIP specifications those clients are supposed to implement.
 
-### Key Differentiators:
-* **Semantic Analysis:** Goes beyond regex; it uses high-context LLMs to interpret complex English-language specs and compare them against multi-file codebase logic.
-* **Cross-Client Verification:** Supports **go-ethereum (Go)**, **Nethermind (C#)**, and **Besu (Java)**, ensuring the "Single Source of Truth" (The Spec) is respected across the ecosystem.
-* **Automated Spec Pipeline:** Directly fetches live specs from `ethereum/EIPs` and `ethereum/execution-specs` repos, eliminating manual documentation errors.
+**PRSpec solves a different and harder problem:** *Does the client implementation actually match what the spec says?*
 
----
-
-## Real-World Validation & Domain Expertise
-
-PRSpec is not just a concept; it is a functional tool that has already contributed to the security of core Ethereum clients through direct developer engagement:
-
-* **Nethermind (Issue #10522):** PRSpec identified a deviation in EIP-1559's `FeeCollector` implementation. A Nethermind core developer **confirmed the finding**, noting it as a chain-specific extension that requires better refactoring. ([View Discussion](https://github.com/NethermindEth/nethermind/issues/10522))
-* **Ethereum Foundation (Issue #2212):** The **execution-specs** team provided architectural guidance on PRSpec’s spec extraction pipeline, validating the tool's methodology for protocol research. ([View Guidance](https://github.com/ethereum/execution-specs/issues/2212#issuecomment-3915461994))
+It fetches official EIP documents, execution specs, and consensus specs directly from the Ethereum repos, pulls the corresponding implementation files from multiple Ethereum clients, and sends both to a large-context LLM (Gemini 2.5 Pro or GPT-4) to identify deviations, missing checks, and edge cases the spec requires but the code omits. No existing open-source tool does this.
 
 ---
 
-## 📸 Screenshots & Demos
+## Confirmed Findings From Protocol Teams
+
+These are not hypothetical results. PRSpec has produced findings that have been reviewed and confirmed by core developers at major Ethereum client organizations.
+
+> **Nethermind (C#):** PRSpec flagged `FeeCollector` as a deviation from EIP-1559's mandatory fee burn mechanism. A Nethermind core developer [confirmed the finding](https://github.com/NethermindEth/nethermind/issues/10522) and acknowledged it as a chain-specific extension that "could be refactored better."
+> — [Issue #10522](https://github.com/NethermindEth/nethermind/issues/10522)
+
+> **Ethereum Foundation execution-specs team:** The EF team [engaged directly with PRSpec's architecture](https://github.com/ethereum/execution-specs/issues/2212#issuecomment-3915461994), providing guidance on using fork-to-fork diffs for EIP boundary detection — a technique now integrated into PRSpec's spec extraction pipeline.
+> — [Issue #2212](https://github.com/ethereum/execution-specs/issues/2212)
+
+These are publicly verifiable interactions, linked above, with named engineers at the Nethermind and Ethereum Foundation organizations. They demonstrate that the tool is producing technically meaningful output that practitioners take seriously.
+
+> This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*. See [GRANT_PROPOSAL.md](GRANT_PROPOSAL.md) for the full proposal.
+
+---
+
+## Technical Differentiators
+
+| Capability | PRSpec | Slither / Mythril / Echidna |
+|---|---|---|
+| Checks against EIP specification text | ✅ | ❌ |
+| Understands natural-language spec requirements | ✅ (LLM) | ❌ |
+| Cross-client differential analysis | ✅ (go-ethereum, Nethermind, Besu) | ❌ |
+| Multi-language support (Go, C#, Java) | ✅ | Limited |
+| Targets protocol-layer client code | ✅ | Smart contracts |
+| Detects spec deviations vs. code bugs | ✅ | ❌ |
+
+The core technical insight is that EIP compliance is a **semantic problem**, not a syntactic one. A base fee calculation can be syntactically correct Go and still deviate from the spec — because the spec is written in English and the deviation is in the logic, not in the syntax. LLMs with large context windows are uniquely suited to bridge this gap.
+
+---
+
+## Screenshots
 
 ### CLI Analysis
 <img src="docs/cli-analysis.svg" alt="PRSpec CLI running EIP-1559 analysis" width="100%">
+
+### Report Overview
+<img src="docs/report-overview.svg" alt="PRSpec compliance report overview" width="100%">
 
 ### Detailed Findings
 <img src="docs/report-details.svg" alt="PRSpec detailed issue findings" width="100%">
@@ -44,55 +68,123 @@ PRSpec is not just a concept; it is a functional tool that has already contribut
 
 ## Demo Video
 ### Video ▶️ [Watch on Youtube](https://www.youtube.com/watch?v=v7UtBAxigKc)
-### Version 1.3 Terminal Video Demo ▶️ [Watch on ASCiinma](https://asciinema.org/a/FSqTk0tKOx8TFiQu)
+### Version 1.3 Terminal Video Demo ▶️ [Watch on ASCiinema](https://asciinema.org/a/FSqTk0tKOx8TFiQu)
 
 ---
 
 ## Supported EIPs & Clients
 
-PRSpec maintains a precise mapping between specs and implementation files to ensure high-fidelity results.
+### Clients
 
-### Clients Coverage
+| Client | Language | EIPs supported | Repo |
+|--------|----------|---------------|------|
+| go-ethereum | Go | 1559, 4844, 4788, 2930 | [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) |
+| Nethermind | C# | 1559, 4844 | [NethermindEth/nethermind](https://github.com/NethermindEth/nethermind) |
+| Besu | Java | 1559, 4844 | [hyperledger/besu](https://github.com/hyperledger/besu) |
 
-| Client | Language | Stack | EIPs Supported |
-|--------|----------|-------|----------------|
-| **go-ethereum** | Go | Execution | 1559, 4844, 4788, 2930 |
-| **Nethermind** | C# | Execution | 1559, 4844 |
-| **Besu** | Java | Execution | 1559, 4844 |
+### EIPs
 
-### EIPs Coverage
+| EIP | Title | Specs fetched | Files per client | Key focus areas |
+|-----|-------|---------------|------------------|-----------------|
+| 1559 | Fee market change | EIP + execution | geth 5 · nethermind 5 · besu 5 | base fee, gas limit, fee cap, state transition |
+| 4844 | Shard Blob Transactions | EIP + execution + consensus | geth 5 · nethermind 5 · besu 5 | blob gas, KZG, max blobs, sidecar, tx pool |
+| 4788 | Beacon block root in EVM | EIP + execution | geth 1 | beacon root |
+| 2930 | Optional access lists | EIP + execution | geth 2 | access list validation |
+| 7002 | Execution layer withdrawals | EIP + execution | spec only | withdrawal requests |
+| 7251 | Increase MAX_EFFECTIVE_BALANCE | EIP + consensus | spec only | consolidation |
 
-| EIP | Title | Key Focus Areas |
-|-----|-------|-----------------|
-| **1559** | Fee market change | Base fee, gas limit, fee cap, state transition |
-| **4844** | Shard Blob Transactions | Blob gas, KZG, max blobs, sidecar |
-| **4788** | Beacon block root in EVM | Beacon root extraction |
-| **2930** | Optional access lists | Access list validation logic |
+Run `python -m src.cli list-eips` to see the live registry.
 
 ---
 
-## 🚀 Quick Start
+## Quick start
 
 ```bash
-# Clone and setup
-git clone [https://github.com/Fosurero/PRSpec.git](https://github.com/Fosurero/PRSpec.git)
+# clone and set up
+git clone https://github.com/Fosurero/PRSpec.git
 cd PRSpec
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# Configuration
+# add your API key
 cp .env.example .env
-# Edit .env → GEMINI_API_KEY=your_key_here
+# edit .env → GEMINI_API_KEY=your_key_here
 
-# Run Analysis
-python -m src.cli analyze --eip 1559 --client go-ethereum --output html
+# run the demo
+python run_demo.py              # EIP-1559 by default
+python run_demo.py --eip 4844   # EIP-4844
+python run_demo.py --test       # quick API check
 ```
 
-## 🏗️ Project Architecture & Layout
+Get a Gemini key at https://aistudio.google.com/app/apikey
 
-PRSpec is built with a modular, "Engine-First" approach to ensure scalability and maintain high standards of code quality, addressing the precision required for security tooling.
+---
 
-```text
+## CLI usage
+
+```bash
+# full analysis → produces JSON/Markdown/HTML reports
+python -m src.cli analyze --eip 1559 --client go-ethereum --output html
+
+# analyze Nethermind (C#) or Besu (Java) instead
+python -m src.cli analyze --eip 1559 --client nethermind --output html
+python -m src.cli analyze --eip 4844 --client besu --output html
+
+# other commands
+python -m src.cli fetch-spec --eip 4844
+python -m src.cli list-files --client go-ethereum --eip 4844
+python -m src.cli list-eips
+python -m src.cli check-config
+```
+
+---
+
+## Configuration
+
+### config.yaml
+
+```yaml
+llm:
+  provider: gemini
+
+  gemini:
+    model: gemini-2.5-pro
+    max_output_tokens: 8192
+    temperature: 0.1
+
+  openai:
+    model: gpt-4-turbo-preview
+    max_tokens: 4096
+    temperature: 0.1
+
+eips:
+  1559:
+    focus_areas:
+      - base_fee_calculation
+      - gas_limit_validation
+      - fee_cap_check
+  4844:
+    focus_areas:
+      - blob_gas_price
+      - kzg_commitment
+      - max_blobs_per_block
+      - sidecar_validation
+```
+
+### Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | Yes (Gemini) | Google AI Studio API key |
+| `OPENAI_API_KEY` | Yes (OpenAI) | OpenAI API key |
+| `GITHUB_TOKEN` | No | Higher GitHub rate limits |
+| `LLM_PROVIDER` | No | Override default provider (`gemini` or `openai`) |
+
+---
+
+## Project layout
+
+```
 src/
   config.py            – YAML + env config loader
   spec_fetcher.py      – EIP registry, spec fetching (EIP/execution/consensus)
@@ -101,6 +193,7 @@ src/
   analyzer.py          – Gemini / OpenAI analysis, JSON response parsing
   report_generator.py  – JSON, Markdown, HTML report output
   cli.py               – Click CLI
+  engine.py            – Library API for programmatic scanning
 tests/
   test_eip1559.py
   test_eip4844.py
@@ -108,35 +201,180 @@ tests/
 config.yaml
 pyproject.toml         – Package metadata, dependencies, linter config
 run_demo.py
+CONTRIBUTING.md
+SECURITY.md
+LICENSE
+GRANT_PROPOSAL.md
 ```
-### Core Components:
 
-* **`spec_fetcher`**: Normalizes specs from official Ethereum repositories, ensuring analysis is always based on the latest protocol "Source of Truth."
-* **`code_fetcher`**: Precisely targets and retrieves relevant logic from client repositories (**Geth, Nethermind, Besu**) to minimize noise and optimize LLM context.
-* **`parser`**: Language-aware extraction of classes and methods using semantic markers, supporting **Go, C#, and Java** to ensure high-fidelity analysis across different stacks.
-* **`analyzer`**: Orchestrates state-of-the-art LLM analysis (Gemini 2.5 Pro / GPT-4) to perform deep semantic audits between specifications and code.
-* **`report_generator`**: Produces machine-readable (**JSON**) for CI/CD pipelines and human-readable (**HTML/MD**) audit logs for security researchers.
+---
 
+## Example output
 
-## Roadmap & Ecosystem Integration
+```json
+{
+  "status": "PARTIAL_MATCH",
+  "confidence": 85,
+  "issues": [
+    {
+      "type": "EDGE_CASE",
+      "severity": "MEDIUM",
+      "description": "Edge case when gas used equals target not explicitly handled",
+      "suggestion": "Add explicit equality check"
+    }
+  ],
+  "summary": "Implementation mostly compliant with minor edge case gaps."
+}
+```
 
-| Phase | Status | Objective |
-|:--- |:--- |:--- |
-| **Phase 1** | ✅ Done | Multi-EIP architecture and initial **go-ethereum (Geth)** support. |
-| **Phase 2** | ✅ Done | Multi-client expansion: Full implementation for **Nethermind (C#)** and **Besu (Java)**. |
-| **Phase 3** | **Active** | **Cross-Client Differential Analysis**: Automated detection of logic divergence between different client implementations for the same EIP. |
-| **Phase 4** | 📅 Planned | **GitHub Action CI Integration**: Automated compliance gating for Ethereum core repository pull requests (PRs). |
-| **Phase 5** | 📅 Planned | **Spec Quality Analysis**: Using semantic logic to flag underspecified, ambiguous, or contradictory EIPs during the draft stage. |
+Reports are written to the `output/` directory in all three formats (JSON, Markdown, HTML).
 
-## ❤️ Support This Public Good 💜
+---
 
-PRSpec is built entirely in the open and provided free under the MIT license. We believe cross-client spec compliance is a fundamental pillar of Ethereum's security. If you find this tool valuable for protocol research or client security, consider supporting continued development:
+## Running tests
+
+```bash
+python -m pytest tests/ -v
+
+# with coverage
+python -m pytest tests/ --cov=src
+```
+
+The test suite covers 37+ cases including multi-client registry validation, C#/Java parser correctness, and live fetch integration.
+
+---
+
+## API usage
+
+```python
+from src.config import Config
+from src.analyzer import GeminiAnalyzer
+from src.spec_fetcher import SpecFetcher
+from src.code_fetcher import CodeFetcher
+
+config = Config()
+analyzer = GeminiAnalyzer(api_key=config.gemini_api_key)
+
+spec_fetcher = SpecFetcher()
+code_fetcher = CodeFetcher()
+
+spec = spec_fetcher.fetch_eip_spec(4844)
+files = code_fetcher.fetch_eip_implementation("go-ethereum", 4844)
+
+result = analyzer.analyze_compliance(
+    spec_text=spec["eip_markdown"],
+    code_text=files["core/types/tx_blob.go"],
+    context={"eip_number": 4844, "language": "go"},
+)
+
+print(result.status, result.confidence)
+for issue in result.issues:
+    print(f"  [{issue['severity']}] {issue['description']}")
+```
+
+---
+
+## Library API (Engine)
+
+PRSpec can also be used as a Python library for programmatic scanning. The engine module discovers source files and identifies EIP-relevant code blocks without requiring LLM API keys.
+
+```python
+from src.engine import scan_path
+
+result = scan_path("path/to/client/source", ruleset="ethereum")
+
+print(f"Scanned {result['summary']['files_scanned']} files")
+print(f"Found {len(result['findings'])} EIP-relevant code blocks")
+
+for finding in result["findings"]:
+    print(f"  [{finding['severity']}] {finding['title']}")
+    print(f"    {finding['file']}:{finding['line']} — {finding['message']}")
+```
+
+The returned dict has the structure:
+
+```json
+{
+  "tool": "PRSpec",
+  "tool_version": "1.4.0",
+  "ruleset": "ethereum",
+  "findings": [{"id", "severity", "title", "message", "file", "line", "hint"}],
+  "summary": {"high": 0, "med": 0, "low": 0, "info": 5, "files_scanned": 12}
+}
+```
+
+---
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+- Adding new EIP file mappings
+- Adding new client support (Prysm, Lighthouse, Reth, etc.)
+- Parser improvements for additional languages
+- Report enhancements
+
+---
+
+## Security
+
+PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
+- Vulnerability reporting process
+- API key handling
+- Data handling policies
+- LLM provider trust considerations
+
+---
+
+## Changelog
+
+### v1.4.0 (2026-02-14)
+- **Multi-client support**: Nethermind (C#) and Besu (Java) alongside go-ethereum (Go)
+- EIP-1559 and EIP-4844 file mappings for all three clients (5 files each)
+- C# and Java regex parsers with class + method extraction
+- 25 new tests covering registry, parsers, and fetch integration
+- Keyword matching verified language-agnostic (case-insensitive)
+
+### v1.3.0 (2026-02-06)
+- Parallel analysis — all files analyzed concurrently via thread pool, ~3x faster on multi-file EIPs
+- Expanded file coverage: EIP-1559 and EIP-4844 now analyze 5 files each (added `state_transition.go`, `protocol_params.go`, `legacypool.go`)
+- Beautified CLI: progress bar with file counter, styled config panel
+- Migrated to `google-genai` SDK (replaces deprecated `google-generativeai`)
+- Executive summary paragraph at the top of every report
+
+### v1.1.0 (2026-02-01)
+- Multi-EIP architecture: registry-based spec and code fetching
+- Added EIP-4844, EIP-4788, EIP-2930 support
+- HTML report with dark-nav professional layout
+- Comprehensive test suite (37 tests)
+
+### v1.0.0 (2026-01-22)
+- Initial release: EIP-1559 analysis against go-ethereum
+- Gemini and OpenAI support, JSON/Markdown/HTML output
+
+---
+
+## Roadmap
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Multi-EIP architecture, EIP-4844 support | ✅ Done |
+| 2 | Multi-client analysis (Nethermind, Besu) | ✅ Done |
+| 3 | Cross-client differential analysis, Pectra EIPs | 🔄 Next |
+| 4 | GitHub Action CI integration, security dashboard | 📋 Planned |
+| 5 | Spec quality analysis — flag underspecified EIPs | 🔍 Exploring |
+
+---
+
+## Support This Public Good
+
+PRSpec is built entirely in the open and provided free under the MIT license. If this tool is useful to the Ethereum ecosystem — or if you believe cross-client spec compliance deserves better tooling — consider supporting continued development:
 
 [![Support on Giveth](https://img.shields.io/badge/Support%20on-Giveth-purple.svg)](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
 
-*Every contribution directly funds LLM API costs, testing infrastructure, and the development of next-generation features like cross-client differential analysis and CI integration.*
+Every contribution goes directly toward LLM API costs, infrastructure, and full-time development of new features including cross-client differential analysis and GitHub Action integration.
 
+---
 
 ## License
-This project is licensed under the MIT License - see the LICENSE file for details.
 
+MIT — [Fosurero/PRSpec](https://github.com/Fosurero/PRSpec)
