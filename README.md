@@ -130,12 +130,31 @@ python -m src.cli analyze --eip 1559 --client go-ethereum --output html
 python -m src.cli analyze --eip 1559 --client nethermind --output html
 python -m src.cli analyze --eip 4844 --client besu --output html
 
+# cross-client differential — compare how clients implement the same EIP
+python -m src.cli diff --eip 1559 --output html
+python -m src.cli diff --eip 4844 --clients go-ethereum,nethermind,besu --output html
+
 # other commands
 python -m src.cli fetch-spec --eip 4844
 python -m src.cli list-files --client go-ethereum --eip 4844
 python -m src.cli list-eips
 python -m src.cli check-config
 ```
+
+### Cross-client differential analysis
+
+The `diff` command runs the standard analysis for each client, then builds a
+comparison matrix showing — per dimension (overall status, issue types, and
+each EIP focus area) — where the implementations **agree** and where they
+**diverge**. With no `--clients` flag it compares every client that has file
+mappings for the EIP.
+
+```bash
+python -m src.cli diff --eip 1559                       # all clients with 1559 mappings
+python -m src.cli diff --eip 4844 --llm-synthesis       # add an LLM divergence narrative
+```
+
+Reports land in `output/` as `prspec_diff_eip<N>_<timestamp>.{json,md,html}`.
 
 ---
 
@@ -191,13 +210,15 @@ src/
   code_fetcher.py      – Per-client per-EIP file registry, code fetching
   parser.py            – Go/Python/C#/Java parsing, EIP keyword matching
   analyzer.py          – Gemini / OpenAI analysis, JSON response parsing
-  report_generator.py  – JSON, Markdown, HTML report output
+  differential.py      – Cross-client differential engine + comparison matrix
+  report_generator.py  – JSON, Markdown, HTML report output (single + differential)
   cli.py               – Click CLI
-  engine.py            – Library API for programmatic scanning
+  engine/              – Library API for programmatic scanning
 tests/
   test_eip1559.py
   test_eip4844.py
   test_multi_client.py – Nethermind/Besu registry + C#/Java parser tests
+  test_differential.py – Cross-client differential engine tests
 config.yaml
 pyproject.toml         – Package metadata, dependencies, linter config
 run_demo.py
@@ -240,7 +261,7 @@ python -m pytest tests/ -v
 python -m pytest tests/ --cov=src
 ```
 
-The test suite covers 37+ cases including multi-client registry validation, C#/Java parser correctness, and live fetch integration.
+The test suite covers 90+ cases including multi-client registry validation, C#/Java parser correctness, cross-client differential comparison, and live fetch integration.
 
 ---
 
@@ -296,11 +317,29 @@ The returned dict has the structure:
 ```json
 {
   "tool": "PRSpec",
-  "tool_version": "1.4.0",
+  "tool_version": "1.5.0",
   "ruleset": "ethereum",
   "findings": [{"id", "severity", "title", "message", "file", "line", "hint"}],
   "summary": {"high": 0, "med": 0, "low": 0, "info": 5, "files_scanned": 12}
 }
+```
+
+### Differential API
+
+Compare multiple clients programmatically and inspect the comparison matrix:
+
+```python
+from src.config import Config
+from src.differential import analyze_clients
+
+diff = analyze_clients(1559, ["go-ethereum", "nethermind", "besu"], Config())
+
+print(diff.narrative)
+print(f"{diff.divergence_count} diverging / {diff.agreement_count} agreeing dimensions")
+
+for row in diff.rows:
+    if row.verdict == "DIVERGE":
+        print(f"  {row.dimension}: {row.per_client}")
 ```
 
 ---
@@ -326,6 +365,14 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 ---
 
 ## Changelog
+
+### v1.5.0 (2026-06-08)
+- **Cross-client differential analysis (Phase 3)**: new `prspec diff` command compares how multiple clients implement the same EIP and produces an agree/diverge comparison matrix
+- `DifferentialEngine` — deterministic comparison across overall status, issue types, and EIP focus areas (no API key required)
+- Optional `--llm-synthesis` pass for a natural-language divergence narrative
+- Differential reports in JSON, Markdown, and HTML
+- New `src.differential` library API (`analyze_clients`, `DifferentialEngine`)
+- 18 new tests covering the differential engine
 
 ### v1.4.0 (2026-02-14)
 - **Multi-client support**: Nethermind (C#) and Besu (Java) alongside go-ethereum (Go)
@@ -359,7 +406,7 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 |-------|-------------|--------|
 | 1 | Multi-EIP architecture, EIP-4844 support | ✅ Done |
 | 2 | Multi-client analysis (Nethermind, Besu) | ✅ Done |
-| 3 | Cross-client differential analysis, Pectra EIPs | 🔄 Next |
+| 3 | Cross-client differential analysis, Pectra EIPs | 🔄 In progress |
 | 4 | GitHub Action CI integration, security dashboard | 📋 Planned |
 | 5 | Spec quality analysis — flag underspecified EIPs | 🔍 Exploring |
 

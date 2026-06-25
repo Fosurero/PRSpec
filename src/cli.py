@@ -203,6 +203,119 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
 
 
 @cli.command()
+@click.option('--eip', '-e', default=1559, help='EIP number to check (default: 1559)')
+@click.option('--clients', '-c', default=None,
+              help='Comma-separated clients (default: all with mappings for the EIP)')
+@click.option('--provider', '-p', default=None, help='LLM provider: gemini or openai')
+@click.option('--output', '-o', default='html', help='Output format: json, markdown, html')
+@click.option('--config', '-f', default=None, help='Path to config.yaml')
+@click.option('--llm-synthesis/--no-llm-synthesis', default=False,
+              help='Add an LLM-generated divergence narrative (extra API call)')
+@click.option('--verbose', '-v', is_flag=True, help='Verbose output')
+def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
+         config: Optional[str], llm_synthesis: bool, verbose: bool):
+    """
+    Cross-client differential: compare how multiple clients implement one EIP.
+
+    Examples:
+        prspec diff --eip 1559
+        prspec diff --eip 4844 --clients go-ethereum,nethermind,besu --output html
+    """
+    from .differential import ClientAnalysis, DifferentialEngine
+
+    try:
+        cfg = Config(config)
+        llm_provider = provider if provider else cfg.llm_provider
+
+        # Resolve the client list: explicit, or every client that maps this EIP.
+        if clients:
+            client_list = [c.strip() for c in clients.split(',') if c.strip()]
+        else:
+            client_list = [
+                c for c in CodeFetcher.supported_clients()
+                if eip in CodeFetcher.supported_eips_for_client(c)
+            ]
+
+        # Keep only clients that actually have file mappings for this EIP.
+        usable = [
+            c for c in client_list
+            if eip in CodeFetcher.supported_eips_for_client(c)
+        ]
+        skipped = [c for c in client_list if c not in usable]
+
+        if len(usable) < 2:
+            raise click.ClickException(
+                f"Differential needs at least 2 clients with EIP-{eip} mappings. "
+                f"Usable: {usable or 'none'}."
+            )
+
+        if RICH_AVAILABLE:
+            console.print(BANNER)
+            info_table = Table(show_header=False, box=None, padding=(0, 2))
+            info_table.add_column(style="bold white")
+            info_table.add_column(style="cyan")
+            info_table.add_row("EIP", str(eip))
+            info_table.add_row("Clients", ", ".join(usable))
+            info_table.add_row("Provider", llm_provider)
+            info_table.add_row("Output", output)
+            if skipped:
+                info_table.add_row("Skipped", ", ".join(skipped))
+            console.print(Panel(info_table, title="[bold]Differential[/bold]", border_style="blue"))
+        else:
+            click.echo(f"\n  PRSpec differential — EIP-{eip} across {', '.join(usable)}\n")
+
+        # Analyze each client through the standard pipeline.
+        per_client = {}
+        last_analyzer = None
+        for client in usable:
+            if RICH_AVAILABLE:
+                console.print(f"[dim]Analyzing {client}...[/dim]")
+            results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
+            per_client[client] = ClientAnalysis(
+                client=client,
+                language=CodeFetcher.client_language(client),
+                results=results,
+            )
+            last_analyzer = analyzer
+
+        # Build the differential.
+        engine = DifferentialEngine(focus_areas=cfg.get_eip_focus_areas(eip))
+        eip_title = SpecFetcher.get_eip_title(eip)
+        differential = engine.build(per_client, eip, eip_title)
+
+        if llm_synthesis and last_analyzer is not None:
+            differential.llm_synthesis = engine.synthesize(
+                last_analyzer, differential, per_client
+            )
+
+        # Report.
+        report_gen = ReportGenerator(cfg.output_config.get("directory", "output"))
+        report_path = report_gen.generate_differential_report(differential, output)
+
+        if RICH_AVAILABLE:
+            report_gen.print_differential_summary(differential)
+            console.print(f"\n[green]✓ Differential report saved to:[/green] {report_path}")
+        else:
+            click.echo(differential.narrative)
+            click.echo(f"\nReport saved to: {report_path}")
+
+    except click.ClickException:
+        raise
+    except Exception as e:
+        if RICH_AVAILABLE:
+            console.print(f"[red]Error:[/red] {str(e)}")
+            if verbose:
+                import traceback
+                console.print(f"[dim]{traceback.format_exc()}[/dim]")
+        else:
+            click.echo(f"Error: {str(e)}", err=True)
+            if verbose:
+                import traceback
+                click.echo(traceback.format_exc(), err=True)
+        raise click.Abort()
+
+
+@cli.command()
 @click.option('--eip', '-e', default=1559, help='EIP number to fetch')
 def fetch_spec(eip: int):
     """

@@ -1,10 +1,11 @@
 """PRSpec — Ethereum spec compliance checker."""
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 from .analyzer import GeminiAnalyzer, OpenAIAnalyzer, get_analyzer
 from .code_fetcher import CodeFetcher
 from .config import Config
+from .differential import ClientAnalysis, DifferentialEngine, DifferentialResult
 from .parser import CodeParser
 from .report_generator import ReportGenerator
 from .spec_fetcher import SpecFetcher
@@ -18,4 +19,7 @@ __all__ = [
     "CodeFetcher",
     "CodeParser",
     "ReportGenerator",
+    "DifferentialEngine",
+    "DifferentialResult",
+    "ClientAnalysis",
 ]

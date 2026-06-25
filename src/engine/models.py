@@ -1,6 +1,6 @@
 """Data structures returned by the PRSpec Engine API."""
 
-from typing import Any, Dict, List, TypedDict
+from typing import List, TypedDict
 
 
 class Finding(TypedDict, total=False):

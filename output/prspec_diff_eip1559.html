@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Client Differential — EIP-1559: Fee market change for ETH 1.0 chain</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f0f2f5; color: #1a1a2e; line-height: 1.6; }
+        .page { max-width: 1040px; margin: 40px auto; padding: 0 20px; }
+        header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; padding: 36px 40px; border-radius: 12px 12px 0 0; }
+        header h1 { margin: 0 0 6px; font-size: 1.5em; font-weight: 700; }
+        header .meta { font-size: 0.85em; opacity: 0.8; }
+        .body { background: #fff; padding: 32px 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .kpi { background: #f8f9fb; border: 1px solid #e8eaed; border-radius: 8px; padding: 16px 14px; text-align: center; }
+        .kpi .num { font-size: 1.2em; font-weight: 700; }
+        .kpi .lbl { font-size: 0.75em; color: #666; margin-top: 4px; }
+        h2 { font-size: 1.15em; font-weight: 600; color: #333; border-bottom: 2px solid #e8eaed; padding-bottom: 8px; margin: 28px 0 18px; }
+        .narrative { background:#f8f9fb; border:1px solid #e8eaed; border-radius:8px; padding:18px 22px; margin-bottom:8px; font-size:0.93em; line-height:1.7; }
+        table.matrix { width: 100%; border-collapse: collapse; font-size: 0.88em; }
+        table.matrix th, table.matrix td { padding: 10px 12px; text-align: center; border-bottom: 1px solid #eceef1; }
+        table.matrix th { background: #fafbfc; font-weight: 600; }
+        table.matrix td.dim { text-align: left; font-weight: 500; }
+        .badge { display: inline-block; padding: 3px 12px; border-radius: 12px; color: #fff; font-size: 0.72em; font-weight: 600; letter-spacing: 0.3px; }
+        ul.notes li { margin: 4px 0; font-size: 0.9em; }
+        .footer { text-align: center; padding: 24px 0 0; margin-top: 32px; border-top: 1px solid #e8eaed; font-size: 0.8em; color: #888; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Cross-Client Differential — EIP-1559: Fee market change for ETH 1.0 chain</h1>
+        <div class="meta">2026-06-08 22:40 &middot; 3 clients &middot; 2 diverging / 5 agreeing dimensions &middot; v1.5.0</div>
+    </header>
+    <div class="body">
+        <div class="kpi-row"><div class="kpi"><div class="num">go-ethereum</div><div class="lbl">COMPLIANT &middot; 95%</div><div class="lbl">0 issues (H0/M0/L0)</div></div><div class="kpi"><div class="num">nethermind</div><div class="lbl">ISSUES FOUND &middot; 98%</div><div class="lbl">2 issues (H1/M1/L0)</div></div><div class="kpi"><div class="num">besu</div><div class="lbl">COMPLIANT &middot; 93%</div><div class="lbl">0 issues (H0/M0/L0)</div></div></div>
+        <div class="narrative">PRSpec performed a cross-client differential analysis of EIP-1559: Fee market change for ETH 1.0 chain across 3 clients (go-ethereum, nethermind, besu). Of 7 compared dimensions, 5 agree and 2 diverge. Overall verdicts differ — go-ethereum: COMPLIANT, nethermind: ISSUES FOUND, besu: COMPLIANT.</div>
+        
+        <h2>Comparison Matrix</h2>
+        <table class="matrix">
+            <thead><tr><th style="text-align:left">Dimension</th><th>go-ethereum</th><th>nethermind</th><th>besu</th><th>Verdict</th></tr></thead>
+            <tbody><tr><td class='dim'>Overall status</td><td>COMPLIANT</td><td>ISSUES FOUND</td><td>COMPLIANT</td><td><span class='badge' style='background:#e03e3e'>DIVERGE</span></td></tr><tr><td class='dim'>Deviation issues</td><td>0</td><td>2</td><td>0</td><td><span class='badge' style='background:#e03e3e'>DIVERGE</span></td></tr><tr><td class='dim'>Base Fee Calculation</td><td style="color:#e03e3e;font-weight:600">flagged</td><td style="color:#e03e3e;font-weight:600">flagged</td><td style="color:#e03e3e;font-weight:600">flagged</td><td><span class='badge' style='background:#2e7d32'>AGREE</span></td></tr><tr><td class='dim'>Gas Limit Validation</td><td style="color:#2e7d32;font-weight:600">clean</td><td style="color:#2e7d32;font-weight:600">clean</td><td style="color:#2e7d32;font-weight:600">clean</td><td><span class='badge' style='background:#2e7d32'>AGREE</span></td></tr><tr><td class='dim'>Fee Cap Check</td><td style="color:#2e7d32;font-weight:600">clean</td><td style="color:#2e7d32;font-weight:600">clean</td><td style="color:#2e7d32;font-weight:600">clean</td><td><span class='badge' style='background:#2e7d32'>AGREE</span></td></tr><tr><td class='dim'>Priority Fee Handling</td><td style="color:#2e7d32;font-weight:600">clean</td><td style="color:#2e7d32;font-weight:600">clean</td><td style="color:#2e7d32;font-weight:600">clean</td><td><span class='badge' style='background:#2e7d32'>AGREE</span></td></tr><tr><td class='dim'>Transaction Validation</td><td style="color:#2e7d32;font-weight:600">clean</td><td style="color:#2e7d32;font-weight:600">clean</td><td style="color:#2e7d32;font-weight:600">clean</td><td><span class='badge' style='background:#2e7d32'>AGREE</span></td></tr></tbody>
+        </table>
+        <h2>Divergences</h2><ul class='notes'><li>Overall status: go-ethereum=COMPLIANT, nethermind=ISSUES FOUND, besu=COMPLIANT</li><li>Deviation issues: go-ethereum=0, nethermind=2, besu=0</li><li>Highest high-severity load: nethermind (1 high-severity issue(s)).</li></ul>
+        <div class="footer">
+            PRSpec v1.5.0 &middot; EIP-1559 &middot; go-ethereum, nethermind, besu &middot; 2026-06-08 22:40
+        </div>
+    </div>
+</div>
+</body>
+</html>
