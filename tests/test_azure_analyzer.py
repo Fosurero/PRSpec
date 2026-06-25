@@ -1,59 +1,63 @@
-"""Tests for the Azure AI Foundry analyzer (OpenAI-compatible deployments)."""
+"""Tests for the Azure AI Foundry analyzer (Anthropic Messages deployments)."""
 
 import json
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+
+import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.analyzer import AzureAIAnalyzer, get_analyzer
 
 
-class _FakeMessage:
-    def __init__(self, content):
-        self.content = content
+class _FakeResponse:
+    def __init__(self, status_code=200, payload=None):
+        self.status_code = status_code
+        self._payload = payload or {}
+        self.text = json.dumps(self._payload)
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code}")
 
 
-class _FakeChoice:
-    def __init__(self, content):
-        self.message = _FakeMessage(content)
+class _FakeSession:
+    """Stand-in for requests.Session that records the last POST."""
+
+    def __init__(self, response):
+        self._response = response
+        self.last = {}
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        self.last = {"url": url, "json": json, "headers": headers, "timeout": timeout}
+        if isinstance(self._response, Exception):
+            raise self._response
+        return self._response
 
 
-class _FakeCompletion:
-    def __init__(self, content):
-        self.choices = [_FakeChoice(content)]
+def _messages_payload(obj):
+    """Wrap a JSON object the way the Anthropic Messages API returns text."""
+    return {
+        "content": [{"type": "text", "text": json.dumps(obj)}],
+        "stop_reason": "end_turn",
+    }
 
 
-def _fake_openai(content, raise_on_create=False):
-    """Build a stand-in ``openai.OpenAI`` class that returns *content*.
-
-    The returned class records the kwargs it was constructed with on
-    ``last_init`` and the last create() call on ``last_create`` so tests can
-    assert how the analyzer wired up the client.
-    """
-
-    class _FakeCompletions:
-        def create(self, **kwargs):
-            _FakeOpenAI.last_create = kwargs
-            if raise_on_create:
-                raise RuntimeError("deployment unavailable")
-            return _FakeCompletion(content)
-
-    class _FakeChat:
-        def __init__(self):
-            self.completions = _FakeCompletions()
-
-    class _FakeOpenAI:
-        last_init = None
-        last_create = None
-
-        def __init__(self, **kwargs):
-            _FakeOpenAI.last_init = kwargs
-            self.chat = _FakeChat()
-
-    return _FakeOpenAI
+def _analyzer(session, **overrides):
+    kwargs = dict(
+        api_key="secret",
+        endpoint="https://x.services.ai.azure.com/anthropic/v1/messages",
+        model="claude-opus-4-8",
+    )
+    kwargs.update(overrides)
+    analyzer = AzureAIAnalyzer(**kwargs)
+    analyzer.session = session
+    return analyzer
 
 
 _CONTEXT = {"eip_number": 1559, "eip_title": "EIP-1559", "language": "csharp"}
@@ -61,100 +65,92 @@ _CONTEXT = {"eip_number": 1559, "eip_title": "EIP-1559", "language": "csharp"}
 
 class TestAzureAIAnalyzer(unittest.TestCase):
     def test_full_match_is_parsed(self):
-        payload = json.dumps({
-            "status": "FULL_MATCH",
-            "confidence": 95,
-            "issues": [],
+        payload = _messages_payload({
+            "status": "FULL_MATCH", "confidence": 95, "issues": [],
             "summary": "Implementation matches the spec.",
         })
-        with patch("openai.OpenAI", _fake_openai(payload)):
-            analyzer = AzureAIAnalyzer(
-                api_key="k", endpoint="https://x.services.ai.azure.com/models",
-                model="claude-sonnet-4-6",
-            )
-            result = analyzer.analyze_compliance("spec", "code", _CONTEXT)
+        analyzer = _analyzer(_FakeSession(_FakeResponse(payload=payload)))
+        result = analyzer.analyze_compliance("spec", "code", _CONTEXT)
 
         self.assertEqual(result.status, "FULL_MATCH")
         self.assertEqual(result.confidence, 95)
         self.assertFalse(result.has_issues)
 
     def test_issues_are_parsed(self):
-        payload = json.dumps({
-            "status": "MISSING",
-            "confidence": 70,
+        payload = _messages_payload({
+            "status": "MISSING", "confidence": 70,
             "issues": [{
-                "type": "MISSING_CHECK",
-                "severity": "HIGH",
+                "type": "MISSING_CHECK", "severity": "HIGH",
                 "spec_reference": "base fee must be burned",
                 "description": "fee not burned",
             }],
             "summary": "Found one deviation.",
         })
-        with patch("openai.OpenAI", _fake_openai(payload)):
-            analyzer = AzureAIAnalyzer(
-                api_key="k", endpoint="https://x.services.ai.azure.com/models",
-                model="claude-opus-4-8",
-            )
-            result = analyzer.analyze_compliance("spec", "code", _CONTEXT)
+        analyzer = _analyzer(_FakeSession(_FakeResponse(payload=payload)))
+        result = analyzer.analyze_compliance("spec", "code", _CONTEXT)
 
         self.assertEqual(result.status, "MISSING")
         self.assertEqual(len(result.issues), 1)
         self.assertEqual(result.high_severity_issues[0]["severity"], "HIGH")
 
-    def test_api_error_returns_error_status(self):
-        with patch("openai.OpenAI", _fake_openai("", raise_on_create=True)):
-            analyzer = AzureAIAnalyzer(
-                api_key="k", endpoint="https://x.services.ai.azure.com/models",
-                model="claude-sonnet-4-6",
-            )
-            result = analyzer.analyze_compliance("spec", "code", _CONTEXT)
+    def test_request_shape_and_auth(self):
+        session = _FakeSession(_FakeResponse(payload=_messages_payload(
+            {"status": "FULL_MATCH", "issues": []})))
+        analyzer = _analyzer(session)
+        analyzer.analyze_compliance("spec", "code", _CONTEXT)
 
+        sent = session.last
+        # Bearer auth + the Anthropic version header, posted to the messages URL.
+        self.assertEqual(sent["url"], "https://x.services.ai.azure.com/anthropic/v1/messages")
+        self.assertEqual(sent["headers"]["Authorization"], "Bearer secret")
+        self.assertEqual(sent["headers"]["anthropic-version"], "2023-06-01")
+        # Messages request body, not OpenAI chat-completions.
+        self.assertEqual(sent["json"]["model"], "claude-opus-4-8")
+        self.assertIn("max_tokens", sent["json"])
+        self.assertEqual(sent["json"]["messages"][0]["role"], "user")
+        self.assertIn("system", sent["json"])
+        # temperature is omitted by default (Opus 4.x rejects it).
+        self.assertNotIn("temperature", sent["json"])
+
+    def test_temperature_sent_only_when_set(self):
+        session = _FakeSession(_FakeResponse(payload=_messages_payload(
+            {"status": "FULL_MATCH", "issues": []})))
+        analyzer = _analyzer(session, temperature=0.2)
+        analyzer.analyze_compliance("spec", "code", _CONTEXT)
+        self.assertEqual(session.last["json"]["temperature"], 0.2)
+
+    def test_custom_anthropic_version(self):
+        session = _FakeSession(_FakeResponse(payload=_messages_payload(
+            {"status": "FULL_MATCH", "issues": []})))
+        analyzer = _analyzer(session, anthropic_version="2024-10-01")
+        analyzer.analyze_compliance("spec", "code", _CONTEXT)
+        self.assertEqual(session.last["headers"]["anthropic-version"], "2024-10-01")
+
+    def test_http_error_returns_error_status(self):
+        analyzer = _analyzer(_FakeSession(_FakeResponse(status_code=401)))
+        result = analyzer.analyze_compliance("spec", "code", _CONTEXT)
         self.assertEqual(result.status, "ERROR")
-        self.assertEqual(result.confidence, 0)
         self.assertIn("Azure AI analysis failed", result.summary)
 
-    def test_endpoint_and_deployment_wiring(self):
-        fake = _fake_openai(json.dumps({"status": "FULL_MATCH", "issues": []}))
-        with patch("openai.OpenAI", fake):
-            analyzer = AzureAIAnalyzer(
-                api_key="secret",
-                endpoint="https://x.services.ai.azure.com/models/",
-                model="my-deployment",
-                api_version="2024-05-01-preview",
-            )
-            analyzer.analyze_compliance("spec", "code", _CONTEXT)
-
-        # Trailing slash trimmed, key forwarded as api-key header, version queried.
-        self.assertEqual(fake.last_init["base_url"], "https://x.services.ai.azure.com/models")
-        self.assertEqual(fake.last_init["api_key"], "secret")
-        self.assertEqual(fake.last_init["default_headers"], {"api-key": "secret"})
-        self.assertEqual(fake.last_init["default_query"], {"api-version": "2024-05-01-preview"})
-        self.assertEqual(fake.last_create["model"], "my-deployment")
-
-    def test_no_api_version_means_no_default_query(self):
-        fake = _fake_openai(json.dumps({"status": "FULL_MATCH", "issues": []}))
-        with patch("openai.OpenAI", fake):
-            AzureAIAnalyzer(
-                api_key="k", endpoint="https://x.services.ai.azure.com/models",
-                model="d",
-            )
-        self.assertIsNone(fake.last_init["default_query"])
+    def test_network_error_returns_error_status(self):
+        analyzer = _analyzer(_FakeSession(requests.ConnectionError("boom")))
+        result = analyzer.analyze_compliance("spec", "code", _CONTEXT)
+        self.assertEqual(result.status, "ERROR")
+        self.assertEqual(result.confidence, 0)
 
     def test_missing_endpoint_raises(self):
-        with patch("openai.OpenAI", _fake_openai("{}")):
-            with self.assertRaises(ValueError):
-                AzureAIAnalyzer(api_key="k", endpoint="", model="d")
+        with self.assertRaises(ValueError):
+            AzureAIAnalyzer(api_key="k", endpoint="", model="claude-opus-4-8")
 
     def test_missing_deployment_raises(self):
-        with patch("openai.OpenAI", _fake_openai("{}")):
-            with self.assertRaises(ValueError):
-                AzureAIAnalyzer(api_key="k", endpoint="https://x", model="")
+        with self.assertRaises(ValueError):
+            AzureAIAnalyzer(api_key="k", endpoint="https://x", model="")
 
     def test_get_model_info(self):
-        with patch("openai.OpenAI", _fake_openai("{}")):
-            analyzer = AzureAIAnalyzer(
-                api_key="k", endpoint="https://x", model="claude-opus-4-8",
-            )
+        analyzer = AzureAIAnalyzer(
+            api_key="k", endpoint="https://x/anthropic/v1/messages",
+            model="claude-opus-4-8",
+        )
         info = analyzer.get_model_info()
         self.assertEqual(info["provider"], "azure")
         self.assertEqual(info["model"], "claude-opus-4-8")
@@ -162,17 +158,16 @@ class TestAzureAIAnalyzer(unittest.TestCase):
 
 class TestFactory(unittest.TestCase):
     def test_factory_builds_azure(self):
-        with patch("openai.OpenAI", _fake_openai("{}")):
-            analyzer = get_analyzer(
-                "azure", api_key="k",
-                endpoint="https://x.services.ai.azure.com/models",
-                model="claude-sonnet-4-6",
-            )
+        analyzer = get_analyzer(
+            "azure", api_key="k",
+            endpoint="https://x.services.ai.azure.com/anthropic/v1/messages",
+            model="claude-opus-4-8",
+        )
         self.assertIsInstance(analyzer, AzureAIAnalyzer)
 
     def test_factory_azure_requires_endpoint(self):
         with self.assertRaises(ValueError):
-            get_analyzer("azure", api_key="k", model="d")
+            get_analyzer("azure", api_key="k", model="claude-opus-4-8")
 
 
 if __name__ == "__main__":

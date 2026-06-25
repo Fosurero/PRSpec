@@ -14,14 +14,14 @@ llm:
     max_tokens: 4096
     temperature: 0.1
 
-  # Azure AI Foundry settings (e.g. a Claude deployment in your own resource).
-  # Endpoint, deployment name, and key come from the environment
-  # (AZURE_AI_ENDPOINT / AZURE_AI_DEPLOYMENT / AZURE_AI_API_KEY); the values
-  # below are just the generation defaults.
+  # Azure AI Foundry settings (a Claude deployment in your own resource).
+  # The Anthropic Messages endpoint, deployment name, and key come from the
+  # environment (AZURE_AI_ENDPOINT / AZURE_AI_DEPLOYMENT / AZURE_AI_API_KEY);
+  # the values below are just the generation defaults.
   azure:
-    # api_version: "2024-05-01-preview"  # only needed by the classic gateway
+    # anthropic_version: "2023-06-01"  # Messages API version header
     max_tokens: 8192
-    temperature: 0.1
+    # temperature: 0.1  # omit for Opus 4.x / newer Claude models that reject it
 
 repositories:
   execution_specs:

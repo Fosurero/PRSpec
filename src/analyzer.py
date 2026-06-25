@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+import requests
+
 
 @dataclass
 class AnalysisResult:
@@ -342,68 +344,76 @@ class OpenAIAnalyzer(BaseAnalyzer):
 
 
 class AzureAIAnalyzer(BaseAnalyzer):
-    """Analyzer backed by a model deployed in your own Azure AI Foundry resource
-    (e.g. Claude Sonnet/Opus).
+    """Analyzer backed by a Claude model deployed in your Azure AI Foundry
+    resource.
 
-    Foundry deployments expose an OpenAI-compatible chat-completions route, so
-    this reuses the same request/response shape as :class:`OpenAIAnalyzer` while
-    pointing the client at your private endpoint and key. The deployment name
-    plays the role of the model id.
+    Foundry serves Anthropic models through the native Messages API at
+    ``.../anthropic/v1/messages``, authenticated with a bearer token, so this
+    posts the Messages request shape directly instead of going through an
+    OpenAI-compatible route. The deployment name plays the role of the model id.
     """
 
-    def __init__(self, api_key: str, endpoint: str, model: str,
-                 api_version: Optional[str] = None, max_tokens: int = 4096,
-                 temperature: float = 0.1):
-        """Configure an OpenAI client aimed at the Foundry endpoint."""
-        try:
-            from openai import OpenAI
-        except ImportError:
-            raise ImportError("openai not installed. Run: pip install openai")
+    DEFAULT_ANTHROPIC_VERSION = "2023-06-01"
+    _SYSTEM_PROMPT = (
+        "You are an expert Ethereum protocol security researcher. "
+        "Respond only with valid JSON."
+    )
 
+    def __init__(self, api_key: str, endpoint: str, model: str,
+                 anthropic_version: str = DEFAULT_ANTHROPIC_VERSION,
+                 max_tokens: int = 4096, temperature: Optional[float] = None):
+        """Store the Foundry Messages endpoint and generation params.
+
+        ``temperature`` is left unset by default because newer Claude models
+        (e.g. Opus 4.8) reject the parameter; set it only for models that still
+        accept sampling controls.
+        """
         if not endpoint:
             raise ValueError("Azure AI endpoint URL is required (set AZURE_AI_ENDPOINT)")
         if not model:
             raise ValueError("Azure AI deployment name is required (set AZURE_AI_DEPLOYMENT)")
 
-        # Foundry serves an OpenAI-compatible path; resources fronted by the
-        # Azure gateway also expect the key in an `api-key` header and an
-        # `api-version` query string. Sending both auth styles keeps this working
-        # across the v1 endpoint and the classic gateway without extra config.
-        default_query = {"api-version": api_version} if api_version else None
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url=endpoint.rstrip("/"),
-            default_query=default_query,
-            default_headers={"api-key": api_key},
-        )
+        self.api_key = api_key
+        self.endpoint = endpoint
         self.model = model
-        self.api_version = api_version
+        self.anthropic_version = anthropic_version
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.session = requests.Session()
 
     def analyze_compliance(self, spec_text: str, code_text: str,
                           context: dict) -> AnalysisResult:
-        """Send spec + code to the Foundry deployment and parse the JSON."""
+        """Send spec + code to the Foundry Claude deployment and parse the JSON."""
         prompt = self._build_analysis_prompt(spec_text, code_text, context)
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert Ethereum protocol security researcher. Respond only with valid JSON."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "anthropic-version": self.anthropic_version,
+            "Content-Type": "application/json",
+        }
+        body = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "system": self._SYSTEM_PROMPT,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if self.temperature is not None:
+            body["temperature"] = self.temperature
 
-            response_text = response.choices[0].message.content
+        try:
+            response = self.session.post(
+                self.endpoint, json=body, headers=headers, timeout=120
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            # Anthropic Messages returns a list of content blocks; concatenate
+            # the text ones to reconstruct the model's reply.
+            response_text = "".join(
+                block.get("text", "")
+                for block in data.get("content", [])
+                if block.get("type") == "text"
+            )
             result = self._parse_json_response(response_text)
 
             return AnalysisResult(

@@ -250,7 +250,7 @@ eips:
 | `GEMINI_API_KEY` | Yes (Gemini) | Google AI Studio API key |
 | `OPENAI_API_KEY` | Yes (OpenAI) | OpenAI API key |
 | `AZURE_AI_API_KEY` | Yes (Azure) | Key for a model deployed in your Azure AI Foundry resource |
-| `AZURE_AI_ENDPOINT` | Yes (Azure) | Foundry deployment endpoint URL |
+| `AZURE_AI_ENDPOINT` | Yes (Azure) | Foundry Anthropic Messages URL (`.../anthropic/v1/messages`) |
 | `AZURE_AI_DEPLOYMENT` | Yes (Azure) | Deployment name (acts as the model id) |
 | `GITHUB_TOKEN` | No | Higher GitHub rate limits |
 | `LLM_PROVIDER` | No | Override default provider (`gemini`, `openai`, or `azure`) |

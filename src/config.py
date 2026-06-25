@@ -111,11 +111,15 @@ class Config:
             "endpoint": os.getenv("AZURE_AI_ENDPOINT", base.get("endpoint", "")),
             "model": os.getenv("AZURE_AI_DEPLOYMENT", base.get("model", "")),
             "max_tokens": base.get("max_tokens", 4096),
-            "temperature": base.get("temperature", 0.1),
         }
-        api_version = os.getenv("AZURE_AI_API_VERSION", base.get("api_version"))
-        if api_version:
-            cfg["api_version"] = api_version
+        # Only forward temperature when explicitly configured; newer Claude
+        # models reject the parameter outright.
+        if base.get("temperature") is not None:
+            cfg["temperature"] = base["temperature"]
+        anthropic_version = os.getenv("AZURE_AI_ANTHROPIC_VERSION",
+                                      base.get("anthropic_version"))
+        if anthropic_version:
+            cfg["anthropic_version"] = anthropic_version
         return cfg
 
     @property
