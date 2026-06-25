@@ -132,7 +132,7 @@ class CodeFetcher:
         cache_file = self.cache_dir / cache_key
 
         if use_cache and cache_file.exists():
-            return cache_file.read_text()
+            return cache_file.read_text(encoding="utf-8")
 
         # Use raw GitHub URL
         url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
@@ -140,7 +140,7 @@ class CodeFetcher:
         response.raise_for_status()
 
         content = response.text
-        cache_file.write_text(content)
+        cache_file.write_text(content, encoding="utf-8")
 
         return content
 

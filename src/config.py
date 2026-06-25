@@ -68,6 +68,14 @@ class Config:
         return key
 
     @property
+    def azure_api_key(self) -> str:
+        """Get Azure AI Foundry API key from environment"""
+        key = os.getenv("AZURE_AI_API_KEY")
+        if not key:
+            raise ValueError("AZURE_AI_API_KEY not set in environment")
+        return key
+
+    @property
     def github_token(self) -> Optional[str]:
         """Get GitHub token from environment (optional)"""
         return os.getenv("GITHUB_TOKEN")
@@ -89,6 +97,42 @@ class Config:
             "max_tokens": 4096,
             "temperature": 0.1
         })
+
+    @property
+    def azure_config(self) -> Dict[str, Any]:
+        """Get Azure AI Foundry configuration.
+
+        The endpoint and deployment name live in the environment (they are
+        per-resource), while the generation params come from config.yaml.
+        Returns kwargs ready to splat into ``AzureAIAnalyzer``.
+        """
+        base = self._config.get("llm", {}).get("azure", {})
+        cfg: Dict[str, Any] = {
+            "endpoint": os.getenv("AZURE_AI_ENDPOINT", base.get("endpoint", "")),
+            "model": os.getenv("AZURE_AI_DEPLOYMENT", base.get("model", "")),
+            "max_tokens": base.get("max_tokens", 4096),
+            "temperature": base.get("temperature", 0.1),
+        }
+        api_version = os.getenv("AZURE_AI_API_VERSION", base.get("api_version"))
+        if api_version:
+            cfg["api_version"] = api_version
+        return cfg
+
+    @property
+    def azure_verify_config(self) -> Optional[Dict[str, Any]]:
+        """Config for a separate verification deployment, or None to reuse the
+        primary one.
+
+        Set ``AZURE_AI_VERIFY_DEPLOYMENT`` to run the skeptic rounds on a
+        cheaper model (e.g. Sonnet) while the primary analysis uses a stronger
+        one (e.g. Opus). The endpoint, key, and params are shared.
+        """
+        verify_deployment = os.getenv("AZURE_AI_VERIFY_DEPLOYMENT")
+        if not verify_deployment:
+            return None
+        cfg = self.azure_config
+        cfg["model"] = verify_deployment
+        return cfg
 
     @property
     def repositories(self) -> Dict[str, Any]:

@@ -1,5 +1,5 @@
 llm:
-  # Provider: "gemini" or "openai"
+  # Provider: "gemini", "openai", or "azure"
   provider: gemini
   
   # Gemini settings
@@ -12,6 +12,15 @@ llm:
   openai:
     model: gpt-4-turbo-preview
     max_tokens: 4096
+    temperature: 0.1
+
+  # Azure AI Foundry settings (e.g. a Claude deployment in your own resource).
+  # Endpoint, deployment name, and key come from the environment
+  # (AZURE_AI_ENDPOINT / AZURE_AI_DEPLOYMENT / AZURE_AI_API_KEY); the values
+  # below are just the generation defaults.
+  azure:
+    # api_version: "2024-05-01-preview"  # only needed by the classic gateway
+    max_tokens: 8192
     temperature: 0.1
 
 repositories:

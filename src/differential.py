@@ -15,14 +15,22 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from .verifier import confirmed_issues
+
 # ---------------------------------------------------------------------------
 # Result summarisation (kept standalone so the engine has no dependency on the
 # report generator).
 # ---------------------------------------------------------------------------
 
 
-def summarize_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Aggregate per-file analysis dicts into client-level summary stats."""
+def summarize_results(results: List[Dict[str, Any]],
+                      confirmed_only: bool = False) -> Dict[str, Any]:
+    """Aggregate per-file analysis dicts into client-level summary stats.
+
+    When *confirmed_only* is set and the results carry verification verdicts,
+    only CONFIRMED findings are counted, so cross-client stats reflect what
+    survived adversarial verification rather than raw candidates.
+    """
     total_issues = 0
     high = med = low = 0
     confidences: List[int] = []
@@ -30,7 +38,7 @@ def summarize_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     type_counts: Dict[str, int] = {}
 
     for result in results:
-        issues = result.get("issues", []) or []
+        issues = confirmed_issues(result) if confirmed_only else (result.get("issues", []) or [])
         total_issues += len(issues)
         for issue in issues:
             severity = str(issue.get("severity", "")).upper()
@@ -80,9 +88,9 @@ class ClientAnalysis:
     language: str
     results: List[Dict[str, Any]] = field(default_factory=list)
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self, confirmed_only: bool = False) -> Dict[str, Any]:
         """Return aggregate summary stats for this client."""
-        return summarize_results(self.results)
+        return summarize_results(self.results, confirmed_only=confirmed_only)
 
     def all_issue_text(self) -> str:
         """Concatenate all issue/summary text (lowercased) for keyword matching."""
@@ -181,11 +189,13 @@ class DifferentialEngine:
     # ---- public API ----
 
     def build(self, per_client: Dict[str, ClientAnalysis],
-              eip: int, eip_title: str = "") -> DifferentialResult:
+              eip: int, eip_title: str = "",
+              confirmed_only: bool = False) -> DifferentialResult:
         """Construct the differential comparison.
 
         *per_client* maps client name -> :class:`ClientAnalysis`.  At least two
-        clients are required.
+        clients are required.  *confirmed_only* restricts the stats to findings
+        that survived verification (no-op when results were not verified).
         """
         if len(per_client) < 2:
             raise ValueError(
@@ -194,7 +204,8 @@ class DifferentialEngine:
             )
 
         clients = list(per_client.keys())
-        summaries = {c: ca.summary() for c, ca in per_client.items()}
+        summaries = {c: ca.summary(confirmed_only=confirmed_only)
+                     for c, ca in per_client.items()}
 
         rows: List[DiffRow] = []
         rows.append(self._status_row(clients, summaries))
@@ -401,7 +412,9 @@ class DifferentialEngine:
 
 def analyze_clients(eip: int, clients: List[str], config: Any,
                     provider: Optional[str] = None,
-                    use_llm_synthesis: bool = False) -> DifferentialResult:
+                    use_llm_synthesis: bool = False,
+                    verify: bool = False,
+                    verify_rounds: int = 2) -> DifferentialResult:
     """Run analysis for each client and build a differential.
 
     Thin wrapper over the standard analysis pipeline for programmatic use::
@@ -422,7 +435,10 @@ def analyze_clients(eip: int, clients: List[str], config: Any,
     last_analyzer = None
 
     for client in clients:
-        results, analyzer = _run_analysis(eip, client, config, llm_provider)
+        results, analyzer = _run_analysis(
+            eip, client, config, llm_provider,
+            verify=verify, verify_rounds=verify_rounds,
+        )
         per_client[client] = ClientAnalysis(
             client=client,
             language=CodeFetcher.client_language(client),
@@ -432,7 +448,7 @@ def analyze_clients(eip: int, clients: List[str], config: Any,
 
     engine = DifferentialEngine(focus_areas=config.get_eip_focus_areas(eip))
     eip_title = SpecFetcher.get_eip_title(eip)
-    differential = engine.build(per_client, eip, eip_title)
+    differential = engine.build(per_client, eip, eip_title, confirmed_only=verify)
 
     if use_llm_synthesis and last_analyzer is not None:
         differential.llm_synthesis = engine.synthesize(

@@ -19,7 +19,7 @@ except ImportError:
     RICH_AVAILABLE = False
     console = None
 
-from .analyzer import GeminiAnalyzer, OpenAIAnalyzer
+from .analyzer import AzureAIAnalyzer, GeminiAnalyzer, OpenAIAnalyzer
 from .code_fetcher import CodeFetcher
 from .config import Config
 from .report_generator import ReportGenerator, ReportMetadata
@@ -50,17 +50,43 @@ def _analyze_one_file(analyzer, spec_text, file_path, code_content, context):
     return result_dict
 
 
+def _build_analyzer(llm_provider, cfg):
+    """Construct the analyzer for the active provider."""
+    if llm_provider == "gemini":
+        return GeminiAnalyzer(api_key=cfg.gemini_api_key, **cfg.gemini_config)
+    if llm_provider == "azure":
+        return AzureAIAnalyzer(api_key=cfg.azure_api_key, **cfg.azure_config)
+    return OpenAIAnalyzer(api_key=cfg.openai_api_key, **cfg.openai_config)
+
+
+def _build_verify_analyzer(llm_provider, cfg, primary):
+    """Pick the analyzer for the skeptic rounds.
+
+    Azure can point verification at a separate (typically cheaper) deployment
+    via ``AZURE_AI_VERIFY_DEPLOYMENT`` — e.g. Opus for the primary pass and
+    Sonnet for the rounds.  Every other case reuses the primary analyzer.
+    """
+    if llm_provider == "azure":
+        verify_cfg = cfg.azure_verify_config
+        if verify_cfg:
+            return AzureAIAnalyzer(api_key=cfg.azure_api_key, **verify_cfg)
+    return primary
+
+
 # ---- Helper: shared analysis pipeline (parallel) ----
 
 def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
-                  progress_callback=None):
+                  progress_callback=None, verify: bool = False,
+                  verify_rounds: int = 2):
     """Fetch spec+code, build analyzer, return (results_list, analyzer).
-    Runs all file analyses in parallel via threads for speed."""
+    Runs all file analyses in parallel via threads for speed.  When *verify*
+    is set, each candidate finding is then cross-examined and grounded."""
     spec_fetcher = SpecFetcher(github_token=cfg.github_token)
     code_fetcher = CodeFetcher(github_token=cfg.github_token)
 
     # --- Fetch specification (generic for any EIP) ---
-    spec_data = spec_fetcher.fetch_eip_spec(eip)
+    # Prefer the focused fork-to-fork diff; falls back to the full spec file.
+    spec_data = spec_fetcher.fetch_eip_spec(eip, mode="diff")
     eip_title = spec_data.get("title", f"EIP-{eip}")
 
     # --- Fetch implementation code (generic for any EIP) ---
@@ -68,15 +94,20 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
     language = CodeFetcher.client_language(client)
 
     # --- Build analyzer ---
-    if llm_provider == "gemini":
-        analyzer = GeminiAnalyzer(api_key=cfg.gemini_api_key, **cfg.gemini_config)
-    else:
-        analyzer = OpenAIAnalyzer(api_key=cfg.openai_api_key, **cfg.openai_config)
+    analyzer = _build_analyzer(llm_provider, cfg)
 
-    # --- Run analysis (parallel) ---
+    # --- Assemble spec text (EIP prose + reference-impl fork diff) ---
     focus_areas = cfg.get_eip_focus_areas(eip)
     spec_text = spec_data.get("eip_markdown", "")
+    exec_spec = spec_data.get("execution_spec")
+    if exec_spec and spec_data.get("execution_spec_mode") == "diff":
+        spec_text = (
+            f"{spec_text}\n\n"
+            f"=== EXECUTION-SPEC FORK DIFF ({spec_data.get('title', eip)}) ===\n"
+            f"{exec_spec}"
+        )
 
+    # --- Run analysis (parallel) ---
     futures = {}
     with ThreadPoolExecutor(max_workers=min(len(code_files), 5)) as pool:
         for file_path, code_content in code_files.items():
@@ -104,24 +135,43 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
     file_order = list(code_files.keys())
     results.sort(key=lambda r: file_order.index(r["file_name"]))
 
+    # --- Adversarial verification (optional) ---
+    if verify:
+        from .verifier import VerificationEngine
+        verify_analyzer = _build_verify_analyzer(llm_provider, cfg, analyzer)
+        engine = VerificationEngine(verify_analyzer, rounds=verify_rounds)
+        base_context = {
+            "eip_number": eip,
+            "eip_title": eip_title,
+            "language": language,
+            "focus_areas": focus_areas,
+        }
+        engine.verify_results(results, spec_text, code_files, base_context)
+
     return results, analyzer
 
 
 @cli.command()
 @click.option('--eip', '-e', default=1559, help='EIP number to check (default: 1559)')
 @click.option('--client', '-c', default='go-ethereum', help='Client to analyze (default: go-ethereum)')
-@click.option('--provider', '-p', default=None, help='LLM provider: gemini or openai')
+@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, or azure')
 @click.option('--output', '-o', default='json', help='Output format: json, markdown, html')
 @click.option('--config', '-f', default=None, help='Path to config.yaml')
+@click.option('--verify/--no-verify', default=True,
+              help='Cross-examine each finding and grade it (extra API calls)')
+@click.option('--verify-rounds', default=2, show_default=True,
+              help='Independent skeptic passes per finding')
 @click.option('--verbose', '-v', is_flag=True, help='Verbose output')
 def analyze(eip: int, client: str, provider: Optional[str], output: str,
-            config: Optional[str], verbose: bool):
+            config: Optional[str], verify: bool, verify_rounds: int,
+            verbose: bool):
     """
     Analyze a client implementation against an EIP specification.
 
     Examples:
         prspec analyze --eip 1559 --client go-ethereum --output markdown
         prspec analyze --eip 4844 --client go-ethereum --output html
+        prspec analyze --eip 1559 --client nethermind --verify
     """
     try:
         # Load configuration
@@ -138,6 +188,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             info_table.add_row("Client", client)
             info_table.add_row("Provider", llm_provider)
             info_table.add_row("Output", output)
+            info_table.add_row("Verify", f"on · {verify_rounds} rounds" if verify else "off")
             console.print(Panel(info_table, title="[bold]Configuration[/bold]", border_style="blue"))
         else:
             click.echo("\n  PRSpec - Ethereum Specification Compliance Checker\n")
@@ -163,11 +214,21 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
                     progress.advance(task)
                 results, analyzer = _run_analysis(
                     eip, client, cfg, llm_provider,
-                    progress_callback=on_file_done
+                    progress_callback=on_file_done,
+                    verify=verify, verify_rounds=verify_rounds,
+                )
+            if verify:
+                n_found = sum(len(r.get("issues", [])) for r in results)
+                console.print(
+                    f"[dim]Verified {n_found} candidate finding(s) "
+                    f"across {verify_rounds} skeptic round(s).[/dim]"
                 )
         else:
             click.echo(f"\n  Analyzing {n_files} files ({est})...")
-            results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
+            results, analyzer = _run_analysis(
+                eip, client, cfg, llm_provider,
+                verify=verify, verify_rounds=verify_rounds,
+            )
 
         # Generate report
         report_gen = ReportGenerator(cfg.output_config.get("directory", "output"))
@@ -206,14 +267,19 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
 @click.option('--eip', '-e', default=1559, help='EIP number to check (default: 1559)')
 @click.option('--clients', '-c', default=None,
               help='Comma-separated clients (default: all with mappings for the EIP)')
-@click.option('--provider', '-p', default=None, help='LLM provider: gemini or openai')
+@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, or azure')
 @click.option('--output', '-o', default='html', help='Output format: json, markdown, html')
 @click.option('--config', '-f', default=None, help='Path to config.yaml')
 @click.option('--llm-synthesis/--no-llm-synthesis', default=False,
               help='Add an LLM-generated divergence narrative (extra API call)')
+@click.option('--verify/--no-verify', default=False,
+              help='Verify each finding before comparing (extra API calls per client)')
+@click.option('--verify-rounds', default=2, show_default=True,
+              help='Independent skeptic passes per finding')
 @click.option('--verbose', '-v', is_flag=True, help='Verbose output')
 def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
-         config: Optional[str], llm_synthesis: bool, verbose: bool):
+         config: Optional[str], llm_synthesis: bool, verify: bool,
+         verify_rounds: int, verbose: bool):
     """
     Cross-client differential: compare how multiple clients implement one EIP.
 
@@ -270,7 +336,10 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
         for client in usable:
             if RICH_AVAILABLE:
                 console.print(f"[dim]Analyzing {client}...[/dim]")
-            results, analyzer = _run_analysis(eip, client, cfg, llm_provider)
+            results, analyzer = _run_analysis(
+                eip, client, cfg, llm_provider,
+                verify=verify, verify_rounds=verify_rounds,
+            )
             per_client[client] = ClientAnalysis(
                 client=client,
                 language=CodeFetcher.client_language(client),
@@ -281,7 +350,7 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
         # Build the differential.
         engine = DifferentialEngine(focus_areas=cfg.get_eip_focus_areas(eip))
         eip_title = SpecFetcher.get_eip_title(eip)
-        differential = engine.build(per_client, eip, eip_title)
+        differential = engine.build(per_client, eip, eip_title, confirmed_only=verify)
 
         if llm_synthesis and last_analyzer is not None:
             differential.llm_synthesis = engine.synthesize(
@@ -448,6 +517,17 @@ def check_config():
             checks.append(("OpenAI API Key", "✓ Set", "green"))
         except ValueError:
             checks.append(("OpenAI API Key", "✗ Not set", "yellow"))
+
+        # Check Azure AI Foundry key + endpoint
+        try:
+            _ = cfg.azure_api_key
+            endpoint = cfg.azure_config.get("endpoint")
+            if endpoint:
+                checks.append(("Azure AI Key", "✓ Set", "green"))
+            else:
+                checks.append(("Azure AI Key", "✓ Set (endpoint missing)", "yellow"))
+        except ValueError:
+            checks.append(("Azure AI Key", "✗ Not set", "yellow"))
 
         # Check GitHub token
         token = cfg.github_token

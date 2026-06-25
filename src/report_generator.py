@@ -78,7 +78,7 @@ class ReportGenerator:
         filename = f"prspec_eip{metadata.eip_number}_{metadata.client}_{metadata.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
         filepath = self.output_dir / filename
 
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(report, f, indent=2)
 
         return str(filepath)
@@ -87,6 +87,14 @@ class ReportGenerator:
                                   metadata: ReportMetadata) -> str:
         """Generate Markdown format report"""
         summary = self._generate_summary(results)
+        verification = summary.get("verification", {})
+        verified_row = ""
+        if verification.get("verified"):
+            verified_row = (
+                f"| Verified | {verification['confirmed']} confirmed, "
+                f"{verification['disputed']} disputed, "
+                f"{verification['refuted']} refuted |"
+            )
 
         md_content = f"""# {metadata.title}
 
@@ -110,6 +118,7 @@ class ReportGenerator:
 | Confidence | {summary['average_confidence']}% |
 | Files analysed | {summary['files_analyzed']} |
 | Issues | {summary['total_issues']} (H:{summary['high_severity']} M:{summary['medium_severity']} L:{summary['low_severity']}) |
+{verified_row}
 
 ## Detailed Findings
 
@@ -127,9 +136,11 @@ class ReportGenerator:
             if issues:
                 md_content += "#### Issues Found\n\n"
                 for j, issue in enumerate(issues, 1):
+                    verdict = self._verdict_text(issue)
+                    verdict_md = f"- **Verification**: {verdict}\n" if verdict else ""
                     md_content += f"""**{j}. [{issue.get('severity', 'UNKNOWN')}] {issue.get('type', 'Issue')}**
 
-- **Description**: {issue.get('description', 'N/A')}
+{verdict_md}- **Description**: {issue.get('description', 'N/A')}
 - **Spec Reference**: `{issue.get('spec_reference', 'N/A')}`
 - **Code Location**: `{issue.get('code_location', 'N/A')}`
 - **Potential Impact**: {issue.get('potential_impact', 'N/A')}
@@ -156,7 +167,7 @@ against the official EIP-{metadata.eip_number} specification.
         filename = f"prspec_eip{metadata.eip_number}_{metadata.client}_{metadata.timestamp.strftime('%Y%m%d_%H%M%S')}.md"
         filepath = self.output_dir / filename
 
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             f.write(md_content)
 
         return str(filepath)
@@ -173,6 +184,15 @@ against the official EIP-{metadata.eip_number} specification.
             "UNCERTAIN": "#6c757d",
             "ERROR": "#dc3545",
         }
+
+        verification = summary.get("verification", {})
+        verified_kpi = ""
+        if verification.get("verified"):
+            verified_kpi = (
+                f'<div class="kpi"><div class="num" style="color:#1a73e8">'
+                f'{verification["confirmed"]}</div>'
+                f'<div class="lbl">Confirmed</div></div>'
+            )
 
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -224,6 +244,7 @@ against the official EIP-{metadata.eip_number} specification.
             <div class="kpi"><div class="num" style="color:#e03e3e">{summary['high_severity']}</div><div class="lbl">High</div></div>
             <div class="kpi"><div class="num" style="color:#d4a017">{summary['medium_severity']}</div><div class="lbl">Medium</div></div>
             <div class="kpi"><div class="num" style="color:#2e7d32">{summary['low_severity']}</div><div class="lbl">Low</div></div>
+            {verified_kpi}
         </div>
 
         <div style="background:#f8f9fb;border:1px solid #e8eaed;border-radius:8px;padding:18px 22px;margin-bottom:28px;font-size:0.93em;line-height:1.7;white-space:pre-line;">{self._build_narrative(results, metadata)}</div>
@@ -250,9 +271,11 @@ against the official EIP-{metadata.eip_number} specification.
             if issues:
                 for issue in issues:
                     severity = issue.get('severity', 'LOW').lower()
+                    verdict_html = self._verdict_badge_html(issue)
                     html_content += f"""
                 <div class="issue issue-{html.escape(severity)}">
                     <div class="title">[{html.escape(issue.get('severity', '?'))}] {html.escape(issue.get('type', 'Issue'))}</div>
+                    {verdict_html}
                     <div class="detail"><strong>Description:</strong> {html.escape(issue.get('description', 'N/A'))}</div>
                     <div class="detail"><strong>Spec ref:</strong> <code>{html.escape(issue.get('spec_reference', 'N/A'))}</code></div>
                     <div class="detail"><strong>Location:</strong> <code>{html.escape(issue.get('code_location', 'N/A'))}</code></div>
@@ -281,7 +304,7 @@ against the official EIP-{metadata.eip_number} specification.
         filename = f"prspec_eip{metadata.eip_number}_{metadata.client}_{metadata.timestamp.strftime('%Y%m%d_%H%M%S')}.html"
         filepath = self.output_dir / filename
 
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             f.write(html_content)
 
         return str(filepath)
@@ -333,6 +356,32 @@ against the official EIP-{metadata.eip_number} specification.
 
         return " ".join(parts[:3]) + "\n\n" + "\n".join(parts[3:])
 
+    # Colors for verification verdicts, shared across HTML rendering.
+    _VERDICT_COLORS = {"CONFIRMED": "#1a73e8", "DISPUTED": "#d4a017", "REFUTED": "#888"}
+
+    def _verdict_text(self, issue: Dict[str, Any]) -> str:
+        """Plain-text verdict summary for an issue, or '' if unverified."""
+        v = issue.get("verification")
+        if not v or not v.get("verdict"):
+            return ""
+        grounded = "grounded ✓" if v.get("grounded") else "ungrounded ✗"
+        return f"{v['verdict']} · {v.get('verification_score', 0)}/100 · {grounded}"
+
+    def _verdict_badge_html(self, issue: Dict[str, Any]) -> str:
+        """Render a verification verdict badge for an issue, or '' if unverified."""
+        v = issue.get("verification")
+        if not v or not v.get("verdict"):
+            return ""
+        verdict = v["verdict"]
+        color = self._VERDICT_COLORS.get(verdict, "#888")
+        grounded = "grounded ✓" if v.get("grounded") else "ungrounded ✗"
+        return (
+            f'<div class="detail"><span class="badge" style="background:{color}">'
+            f'{html.escape(verdict)}</span> '
+            f'<span style="color:#666;font-size:0.85em">'
+            f'{v.get("verification_score", 0)}/100 &middot; {grounded}</span></div>'
+        )
+
     def _generate_summary(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate summary statistics from results"""
         total_issues = 0
@@ -341,6 +390,8 @@ against the official EIP-{metadata.eip_number} specification.
         low_severity = 0
         confidences = []
         statuses = []
+        verification = {"verified": False, "confirmed": 0,
+                        "disputed": 0, "refuted": 0}
 
         for result in results:
             issues = result.get('issues', [])
@@ -354,6 +405,13 @@ against the official EIP-{metadata.eip_number} specification.
                     medium_severity += 1
                 elif severity == 'LOW':
                     low_severity += 1
+
+                verdict = issue.get('verification', {}).get('verdict')
+                if verdict:
+                    verification["verified"] = True
+                    key = verdict.lower()
+                    if key in verification:
+                        verification[key] += 1
 
             confidences.append(result.get('confidence', 0))
             statuses.append(result.get('status', 'UNKNOWN'))
@@ -376,6 +434,7 @@ against the official EIP-{metadata.eip_number} specification.
             "high_severity": high_severity,
             "medium_severity": medium_severity,
             "low_severity": low_severity,
+            "verification": verification,
         }
 
     # ------------------------------------------------------------------
@@ -404,7 +463,7 @@ against the official EIP-{metadata.eip_number} specification.
 
     def _generate_differential_json(self, differential: Any) -> str:
         filepath = self._diff_filename(differential, "json")
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(differential.to_dict(), f, indent=2)
         return str(filepath)
 
@@ -452,7 +511,7 @@ against the official EIP-{metadata.eip_number} specification.
         md.append(f"\n---\n\n*Generated by PRSpec v{__version__}*\n")
 
         filepath = self._diff_filename(differential, "md")
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write("\n".join(md))
         return str(filepath)
 
@@ -558,7 +617,7 @@ against the official EIP-{metadata.eip_number} specification.
 </html>
 """
         filepath = self._diff_filename(differential, "html")
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(html_content)
         return str(filepath)
 
@@ -626,6 +685,14 @@ against the official EIP-{metadata.eip_number} specification.
         table.add_row("High Severity", str(summary['high_severity']))
         table.add_row("Medium Severity", str(summary['medium_severity']))
         table.add_row("Low Severity", str(summary['low_severity']))
+        verification = summary.get("verification", {})
+        if verification.get("verified"):
+            table.add_row(
+                "Verified",
+                f"{verification['confirmed']} confirmed / "
+                f"{verification['disputed']} disputed / "
+                f"{verification['refuted']} refuted",
+            )
 
         self.console.print(table)
         self.console.print()
@@ -643,6 +710,8 @@ against the official EIP-{metadata.eip_number} specification.
                 for issue in issues:
                     severity = issue.get('severity', 'LOW')
                     color = {'HIGH': 'red', 'MEDIUM': 'yellow', 'LOW': 'green'}.get(severity, 'white')
-                    self.console.print(f"  [{color}]● [{severity}][/{color}] {issue.get('description', 'No description')}")
+                    verdict = self._verdict_text(issue)
+                    suffix = f" [dim]({verdict})[/dim]" if verdict else ""
+                    self.console.print(f"  [{color}]● [{severity}][/{color}] {issue.get('description', 'No description')}{suffix}")
 
                 self.console.print()

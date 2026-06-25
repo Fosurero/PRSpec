@@ -1,4 +1,4 @@
-"""LLM-based spec compliance analysis (Gemini and OpenAI backends)."""
+"""LLM-based spec compliance analysis (Gemini, OpenAI, and Azure AI backends)."""
 
 import json
 import re
@@ -110,6 +110,39 @@ Respond ONLY with valid JSON in this exact format:
 }}
 
 Important: If the code correctly implements the spec, return status "FULL_MATCH" with empty issues array.
+"""
+
+    def _build_refutation_prompt(self, finding: Dict[str, Any], spec_text: str,
+                                 context: dict) -> str:
+        """Frame a single finding for skeptical re-examination.
+
+        Returns text suitable for the *spec_text* slot of
+        :meth:`analyze_compliance`.  The idea is to hand a second, independent
+        reviewer the original specification plus the claim a prior pass made,
+        and ask them to verify it from scratch rather than trust it.  A real
+        deviation comes back as an issue; a false positive comes back as
+        FULL_MATCH with no issues.
+        """
+        claim = (
+            f"- type: {finding.get('type', 'UNKNOWN')}\n"
+            f"- severity: {finding.get('severity', 'UNKNOWN')}\n"
+            f"- description: {finding.get('description', '')}\n"
+            f"- claimed spec reference: \"{finding.get('spec_reference', '')}\"\n"
+            f"- claimed code location: {finding.get('code_location', '')}"
+        )
+
+        return f"""{spec_text}
+
+--- INDEPENDENT VERIFICATION TASK ---
+A prior automated reviewer flagged the deviation below. Do not assume it is
+correct. Re-check it yourself against the specification above and the code that
+follows. Only report an issue if you can independently confirm a genuine
+deviation; if the code actually satisfies the specification, return status
+FULL_MATCH with an empty issues array. When the evidence is ambiguous, prefer
+FULL_MATCH over repeating an unverified claim.
+
+Flagged finding under review:
+{claim}
 """
 
     def _parse_json_response(self, response_text: str) -> Dict[str, Any]:
@@ -308,8 +341,99 @@ class OpenAIAnalyzer(BaseAnalyzer):
         }
 
 
+class AzureAIAnalyzer(BaseAnalyzer):
+    """Analyzer backed by a model deployed in your own Azure AI Foundry resource
+    (e.g. Claude Sonnet/Opus).
+
+    Foundry deployments expose an OpenAI-compatible chat-completions route, so
+    this reuses the same request/response shape as :class:`OpenAIAnalyzer` while
+    pointing the client at your private endpoint and key. The deployment name
+    plays the role of the model id.
+    """
+
+    def __init__(self, api_key: str, endpoint: str, model: str,
+                 api_version: Optional[str] = None, max_tokens: int = 4096,
+                 temperature: float = 0.1):
+        """Configure an OpenAI client aimed at the Foundry endpoint."""
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ImportError("openai not installed. Run: pip install openai")
+
+        if not endpoint:
+            raise ValueError("Azure AI endpoint URL is required (set AZURE_AI_ENDPOINT)")
+        if not model:
+            raise ValueError("Azure AI deployment name is required (set AZURE_AI_DEPLOYMENT)")
+
+        # Foundry serves an OpenAI-compatible path; resources fronted by the
+        # Azure gateway also expect the key in an `api-key` header and an
+        # `api-version` query string. Sending both auth styles keeps this working
+        # across the v1 endpoint and the classic gateway without extra config.
+        default_query = {"api-version": api_version} if api_version else None
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url=endpoint.rstrip("/"),
+            default_query=default_query,
+            default_headers={"api-key": api_key},
+        )
+        self.model = model
+        self.api_version = api_version
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+
+    def analyze_compliance(self, spec_text: str, code_text: str,
+                          context: dict) -> AnalysisResult:
+        """Send spec + code to the Foundry deployment and parse the JSON."""
+        prompt = self._build_analysis_prompt(spec_text, code_text, context)
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert Ethereum protocol security researcher. Respond only with valid JSON."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+
+            response_text = response.choices[0].message.content
+            result = self._parse_json_response(response_text)
+
+            return AnalysisResult(
+                status=result.get("status", "UNCERTAIN"),
+                confidence=result.get("confidence", 0),
+                issues=result.get("issues", []),
+                summary=result.get("summary", ""),
+                raw_response=response_text
+            )
+
+        except Exception as e:
+            return AnalysisResult(
+                status="ERROR",
+                confidence=0,
+                issues=[],
+                summary=f"Azure AI analysis failed: {str(e)}"
+            )
+
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get information about the current model"""
+        return {
+            "provider": "azure",
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+        }
+
+
 def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
-    """Factory: return a GeminiAnalyzer or OpenAIAnalyzer."""
+    """Factory: return a GeminiAnalyzer, OpenAIAnalyzer, or AzureAIAnalyzer."""
     provider = provider.lower()
 
     if provider == "gemini":
@@ -326,5 +450,14 @@ def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
                 raise ValueError(f"Missing required parameter: {key}")
         return OpenAIAnalyzer(**kwargs)
 
+    elif provider == "azure":
+        required = ["api_key", "endpoint", "model"]
+        for key in required:
+            if key not in kwargs:
+                raise ValueError(f"Missing required parameter: {key}")
+        return AzureAIAnalyzer(**kwargs)
+
     else:
-        raise ValueError(f"Unknown provider: {provider}. Use 'gemini' or 'openai'.")
+        raise ValueError(
+            f"Unknown provider: {provider}. Use 'gemini', 'openai', or 'azure'."
+        )
