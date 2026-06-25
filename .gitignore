@@ -44,7 +44,7 @@ env/
 .pytest_cache/
 htmlcov/
 
-# Output reports (optional - uncomment to ignore)
-# output/*.json
-# output/*.md
-# output/*.html
+# Generated analysis reports (keep local; commit samples deliberately)
+output/*.json
+output/*.md
+output/*.html

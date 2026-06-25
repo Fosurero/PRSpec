@@ -9,9 +9,21 @@
 
 ---
 
-## What PRSpec Does — And Why Nothing Else Does It
+## What's new in v1.6
 
-Most Ethereum security tooling (Slither, Mythril, Echidna) is designed to catch **bugs in smart contracts** through static analysis, symbolic execution, or fuzzing. They operate entirely within code — they have no knowledge of the EIP specifications those clients are supposed to implement.
+This release is about precision. Instead of trusting a single model pass, PRSpec now cross-examines every finding and refuses to report one it cannot trace back to the specification text.
+
+- **Verified findings.** Independent skeptical rounds grade each finding `CONFIRMED`, `DISPUTED`, or `REFUTED`, and nothing is confirmed unless its quoted spec text is actually present in the spec. On by default for `analyze`.
+- **Fork-to-fork spec diffs.** The analyzer now sees the precise EIP delta between a fork and its predecessor instead of a whole `fork.py`.
+- **Azure AI Foundry backend.** Run the analysis against a Claude deployment in your own Foundry resource via `LLM_PROVIDER=azure`, with an optional cheaper deployment for the verification rounds.
+
+See [Verified findings, not raw guesses](#verified-findings-not-raw-guesses) and the [changelog](#changelog) for the full details.
+
+---
+
+## What PRSpec Does, and Why Nothing Else Does It
+
+Most Ethereum security tooling (Slither, Mythril, Echidna) is designed to catch **bugs in smart contracts** through static analysis, symbolic execution, or fuzzing. They operate entirely within code, with no knowledge of the EIP specifications those clients are supposed to implement.
 
 **PRSpec solves a different and harder problem:** *Does the client implementation actually match what the spec says?*
 
@@ -24,10 +36,10 @@ It fetches official EIP documents, execution specs, and consensus specs directly
 These are not hypothetical results. PRSpec has produced findings that have been reviewed and confirmed by core developers at major Ethereum client organizations.
 
 > **Nethermind (C#):** PRSpec flagged `FeeCollector` as a deviation from EIP-1559's mandatory fee burn mechanism. A Nethermind core developer [confirmed the finding](https://github.com/NethermindEth/nethermind/issues/10522) and acknowledged it as a chain-specific extension that "could be refactored better."
-> — [Issue #10522](https://github.com/NethermindEth/nethermind/issues/10522)
+> Source: [Issue #10522](https://github.com/NethermindEth/nethermind/issues/10522)
 
-> **Ethereum Foundation execution-specs team:** The EF team [engaged directly with PRSpec's architecture](https://github.com/ethereum/execution-specs/issues/2212#issuecomment-3915461994), providing guidance on using fork-to-fork diffs for EIP boundary detection — a technique now integrated into PRSpec's spec extraction pipeline.
-> — [Issue #2212](https://github.com/ethereum/execution-specs/issues/2212)
+> **Ethereum Foundation execution-specs team:** The EF team [engaged directly with PRSpec's architecture](https://github.com/ethereum/execution-specs/issues/2212#issuecomment-3915461994), providing guidance on using fork-to-fork diffs for EIP boundary detection, a technique now integrated into PRSpec's spec extraction pipeline.
+> Source: [Issue #2212](https://github.com/ethereum/execution-specs/issues/2212)
 
 These are publicly verifiable interactions, linked above, with named engineers at the Nethermind and Ethereum Foundation organizations. They demonstrate that the tool is producing technically meaningful output that practitioners take seriously.
 
@@ -48,7 +60,7 @@ These are publicly verifiable interactions, linked above, with named engineers a
 | Targets protocol-layer client code | ✅ | Smart contracts |
 | Detects spec deviations vs. code bugs | ✅ | ❌ |
 
-The core technical insight is that EIP compliance is a **semantic problem**, not a syntactic one. A base fee calculation can be syntactically correct Go and still deviate from the spec — because the spec is written in English and the deviation is in the logic, not in the syntax. LLMs with large context windows are uniquely suited to bridge this gap.
+The core technical insight is that EIP compliance is a **semantic problem**, not a syntactic one. A base fee calculation can be syntactically correct Go and still deviate from the spec, because the spec is written in English and the deviation is in the logic, not in the syntax. LLMs with large context windows are uniquely suited to bridge this gap.
 
 ---
 
@@ -57,7 +69,7 @@ The core technical insight is that EIP compliance is a **semantic problem**, not
 The hardest problem with any LLM-based analysis is false positives: a model that
 confidently invents a deviation that isn't real. A tool that floods client teams
 with plausible-but-wrong findings gets ignored. PRSpec's verification layer exists
-to make the opposite trade — fewer findings, each one defensible.
+to make the opposite trade: fewer findings, each one defensible.
 
 Every candidate finding goes through two independent checks before it is reported:
 
@@ -68,7 +80,7 @@ Every candidate finding goes through two independent checks before it is reporte
 2. **Spec grounding.** The exact text the finding quotes as its `spec_reference`
    must actually appear in the fetched specification. A quote that cannot be
    located in the spec is almost always hallucinated, so the finding can never be
-   `CONFIRMED` — however the rounds voted.
+   `CONFIRMED`, no matter how the rounds voted.
 
 Only findings that survive both checks are counted toward the headline numbers.
 The grading is shown inline in every report, so a reviewer sees exactly what held
@@ -99,7 +111,7 @@ on its own.
 <img src="docs/report-details.svg" alt="PRSpec detailed issue findings" width="100%">
 
 ### Multi-Client Analysis (Phase 2)
-<img src="docs/multi-client-analysis.svg" alt="PRSpec multi-client analysis — Nethermind C# and Besu Java" width="100%">
+<img src="docs/multi-client-analysis.svg" alt="PRSpec multi-client analysis: Nethermind C# and Besu Java" width="100%">
 
 ---
 
@@ -171,7 +183,7 @@ python -m src.cli analyze --eip 4844 --client besu --output html
 python -m src.cli analyze --eip 1559 --client nethermind --verify-rounds 3
 python -m src.cli analyze --eip 1559 --client go-ethereum --no-verify
 
-# cross-client differential — compare how clients implement the same EIP
+# cross-client differential: compare how clients implement the same EIP
 python -m src.cli diff --eip 1559 --output html
 python -m src.cli diff --eip 4844 --clients go-ethereum,nethermind,besu --output html
 
@@ -185,8 +197,8 @@ python -m src.cli check-config
 ### Cross-client differential analysis
 
 The `diff` command runs the standard analysis for each client, then builds a
-comparison matrix showing — per dimension (overall status, issue types, and
-each EIP focus area) — where the implementations **agree** and where they
+comparison matrix showing, per dimension (overall status, issue types, and
+each EIP focus area), where the implementations **agree** and where they
 **diverge**. With no `--clients` flag it compares every client that has file
 mappings for the EIP.
 
@@ -357,7 +369,7 @@ print(f"Found {len(result['findings'])} EIP-relevant code blocks")
 
 for finding in result["findings"]:
     print(f"  [{finding['severity']}] {finding['title']}")
-    print(f"    {finding['file']}:{finding['line']} — {finding['message']}")
+    print(f"    {finding['file']}:{finding['line']}: {finding['message']}")
 ```
 
 The returned dict has the structure:
@@ -419,12 +431,12 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 - `DifferentialEngine` and reports can restrict stats to confirmed-only findings
 - **Fork-to-fork spec diffs**: the analyzer is fed the execution-spec delta between the implementing fork and its predecessor (e.g. `london` vs `berlin`) instead of the whole `fork.py`, focusing the comparison on the EIP boundary
 - New `src.verifier` library API (`VerificationEngine`, `SpecGrounding`); `SpecFetcher.fetch_execution_spec_diff`
-- **Azure AI Foundry provider**: point PRSpec at a Claude (or any) deployment in your own Foundry resource via `LLM_PROVIDER=azure` and the `AZURE_AI_*` variables — useful when you want a stronger reasoning model for the verification passes
+- **Azure AI Foundry provider**: point PRSpec at a Claude (or any) deployment in your own Foundry resource via `LLM_PROVIDER=azure` and the `AZURE_AI_*` variables; useful when you want a stronger reasoning model for the verification passes
 - 31 new tests covering grounding, verdict tallying, diff extraction, and the Azure provider (125 passing total)
 
 ### v1.5.0 (2026-06-08)
 - **Cross-client differential analysis (Phase 3)**: new `prspec diff` command compares how multiple clients implement the same EIP and produces an agree/diverge comparison matrix
-- `DifferentialEngine` — deterministic comparison across overall status, issue types, and EIP focus areas (no API key required)
+- `DifferentialEngine`: deterministic comparison across overall status, issue types, and EIP focus areas (no API key required)
 - Optional `--llm-synthesis` pass for a natural-language divergence narrative
 - Differential reports in JSON, Markdown, and HTML
 - New `src.differential` library API (`analyze_clients`, `DifferentialEngine`)
@@ -438,7 +450,7 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 - Keyword matching verified language-agnostic (case-insensitive)
 
 ### v1.3.0 (2026-02-06)
-- Parallel analysis — all files analyzed concurrently via thread pool, ~3x faster on multi-file EIPs
+- Parallel analysis: all files analyzed concurrently via thread pool, ~3x faster on multi-file EIPs
 - Expanded file coverage: EIP-1559 and EIP-4844 now analyze 5 files each (added `state_transition.go`, `protocol_params.go`, `legacypool.go`)
 - Beautified CLI: progress bar with file counter, styled config panel
 - Migrated to `google-genai` SDK (replaces deprecated `google-generativeai`)
@@ -463,15 +475,15 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 | 1 | Multi-EIP architecture, EIP-4844 support | ✅ Done |
 | 2 | Multi-client analysis (Nethermind, Besu) | ✅ Done |
 | 3 | Cross-client differential analysis | ✅ Done |
-| 3.5 | Verified findings — adversarial verification + spec grounding + fork-to-fork diffs | ✅ Done |
+| 3.5 | Verified findings: adversarial verification + spec grounding + fork-to-fork diffs | ✅ Done |
 | 4 | Pectra EIP coverage, GitHub Action CI integration, security dashboard | 🔄 In progress |
-| 5 | Spec quality analysis — flag underspecified EIPs | 🔍 Exploring |
+| 5 | Spec quality analysis: flag underspecified EIPs | 🔍 Exploring |
 
 ---
 
 ## Support This Public Good
 
-PRSpec is built entirely in the open and provided free under the MIT license. If this tool is useful to the Ethereum ecosystem — or if you believe cross-client spec compliance deserves better tooling — consider supporting continued development:
+PRSpec is built entirely in the open and provided free under the MIT license. If this tool is useful to the Ethereum ecosystem, or if you believe cross-client spec compliance deserves better tooling, consider supporting continued development:
 
 [![Support on Giveth](https://img.shields.io/badge/Support%20on-Giveth-purple.svg)](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
 
@@ -481,4 +493,4 @@ Every contribution goes directly toward LLM API costs, infrastructure, and full-
 
 ## License
 
-MIT — [Fosurero/PRSpec](https://github.com/Fosurero/PRSpec)
+MIT. [Fosurero/PRSpec](https://github.com/Fosurero/PRSpec)
