@@ -17,13 +17,14 @@ class CodeFetcher:
     """Fetches code from Ethereum client implementations"""
 
     # Client repos and per-EIP file paths.
+    # "branch" defaults to "master" when absent.
     CLIENTS: Dict[str, Dict[str, Any]] = {
         "go-ethereum": {
             "url": "https://github.com/ethereum/go-ethereum",
             "language": "go",
             "eip_files": {
                 1559: [
-                    "consensus/misc/eip1559.go",
+                    "consensus/misc/eip1559/eip1559.go",
                     "core/types/transaction.go",
                     "core/types/tx_dynamic_fee.go",
                     "params/protocol_params.go",
@@ -43,9 +44,31 @@ class CodeFetcher:
                     "core/types/tx_access_list.go",
                     "core/state/access_list.go",
                 ],
+                # Pectra EIPs
+                7702: [
+                    "core/types/tx_setcode.go",
+                    "core/state_transition.go",
+                    "core/vm/evm.go",
+                    "core/state/statedb.go",
+                    "params/protocol_params.go",
+                ],
+                2935: [
+                    "core/vm/contracts.go",
+                    "core/blockchain.go",
+                    "params/protocol_params.go",
+                ],
+                2537: [
+                    "core/vm/contracts.go",
+                    "core/vm/contracts_bls12381.go",
+                    "params/protocol_params.go",
+                ],
+                6110: [
+                    "core/state_transition.go",
+                    "core/types/deposit_request.go",
+                    "params/protocol_params.go",
+                ],
             },
         },
-        # Prysm (Go) and Lighthouse (Rust) are planned for Phase 3.
         "nethermind": {
             "url": "https://github.com/NethermindEth/nethermind",
             "language": "csharp",
@@ -56,6 +79,8 @@ class CodeFetcher:
                     "src/Nethermind/Nethermind.Core/Specs/IEip1559Spec.cs",
                     "src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs",
                     "src/Nethermind/Nethermind.Core/TxType.cs",
+                    # Where the base-fee burn / FeeCollector split actually happens.
+                    "src/Nethermind/Nethermind.Evm/TransactionProcessing/TransactionProcessor.cs",
                 ],
                 4844: [
                     "src/Nethermind/Nethermind.Evm/BlobGasCalculator.cs",
@@ -63,6 +88,28 @@ class CodeFetcher:
                     "src/Nethermind/Nethermind.Crypto/KzgPolynomialCommitments.cs",
                     "src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs",
                     "src/Nethermind/Nethermind.Consensus/Validators/HeaderValidator.cs",
+                ],
+                # Pectra EIPs
+                7702: [
+                    "src/Nethermind/Nethermind.Core/Eip7702Constants.cs",
+                    "src/Nethermind/Nethermind.Core/AuthorizationTuple.cs",
+                    "src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs",
+                    "src/Nethermind/Nethermind.Evm/TransactionProcessing/TransactionProcessor.cs",
+                    "src/Nethermind/Nethermind.Core/Specs/IReleaseSpec.cs",
+                ],
+                2935: [
+                    "src/Nethermind/Nethermind.Consensus/Processing/BlockProcessor.cs",
+                    "src/Nethermind/Nethermind.Evm/Precompiles/BlockHashPrecompile.cs",
+                    "src/Nethermind/Nethermind.Core/Specs/IReleaseSpec.cs",
+                ],
+                2537: [
+                    "src/Nethermind/Nethermind.Evm/Precompiles/Bls/Bls12381Precompile.cs",
+                    "src/Nethermind/Nethermind.Evm/Precompiles/Bls/G1AddPrecompile.cs",
+                    "src/Nethermind/Nethermind.Evm/Precompiles/Bls/G2AddPrecompile.cs",
+                ],
+                6110: [
+                    "src/Nethermind/Nethermind.Core/Eip6110Constants.cs",
+                    "src/Nethermind/Nethermind.Consensus/Processing/BlockProcessor.cs",
                 ],
             },
         },
@@ -83,6 +130,65 @@ class CodeFetcher:
                     "datatypes/src/main/java/org/hyperledger/besu/datatypes/BlobGas.java",
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/headervalidationrules/BlobGasValidationRule.java",
                     "evm/src/main/java/org/hyperledger/besu/evm/precompile/KZGPointEvalPrecompiledContract.java",
+                ],
+                # Pectra EIPs
+                7702: [
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/CodeDelegation.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionValidator.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java",
+                    "evm/src/main/java/org/hyperledger/besu/evm/processor/MessageCallProcessor.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionProcessor.java",
+                ],
+                2935: [
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/historicalblockhash/HistoricalBlockHashProcessor.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetBlockProcessor.java",
+                ],
+                2537: [
+                    "evm/src/main/java/org/hyperledger/besu/evm/precompile/BLSG1AddPrecompiledContract.java",
+                    "evm/src/main/java/org/hyperledger/besu/evm/precompile/BLSG2AddPrecompiledContract.java",
+                    "evm/src/main/java/org/hyperledger/besu/evm/precompile/BLS12G1MultiExpPrecompiledContract.java",
+                ],
+                6110: [
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/DepositRequestProcessor.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Request.java",
+                ],
+            },
+        },
+        # Reth — Paradigm's Rust execution client; actively security-reviewed.
+        # Uses "main" branch (not master).
+        "reth": {
+            "url": "https://github.com/paradigmxyz/reth",
+            "language": "rust",
+            "branch": "main",
+            "eip_files": {
+                1559: [
+                    "crates/consensus/common/src/validation.rs",
+                    "crates/ethereum/consensus/src/validation.rs",
+                    "crates/transaction-pool/src/validate/eth.rs",
+                    "crates/ethereum/evm/src/lib.rs",
+                ],
+                4844: [
+                    "crates/consensus/common/src/validation.rs",
+                    "crates/ethereum/consensus/src/validation.rs",
+                    "crates/transaction-pool/src/validate/eth.rs",
+                    "crates/evm/execution-types/src/lib.rs",
+                ],
+                # Reth uses revm for EVM execution; 7702 auth processing lives there.
+                # Focus on pool validation (where we can catch admission deviations)
+                # and the consensus/block-level validation layer.
+                7702: [
+                    "crates/transaction-pool/src/validate/eth.rs",
+                    "crates/consensus/common/src/validation.rs",
+                    "crates/ethereum/consensus/src/validation.rs",
+                    "crates/ethereum/evm/src/lib.rs",
+                ],
+                2935: [
+                    "crates/ethereum/consensus/src/validation.rs",
+                    "crates/ethereum/evm/src/lib.rs",
+                ],
+                2537: [
+                    "crates/ethereum/consensus/src/validation.rs",
+                    "crates/transaction-pool/src/validate/eth.rs",
                 ],
             },
         },
@@ -170,14 +276,15 @@ class CodeFetcher:
                 f"{', '.join(str(e) for e in self.supported_eips_for_client(client))}"
             )
 
-        # Parse owner/repo from URL
+        # Parse owner/repo from URL; use client-specific branch if declared.
         url_parts = client_info["url"].rstrip('/').split('/')
         owner, repo = url_parts[-2], url_parts[-1]
+        branch = client_info.get("branch", "master")
 
         files: Dict[str, str] = {}
         for file_path in file_paths:
             try:
-                content = self.fetch_file(owner, repo, file_path)
+                content = self.fetch_file(owner, repo, file_path, branch=branch)
                 files[file_path] = content
             except requests.HTTPError as e:
                 files[file_path] = f"# Error fetching file: {e}"

@@ -79,6 +79,8 @@ class CodeParser:
             return self._parse_csharp(content)
         elif language == "java":
             return self._parse_java(content)
+        elif language == "rust":
+            return self._parse_rust(content)
         else:
             return self._parse_generic(content, language)
 
@@ -359,6 +361,115 @@ class CodeParser:
         )
         return self._parse_brace_language(content, "java", func_pat, class_pat)
 
+    def _parse_rust(self, content: str) -> List[CodeBlock]:
+        """Parse Rust source files — fns, impls, structs, and traits."""
+        blocks: List[CodeBlock] = []
+        lines = content.split('\n')
+
+        fn_pattern = re.compile(
+            r'^(?:\s*)(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)\s*'
+            r'(?:<[^>]*>)?\s*\('
+        )
+        impl_pattern = re.compile(
+            r'^(?:\s*)(?:pub\s+)?impl(?:<[^>]*>)?\s+([\w:<>, ]+?)(?:\s+for\s+([\w:<>, ]+?))?\s*\{'
+        )
+        struct_pattern = re.compile(
+            r'^(?:\s*)(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|trait)\s+(\w+)'
+        )
+
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            stripped = line.strip()
+
+            # Skip comments and empty lines
+            if not stripped or stripped.startswith("//") or stripped.startswith("/*"):
+                i += 1
+                continue
+
+            # impl block
+            impl_match = impl_pattern.match(line)
+            if impl_match:
+                type_name = impl_match.group(1).strip()
+                trait_for = impl_match.group(2)
+                name = f"impl {trait_for} for {type_name}" if trait_for else f"impl {type_name}"
+                start_line = i + 1
+                brace_count = line.count('{') - line.count('}')
+                end_line = i
+                while brace_count > 0 and end_line < len(lines) - 1:
+                    end_line += 1
+                    brace_count += lines[end_line].count('{')
+                    brace_count -= lines[end_line].count('}')
+                blocks.append(CodeBlock(
+                    name=name, type="impl",
+                    content='\n'.join(lines[i:end_line + 1]),
+                    start_line=start_line, end_line=end_line + 1,
+                    language="rust", signature=stripped,
+                ))
+                i = end_line + 1
+                continue
+
+            # struct / enum / trait
+            struct_match = struct_pattern.match(line)
+            if struct_match:
+                name = struct_match.group(1)
+                start_line = i + 1
+                brace_count = line.count('{') - line.count('}')
+                if brace_count == 0 and '{' not in line:
+                    # Tuple struct or unit struct — single line
+                    blocks.append(CodeBlock(
+                        name=name, type="struct",
+                        content=line, start_line=start_line, end_line=start_line,
+                        language="rust", signature=stripped,
+                    ))
+                    i += 1
+                    continue
+                end_line = i
+                while brace_count > 0 and end_line < len(lines) - 1:
+                    end_line += 1
+                    brace_count += lines[end_line].count('{')
+                    brace_count -= lines[end_line].count('}')
+                blocks.append(CodeBlock(
+                    name=name, type="struct",
+                    content='\n'.join(lines[i:end_line + 1]),
+                    start_line=start_line, end_line=end_line + 1,
+                    language="rust", signature=stripped,
+                ))
+                i = end_line + 1
+                continue
+
+            # fn
+            fn_match = fn_pattern.match(line)
+            if fn_match:
+                name = fn_match.group(1)
+                start_line = i + 1
+                brace_count = line.count('{') - line.count('}')
+                end_line = i
+                # fn signature may span multiple lines before the opening brace
+                if brace_count == 0:
+                    while end_line < len(lines) - 1:
+                        end_line += 1
+                        brace_count += lines[end_line].count('{')
+                        brace_count -= lines[end_line].count('}')
+                        if brace_count > 0:
+                            break
+                while brace_count > 0 and end_line < len(lines) - 1:
+                    end_line += 1
+                    brace_count += lines[end_line].count('{')
+                    brace_count -= lines[end_line].count('}')
+                if end_line > i:
+                    blocks.append(CodeBlock(
+                        name=name, type="function",
+                        content='\n'.join(lines[i:end_line + 1]),
+                        start_line=start_line, end_line=end_line + 1,
+                        language="rust", signature=stripped,
+                    ))
+                    i = end_line + 1
+                    continue
+
+            i += 1
+        return blocks
+
     def _parse_generic(self, content: str, language: str) -> List[CodeBlock]:
         """Generic parsing for unsupported languages"""
         return [CodeBlock(
@@ -464,6 +575,31 @@ class CodeParser:
         7251: [
             "7251", "max_effective_balance", "maxeffectivebalance",
             "consolidation",
+        ],
+        # Pectra EIPs
+        7702: [
+            "7702", "set_code", "setcode", "authorization_tuple", "authorizationtuple",
+            "delegation_designator", "delegationdesignator",
+            "authority", "set_eoa_code", "seteoacode",
+            "eip7702", "eoa_delegation",
+        ],
+        2935: [
+            "2935", "historical_blockhash", "historicalblockhash",
+            "block_hash_history", "blockhashhistory",
+            "history_storage", "historystorage",
+            "serve_historical", "ring_buffer",
+        ],
+        2537: [
+            "2537", "bls12", "bls12_381", "bls12381",
+            "g1_add", "g1add", "g2_add", "g2add",
+            "g1_mul", "g2_mul", "g1_msm", "g2_msm",
+            "map_fp", "pairing", "bls_precompile",
+        ],
+        6110: [
+            "6110", "deposit_request", "depositrequest",
+            "validator_deposit", "validatordeposit",
+            "deposit_contract", "depositcontract",
+            "deposit_log", "depositlog",
         ],
     }
 

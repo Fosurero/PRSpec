@@ -66,6 +66,40 @@ class SpecFetcher:
                 "src/ethereum/berlin/fork.py",
             ],
         },
+        # Pectra / Prague EIPs — actively being implemented across all clients now.
+        7702: {
+            "title": "EIP-7702: Set EOA Account Code",
+            "fork": "prague",
+            "predecessor_fork": "cancun",
+            "execution_spec_paths": [
+                "src/ethereum/prague/fork.py",
+                "src/ethereum/prague/transactions.py",
+            ],
+        },
+        2935: {
+            "title": "EIP-2935: Serve Historical Block Hashes from State",
+            "fork": "prague",
+            "predecessor_fork": "cancun",
+            "execution_spec_paths": [
+                "src/ethereum/prague/fork.py",
+            ],
+        },
+        2537: {
+            "title": "EIP-2537: Precompile for BLS12-381 Curve Operations",
+            "fork": "prague",
+            "predecessor_fork": "cancun",
+            "execution_spec_paths": [
+                "src/ethereum/prague/vm/precompiled_contracts/bls12_381/__init__.py",
+            ],
+        },
+        6110: {
+            "title": "EIP-6110: Supply Validator Deposits on Chain",
+            "fork": "prague",
+            "predecessor_fork": "cancun",
+            "execution_spec_paths": [
+                "src/ethereum/prague/fork.py",
+            ],
+        },
     }
 
     def __init__(self, github_token: Optional[str] = None, cache_dir: Optional[str] = None):

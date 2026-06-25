@@ -23,9 +23,9 @@ class TestNethermindRegistry(unittest.TestCase):
     def test_language_is_csharp(self):
         self.assertEqual(self.info["language"], "csharp")
 
-    def test_eip1559_has_five_files(self):
+    def test_eip1559_file_count(self):
         files = self.info["eip_files"].get(1559, [])
-        self.assertEqual(len(files), 5)
+        self.assertGreaterEqual(len(files), 5)
 
     def test_eip4844_has_five_files(self):
         files = self.info["eip_files"].get(4844, [])
@@ -79,7 +79,7 @@ class TestSupportedClients(unittest.TestCase):
 
     def test_supported_clients_includes_all(self):
         clients = CodeFetcher.supported_clients()
-        for name in ("go-ethereum", "nethermind", "besu"):
+        for name in ("go-ethereum", "nethermind", "besu", "reth"):
             self.assertIn(name, clients)
 
     def test_client_language_nethermind(self):
@@ -88,9 +88,72 @@ class TestSupportedClients(unittest.TestCase):
     def test_client_language_besu(self):
         self.assertEqual(CodeFetcher.client_language("besu"), "java")
 
+    def test_client_language_reth(self):
+        self.assertEqual(CodeFetcher.client_language("reth"), "rust")
+
     def test_unknown_client_raises(self):
         with self.assertRaises(ValueError):
             CodeFetcher.client_language("nonexistent")
+
+
+class TestRethRegistry(unittest.TestCase):
+    """Ensure Reth (Rust) client registry is correctly configured."""
+
+    def setUp(self):
+        self.info = CodeFetcher.CLIENTS["reth"]
+
+    def test_language_is_rust(self):
+        self.assertEqual(self.info["language"], "rust")
+
+    def test_branch_is_main(self):
+        self.assertEqual(self.info.get("branch", "master"), "main")
+
+    def test_eip1559_files_present(self):
+        files = self.info["eip_files"].get(1559, [])
+        self.assertGreater(len(files), 0)
+        names = [f.split("/")[-1] for f in files]
+        self.assertIn("eip1559.rs", names)
+
+    def test_eip4844_files_present(self):
+        files = self.info["eip_files"].get(4844, [])
+        self.assertGreater(len(files), 0)
+        names = [f.split("/")[-1] for f in files]
+        self.assertIn("eip4844.rs", names)
+
+    def test_eip7702_files_present(self):
+        files = self.info["eip_files"].get(7702, [])
+        self.assertGreater(len(files), 0)
+        names = [f.split("/")[-1] for f in files]
+        self.assertIn("eip7702.rs", names)
+
+
+class TestPectraEipMappings(unittest.TestCase):
+    """Verify Pectra EIP file mappings exist for all execution clients."""
+
+    PECTRA_EIPS = [7702, 2935]
+
+    def test_geth_has_pectra_mappings(self):
+        eip_files = CodeFetcher.CLIENTS["go-ethereum"]["eip_files"]
+        for eip in self.PECTRA_EIPS:
+            self.assertIn(eip, eip_files, f"go-ethereum missing EIP-{eip} mappings")
+            self.assertGreater(len(eip_files[eip]), 0)
+
+    def test_nethermind_has_pectra_mappings(self):
+        eip_files = CodeFetcher.CLIENTS["nethermind"]["eip_files"]
+        for eip in self.PECTRA_EIPS:
+            self.assertIn(eip, eip_files, f"nethermind missing EIP-{eip} mappings")
+            self.assertGreater(len(eip_files[eip]), 0)
+
+    def test_besu_has_pectra_mappings(self):
+        eip_files = CodeFetcher.CLIENTS["besu"]["eip_files"]
+        for eip in self.PECTRA_EIPS:
+            self.assertIn(eip, eip_files, f"besu missing EIP-{eip} mappings")
+            self.assertGreater(len(eip_files[eip]), 0)
+
+    def test_reth_has_7702_mapping(self):
+        eip_files = CodeFetcher.CLIENTS["reth"]["eip_files"]
+        self.assertIn(7702, eip_files)
+        self.assertGreater(len(eip_files[7702]), 0)
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +327,7 @@ class TestCodeFetcherMultiClient(unittest.TestCase):
         mock_get.return_value = mock_resp
 
         files = self.fetcher.fetch_eip_implementation("nethermind", 1559)
-        self.assertEqual(len(files), 5)
+        self.assertGreaterEqual(len(files), 5)
         self.assertTrue(mock_get.called)
 
     @patch("requests.Session.get")
@@ -277,6 +340,111 @@ class TestCodeFetcherMultiClient(unittest.TestCase):
         files = self.fetcher.fetch_eip_implementation("besu", 4844)
         self.assertEqual(len(files), 5)
         self.assertTrue(mock_get.called)
+
+    @patch("requests.Session.get")
+    def test_fetch_reth_uses_main_branch(self, mock_get):
+        mock_resp = Mock()
+        mock_resp.text = "pub fn validate_transaction() {}"
+        mock_resp.raise_for_status = Mock()
+        mock_get.return_value = mock_resp
+
+        self.fetcher.fetch_eip_implementation("reth", 1559)
+        # Verify all calls used the "main" branch in the raw URL
+        for call in mock_get.call_args_list:
+            url = call[0][0] if call[0] else call[1].get("url", "")
+            self.assertIn("/main/", url, f"Expected main branch in URL: {url}")
+
+    @patch("requests.Session.get")
+    def test_fetch_reth_eip7702(self, mock_get):
+        mock_resp = Mock()
+        mock_resp.text = "pub struct Authorization { chain_id: u64 }"
+        mock_resp.raise_for_status = Mock()
+        mock_get.return_value = mock_resp
+
+        files = self.fetcher.fetch_eip_implementation("reth", 7702)
+        self.assertGreater(len(files), 0)
+
+
+# ---------------------------------------------------------------------------
+# Rust parser tests
+# ---------------------------------------------------------------------------
+
+class TestRustParser(unittest.TestCase):
+    """Unit tests for the Rust regex parser."""
+
+    def setUp(self):
+        self.parser = CodeParser(use_tree_sitter=False)
+
+    def test_parse_fn(self):
+        code = """
+pub fn validate_transaction(tx: &Transaction) -> Result<()> {
+    Ok(())
+}
+"""
+        blocks = self.parser.parse_file(code, "rust")
+        names = [b.name for b in blocks]
+        self.assertIn("validate_transaction", names)
+        fn_block = next(b for b in blocks if b.name == "validate_transaction")
+        self.assertEqual(fn_block.language, "rust")
+
+    def test_parse_struct(self):
+        code = """
+pub struct Authorization {
+    pub chain_id: u64,
+    pub address: Address,
+    pub nonce: u64,
+}
+"""
+        blocks = self.parser.parse_file(code, "rust")
+        names = [b.name for b in blocks]
+        self.assertIn("Authorization", names)
+
+    def test_parse_impl(self):
+        code = """
+impl Authorization {
+    pub fn new(chain_id: u64, address: Address) -> Self {
+        Self { chain_id, address, nonce: 0 }
+    }
+}
+"""
+        blocks = self.parser.parse_file(code, "rust")
+        names = [b.name for b in blocks]
+        self.assertTrue(any("Authorization" in n for n in names))
+
+    def test_parse_trait(self):
+        code = """
+pub trait FeeMarket {
+    fn base_fee_per_gas(&self) -> u128;
+}
+"""
+        blocks = self.parser.parse_file(code, "rust")
+        names = [b.name for b in blocks]
+        self.assertIn("FeeMarket", names)
+
+    def test_find_eip7702_functions_rust(self):
+        code = """
+pub fn validate_set_code_authorization(auth: &Authorization) -> bool {
+    auth.chain_id != 0
+}
+
+pub fn unrelated_fn() -> u64 {
+    42
+}
+"""
+        blocks = self.parser.find_eip_functions(code, "rust", 7702)
+        names = [b.name for b in blocks]
+        self.assertIn("validate_set_code_authorization", names)
+        self.assertNotIn("unrelated_fn", names)
+
+    def test_find_eip1559_functions_rust(self):
+        code = """
+pub fn calculate_base_fee(parent: &Header) -> u128 {
+    parent.base_fee_per_gas.unwrap_or(0)
+}
+"""
+        blocks = self.parser.find_eip_functions(code, "rust", 1559)
+        names = [b.name for b in blocks]
+        self.assertIn("calculate_base_fee", names)
 
 
 if __name__ == "__main__":

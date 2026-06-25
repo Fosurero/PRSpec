@@ -2,6 +2,7 @@
 
 import json
 import re
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -359,9 +360,16 @@ class AzureAIAnalyzer(BaseAnalyzer):
         "Respond only with valid JSON."
     )
 
+    # Files are analyzed up to 5-at-a-time, so a shared Foundry deployment can
+    # briefly return HTTP 429. Retry those (and 529 overloaded) with capped
+    # exponential backoff instead of dropping the file to an ERROR result.
+    MAX_RETRIES = 5
+    RETRYABLE_STATUS = frozenset({429, 529})
+
     def __init__(self, api_key: str, endpoint: str, model: str,
                  anthropic_version: str = DEFAULT_ANTHROPIC_VERSION,
-                 max_tokens: int = 4096, temperature: Optional[float] = None):
+                 max_tokens: int = 4096, temperature: Optional[float] = None,
+                 max_retries: int = MAX_RETRIES):
         """Store the Foundry Messages endpoint and generation params.
 
         ``temperature`` is left unset by default because newer Claude models
@@ -379,7 +387,39 @@ class AzureAIAnalyzer(BaseAnalyzer):
         self.anthropic_version = anthropic_version
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.max_retries = max_retries
         self.session = requests.Session()
+
+    def _post_with_retry(self, body: dict, headers: dict) -> requests.Response:
+        """POST to the Messages endpoint, retrying on rate-limit / overload.
+
+        Honors the ``Retry-After`` header when the server supplies one,
+        otherwise backs off exponentially (1s, 2s, 4s, ...). Raises the final
+        ``HTTPError`` if every attempt is exhausted.
+        """
+        last_exc: Optional[Exception] = None
+        for attempt in range(self.max_retries + 1):
+            response = self.session.post(
+                self.endpoint, json=body, headers=headers, timeout=120
+            )
+            if response.status_code not in self.RETRYABLE_STATUS:
+                response.raise_for_status()
+                return response
+
+            last_exc = requests.HTTPError(
+                f"{response.status_code} {response.reason}", response=response
+            )
+            if attempt == self.max_retries:
+                break
+
+            retry_after = response.headers.get("Retry-After")
+            try:
+                delay = float(retry_after) if retry_after is not None else 2.0 ** attempt
+            except ValueError:
+                delay = 2.0 ** attempt
+            time.sleep(delay)
+
+        raise last_exc
 
     def analyze_compliance(self, spec_text: str, code_text: str,
                           context: dict) -> AnalysisResult:
@@ -401,10 +441,7 @@ class AzureAIAnalyzer(BaseAnalyzer):
             body["temperature"] = self.temperature
 
         try:
-            response = self.session.post(
-                self.endpoint, json=body, headers=headers, timeout=120
-            )
-            response.raise_for_status()
+            response = self._post_with_retry(body, headers)
             data = response.json()
 
             # Anthropic Messages returns a list of content blocks; concatenate

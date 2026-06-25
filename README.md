@@ -55,8 +55,8 @@ These are publicly verifiable interactions, linked above, with named engineers a
 | Understands natural-language spec requirements | ✅ (LLM) | ❌ |
 | Adversarial verification of each finding | ✅ | ❌ |
 | Grounds findings in exact spec text | ✅ | ❌ |
-| Cross-client differential analysis | ✅ (go-ethereum, Nethermind, Besu) | ❌ |
-| Multi-language support (Go, C#, Java) | ✅ | Limited |
+| Cross-client differential analysis | ✅ (go-ethereum, Nethermind, Besu, Reth) | ❌ |
+| Multi-language support (Go, C#, Java, Rust) | ✅ | Limited |
 | Targets protocol-layer client code | ✅ | Smart contracts |
 | Detects spec deviations vs. code bugs | ✅ | ❌ |
 
@@ -127,20 +127,25 @@ on its own.
 
 | Client | Language | EIPs supported | Repo |
 |--------|----------|---------------|------|
-| go-ethereum | Go | 1559, 4844, 4788, 2930 | [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) |
-| Nethermind | C# | 1559, 4844 | [NethermindEth/nethermind](https://github.com/NethermindEth/nethermind) |
-| Besu | Java | 1559, 4844 | [hyperledger/besu](https://github.com/hyperledger/besu) |
+| go-ethereum | Go | 1559, 4844, 4788, 2930, 7702, 2935, 2537, 6110 | [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) |
+| Nethermind | C# | 1559, 4844, 7702, 2935, 2537, 6110 | [NethermindEth/nethermind](https://github.com/NethermindEth/nethermind) |
+| Besu | Java | 1559, 4844, 7702, 2935, 2537, 6110 | [hyperledger/besu](https://github.com/hyperledger/besu) |
+| Reth | Rust | 1559, 4844, 7702, 2935, 2537 | [paradigmxyz/reth](https://github.com/paradigmxyz/reth) |
 
 ### EIPs
 
 | EIP | Title | Specs fetched | Files per client | Key focus areas |
 |-----|-------|---------------|------------------|-----------------|
-| 1559 | Fee market change | EIP + execution | geth 5 · nethermind 5 · besu 5 | base fee, gas limit, fee cap, state transition |
-| 4844 | Shard Blob Transactions | EIP + execution + consensus | geth 5 · nethermind 5 · besu 5 | blob gas, KZG, max blobs, sidecar, tx pool |
+| 1559 | Fee market change | EIP + execution | geth 5 · nethermind 6 · besu 5 · reth 4 | base fee, gas limit, fee cap, state transition |
+| 4844 | Shard Blob Transactions | EIP + execution + consensus | geth 5 · nethermind 5 · besu 5 · reth 4 | blob gas, KZG, max blobs, sidecar, tx pool |
 | 4788 | Beacon block root in EVM | EIP + execution | geth 1 | beacon root |
 | 2930 | Optional access lists | EIP + execution | geth 2 | access list validation |
 | 7002 | Execution layer withdrawals | EIP + execution | spec only | withdrawal requests |
 | 7251 | Increase MAX_EFFECTIVE_BALANCE | EIP + consensus | spec only | consolidation |
+| **7702** | **Set EOA Account Code** | EIP + execution | geth 5 · nethermind 5 · besu 5 · reth 4 | authorization tuple, delegation designator, nonce, chain ID |
+| **2935** | **Historical Block Hashes** | EIP + execution | geth 3 · nethermind 3 · besu 2 · reth 2 | ring buffer, system contract, blockhash opcode |
+| **2537** | **BLS12-381 Precompiles** | EIP + execution | geth 3 · nethermind 3 · besu 3 · reth 2 | G1/G2 ops, gas costs, subgroup checks |
+| **6110** | **Validator Deposits on Chain** | EIP + execution | geth 3 · nethermind 2 · besu 2 | deposit log parsing, max deposits, block body |
 
 Run `python -m src.cli list-eips` to see the live registry.
 
@@ -426,6 +431,13 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 
 ## Changelog
 
+### v1.7.0 (2026-06-26)
+- **Reth (Rust) client support**: PRSpec now analyzes [paradigmxyz/reth](https://github.com/paradigmxyz/reth) alongside go-ethereum, Nethermind, and Besu — Rust parser with `fn`, `impl`, `struct`, and `trait` extraction added to `CodeParser`
+- **Pectra EIP coverage**: full file mappings for EIP-7702 (Set EOA Account Code), EIP-2935 (Historical Block Hashes), EIP-2537 (BLS12-381 precompiles), and EIP-6110 (Validator Deposits) across all four clients
+- Focus areas for each Pectra EIP defined in `config.yaml` (authorization tuple validation, delegation designator prefix, ring buffer index, subgroup membership checks, etc.)
+- 20 new tests: Rust parser correctness, Reth registry validation, Pectra EIP file mapping coverage, branch-aware fetching for non-master repos
+- Registry now spans 10 EIPs × 4 clients (145 tests passing total)
+
 ### v1.6.0 (2026-06-25)
 - **Verified findings**: every candidate finding is now adversarially re-examined (independent skeptic rounds vote `CONFIRMED`/`DISPUTED`/`REFUTED`) and grounded against the exact specification text, collapsing the false-positive rate. Verification is on by default for `analyze` (`--no-verify` to skip, `--verify-rounds` to tune)
 - `DifferentialEngine` and reports can restrict stats to confirmed-only findings
@@ -476,7 +488,8 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 | 2 | Multi-client analysis (Nethermind, Besu) | ✅ Done |
 | 3 | Cross-client differential analysis | ✅ Done |
 | 3.5 | Verified findings: adversarial verification + spec grounding + fork-to-fork diffs | ✅ Done |
-| 4 | Pectra EIP coverage, GitHub Action CI integration, security dashboard | 🔄 In progress |
+| 3.6 | Reth (Rust) client support + Pectra EIP coverage (7702, 2935, 2537, 6110) | ✅ Done |
+| 4 | GitHub Action CI integration, security dashboard | 🔄 In progress |
 | 5 | Spec quality analysis: flag underspecified EIPs | 🔍 Exploring |
 
 ---

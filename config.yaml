@@ -46,7 +46,11 @@ eips:
       - fee_cap_check
       - priority_fee_handling
       - transaction_validation
-  
+      # The spec mandates the base fee be *burned* (removed from supply).
+      # Track where collected base fees actually go after PayFees, since a
+      # redirect to a fee-collector address is a deviation from the burn.
+      - base_fee_burn_destination
+
   4844:
     title: "Shard Blob Transactions"
     focus_areas:
@@ -57,6 +61,47 @@ eips:
       - blob_transaction_validation
       - point_evaluation_precompile
       - blob_sidecar_handling
+
+  # Pectra / Prague EIPs
+  7702:
+    title: "Set EOA Account Code"
+    focus_areas:
+      - authorization_tuple_validation
+      - authority_signature_verification
+      - nonce_increment_on_delegation
+      - delegation_designator_prefix
+      - eoa_code_setting_and_clearing
+      - chain_id_check
+      - invalid_authority_handling
+      - gas_cost_per_empty_account_cleared
+
+  2935:
+    title: "Serve Historical Block Hashes from State"
+    focus_areas:
+      - block_hash_storage_contract_address
+      - history_storage_window_size
+      - ring_buffer_index_calculation
+      - system_call_on_block_processing
+      - blockhash_opcode_compatibility
+
+  2537:
+    title: "Precompile for BLS12-381 Curve Operations"
+    focus_areas:
+      - precompile_address_assignment
+      - input_length_validation
+      - infinity_point_handling
+      - subgroup_membership_check
+      - gas_cost_per_operation
+      - g1_g2_add_multiply_multiexp
+
+  6110:
+    title: "Supply Validator Deposits on Chain"
+    focus_areas:
+      - deposit_contract_address
+      - deposit_log_parsing
+      - deposit_request_in_block_body
+      - max_deposits_per_block_limit
+      - deposit_data_validation
 
 analysis:
   # Default focus areas (used when EIP-specific areas are not defined)
