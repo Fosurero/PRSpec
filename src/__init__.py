@@ -1,6 +1,6 @@
 """PRSpec — Ethereum spec compliance checker."""
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"
 
 from .analyzer import GeminiAnalyzer, OpenAIAnalyzer, get_analyzer
 from .code_fetcher import CodeFetcher
