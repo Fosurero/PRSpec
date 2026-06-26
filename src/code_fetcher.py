@@ -93,9 +93,9 @@ class CodeFetcher:
                 7702: [
                     "src/Nethermind/Nethermind.Core/Eip7702Constants.cs",
                     "src/Nethermind/Nethermind.Core/AuthorizationTuple.cs",
+                    "src/Nethermind/Nethermind.Core/Validation/SetCodeTxValidation.cs",
                     "src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs",
                     "src/Nethermind/Nethermind.Evm/TransactionProcessing/TransactionProcessor.cs",
-                    "src/Nethermind/Nethermind.Core/Specs/IReleaseSpec.cs",
                 ],
                 2935: [
                     "src/Nethermind/Nethermind.Consensus/Processing/BlockProcessor.cs",
@@ -134,9 +134,9 @@ class CodeFetcher:
                 # Pectra EIPs
                 7702: [
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/CodeDelegation.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CodeDelegationProcessor.java",
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionValidator.java",
-                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java",
-                    "evm/src/main/java/org/hyperledger/besu/evm/processor/MessageCallProcessor.java",
+                    "evm/src/main/java/org/hyperledger/besu/evm/worldstate/CodeDelegationHelper.java",
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionProcessor.java",
                 ],
                 2935: [
