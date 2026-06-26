@@ -9,15 +9,16 @@
 
 ---
 
-## What's new in v1.6
+## What's new in v1.7
 
-This release is about precision. Instead of trusting a single model pass, PRSpec now cross-examines every finding and refuses to report one it cannot trace back to the specification text.
+This release adds **Reth (Rust) support** and **Pectra EIP coverage** — PRSpec now spans all four major execution clients across all Pectra upgrade EIPs.
 
-- **Verified findings.** Independent skeptical rounds grade each finding `CONFIRMED`, `DISPUTED`, or `REFUTED`, and nothing is confirmed unless its quoted spec text is actually present in the spec. On by default for `analyze`.
-- **Fork-to-fork spec diffs.** The analyzer now sees the precise EIP delta between a fork and its predecessor instead of a whole `fork.py`.
-- **Azure AI Foundry backend.** Run the analysis against a Claude deployment in your own Foundry resource via `LLM_PROVIDER=azure`, with an optional cheaper deployment for the verification rounds.
+- **Reth client support.** PRSpec now analyzes [paradigmxyz/reth](https://github.com/paradigmxyz/reth) in Rust alongside go-ethereum, Nethermind, and Besu.
+- **Rust parser.** A new `fn`, `impl`, `struct`, `trait` parser handles Rust source files end-to-end.
+- **Pectra EIPs.** Full file mappings for EIP-7702 (Set EOA Account Code), EIP-2935 (Historical Block Hashes), EIP-2537 (BLS12-381 precompiles), and EIP-6110 (Validator Deposits) across all four clients.
+- **145 passing tests.** 20 new tests for Rust parser correctness, Reth registry validation, Pectra EIP file mappings, and branch-aware fetching.
 
-See [Verified findings, not raw guesses](#verified-findings-not-raw-guesses) and the [changelog](#changelog) for the full details.
+See the [changelog](#changelog) for the full details.
 
 ---
 
@@ -269,7 +270,7 @@ src/
   config.py            – YAML + env config loader
   spec_fetcher.py      – EIP registry, spec fetching (EIP/execution/consensus)
   code_fetcher.py      – Per-client per-EIP file registry, code fetching
-  parser.py            – Go/Python/C#/Java parsing, EIP keyword matching
+  parser.py            – Go/Python/C#/Java/Rust parsing, EIP keyword matching
   analyzer.py          – Gemini / OpenAI / Azure AI analysis, JSON response parsing
   verifier.py          – Adversarial finding verification + spec grounding
   differential.py      – Cross-client differential engine + comparison matrix
@@ -279,7 +280,7 @@ src/
 tests/
   test_eip1559.py
   test_eip4844.py
-  test_multi_client.py – Nethermind/Besu registry + C#/Java parser tests
+  test_multi_client.py – All 4 client registries + C#/Java/Rust parser tests
   test_differential.py – Cross-client differential engine tests
   test_verifier.py     – Verification engine + spec grounding tests
   test_spec_diff.py    – Fork-to-fork spec diff extraction tests
@@ -326,7 +327,7 @@ python -m pytest tests/ -v
 python -m pytest tests/ --cov=src
 ```
 
-The test suite covers 125+ cases including multi-client registry validation, C#/Java parser correctness, cross-client differential comparison, finding verification and spec grounding, fork-to-fork diff extraction, provider wiring, and live fetch integration.
+The test suite covers 145 cases including multi-client registry validation (all 4 clients), Go/C#/Java/Rust parser correctness, cross-client differential comparison, finding verification and spec grounding, fork-to-fork diff extraction, provider wiring, and live fetch integration.
 
 ---
 
@@ -413,7 +414,7 @@ for row in diff.rows:
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
 - Adding new EIP file mappings
-- Adding new client support (Prysm, Lighthouse, Reth, etc.)
+- Adding new client support (Prysm, Lighthouse, etc.)
 - Parser improvements for additional languages
 - Report enhancements
 
