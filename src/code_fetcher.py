@@ -169,9 +169,9 @@ class CodeFetcher:
                 ],
                 4844: [
                     "crates/consensus/common/src/validation.rs",
-                    "crates/ethereum/consensus/src/validation.rs",
                     "crates/transaction-pool/src/validate/eth.rs",
-                    "crates/evm/execution-types/src/lib.rs",
+                    "crates/ethereum/evm/src/lib.rs",
+                    "crates/transaction-pool/src/blobstore/mod.rs",
                 ],
                 # Reth uses revm for EVM execution; 7702 auth processing lives there.
                 # Focus on pool validation (where we can catch admission deviations)

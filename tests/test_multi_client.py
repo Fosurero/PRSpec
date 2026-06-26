@@ -117,8 +117,8 @@ class TestRethRegistry(unittest.TestCase):
     def test_eip4844_files_present(self):
         files = self.info["eip_files"].get(4844, [])
         self.assertGreater(len(files), 0)
-        # Reth uses shared validation.rs and execution-types; no dedicated eip4844.rs
-        self.assertTrue(any("validation.rs" in f or "execution-types" in f for f in files))
+        # Reth uses shared validation.rs, blobstore, and eth.rs; no dedicated eip4844.rs
+        self.assertTrue(any("validation.rs" in f or "blobstore" in f or "eth.rs" in f for f in files))
 
     def test_eip7702_files_present(self):
         files = self.info["eip_files"].get(7702, [])
