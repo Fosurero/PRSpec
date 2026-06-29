@@ -17,8 +17,8 @@ class SpecFetcher:
             "fork": "london",
             "predecessor_fork": "berlin",
             "execution_spec_paths": [
-                "src/ethereum/london/fork.py",
-                "src/ethereum/paris/fork.py",
+                "src/ethereum/forks/london/fork.py",
+                "src/ethereum/forks/paris/fork.py",
             ],
         },
         4844: {
@@ -26,8 +26,8 @@ class SpecFetcher:
             "fork": "cancun",
             "predecessor_fork": "shanghai",
             "execution_spec_paths": [
-                "src/ethereum/cancun/fork.py",
-                "src/ethereum/cancun/blocks.py",
+                "src/ethereum/forks/cancun/fork.py",
+                "src/ethereum/forks/cancun/blocks.py",
             ],
             "consensus_spec_paths": [
                 "specs/deneb/beacon-chain.md",
@@ -39,7 +39,7 @@ class SpecFetcher:
             "fork": "cancun",
             "predecessor_fork": "shanghai",
             "execution_spec_paths": [
-                "src/ethereum/cancun/fork.py",
+                "src/ethereum/forks/cancun/fork.py",
             ],
         },
         7002: {
@@ -47,7 +47,7 @@ class SpecFetcher:
             "fork": "prague",
             "predecessor_fork": "cancun",
             "execution_spec_paths": [
-                "src/ethereum/prague/fork.py",
+                "src/ethereum/forks/prague/fork.py",
             ],
         },
         7251: {
@@ -63,7 +63,7 @@ class SpecFetcher:
             "fork": "berlin",
             "predecessor_fork": "muir_glacier",
             "execution_spec_paths": [
-                "src/ethereum/berlin/fork.py",
+                "src/ethereum/forks/berlin/fork.py",
             ],
         },
         # Pectra / Prague EIPs — actively being implemented across all clients now.
@@ -72,8 +72,8 @@ class SpecFetcher:
             "fork": "prague",
             "predecessor_fork": "cancun",
             "execution_spec_paths": [
-                "src/ethereum/prague/fork.py",
-                "src/ethereum/prague/transactions.py",
+                "src/ethereum/forks/prague/fork.py",
+                "src/ethereum/forks/prague/transactions.py",
             ],
         },
         2935: {
@@ -81,7 +81,7 @@ class SpecFetcher:
             "fork": "prague",
             "predecessor_fork": "cancun",
             "execution_spec_paths": [
-                "src/ethereum/prague/fork.py",
+                "src/ethereum/forks/prague/fork.py",
             ],
         },
         2537: {
@@ -89,7 +89,7 @@ class SpecFetcher:
             "fork": "prague",
             "predecessor_fork": "cancun",
             "execution_spec_paths": [
-                "src/ethereum/prague/vm/precompiled_contracts/bls12_381/__init__.py",
+                "src/ethereum/forks/prague/vm/precompiled_contracts/bls12_381/__init__.py",
             ],
         },
         6110: {
@@ -97,7 +97,7 @@ class SpecFetcher:
             "fork": "prague",
             "predecessor_fork": "cancun",
             "execution_spec_paths": [
-                "src/ethereum/prague/fork.py",
+                "src/ethereum/forks/prague/fork.py",
             ],
         },
     }
@@ -207,8 +207,8 @@ class SpecFetcher:
             return None
 
         spec_file = info.get("spec_file", "fork.py")
-        new_path = f"src/ethereum/{fork}/{spec_file}"
-        old_path = f"src/ethereum/{predecessor}/{spec_file}"
+        new_path = f"src/ethereum/forks/{fork}/{spec_file}"
+        old_path = f"src/ethereum/forks/{predecessor}/{spec_file}"
 
         try:
             new_src = self.fetch_execution_spec(new_path, branch, use_cache)
