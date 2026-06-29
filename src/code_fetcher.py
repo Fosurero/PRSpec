@@ -63,8 +63,18 @@ class CodeFetcher:
                     "params/protocol_params.go",
                 ],
                 6110: [
-                    "core/state_transition.go",
-                    "core/types/deposit_request.go",
+                    "core/state_processor.go",
+                    "core/types/deposit.go",
+                    "params/protocol_params.go",
+                ],
+                # EIP-7002: Execution layer triggerable withdrawals (staking exit path)
+                7002: [
+                    "core/state_processor.go",
+                    "params/protocol_params.go",
+                ],
+                # EIP-7251: Increase MAX_EFFECTIVE_BALANCE (validator consolidation)
+                7251: [
+                    "core/state_processor.go",
                     "params/protocol_params.go",
                 ],
             },
@@ -109,7 +119,17 @@ class CodeFetcher:
                 ],
                 6110: [
                     "src/Nethermind/Nethermind.Core/Eip6110Constants.cs",
-                    "src/Nethermind/Nethermind.Consensus/Processing/BlockProcessor.cs",
+                    "src/Nethermind/Nethermind.Consensus/ExecutionRequests/ExecutionRequestsProcessor.cs",
+                ],
+                # EIP-7002: Execution layer triggerable withdrawals (staking exit path)
+                7002: [
+                    "src/Nethermind/Nethermind.Core/Eip7002Constants.cs",
+                    "src/Nethermind/Nethermind.Consensus/ExecutionRequests/ExecutionRequestsProcessor.cs",
+                ],
+                # EIP-7251: Increase MAX_EFFECTIVE_BALANCE (validator consolidation)
+                7251: [
+                    "src/Nethermind/Nethermind.Core/Eip7251Constants.cs",
+                    "src/Nethermind/Nethermind.Consensus/ExecutionRequests/ExecutionRequestsProcessor.cs",
                 ],
             },
         },
@@ -152,6 +172,18 @@ class CodeFetcher:
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/DepositRequestProcessor.java",
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Request.java",
                 ],
+                # EIP-7002: Execution layer triggerable withdrawals (staking exit path)
+                7002: [
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/MainnetRequestsProcessor.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/SystemCallRequestProcessor.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/RequestContractAddresses.java",
+                ],
+                # EIP-7251: Increase MAX_EFFECTIVE_BALANCE (validator consolidation)
+                7251: [
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/MainnetRequestsProcessor.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/SystemCallRequestProcessor.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/RequestContractAddresses.java",
+                ],
             },
         },
         # Reth — Paradigm's Rust execution client; actively security-reviewed.
@@ -189,6 +221,17 @@ class CodeFetcher:
                 2537: [
                     "crates/ethereum/consensus/src/validation.rs",
                     "crates/transaction-pool/src/validate/eth.rs",
+                ],
+                # EIP-7002 / EIP-7251: Reth delegates EL request collection and the
+                # system-call execution to alloy-evm; in-repo we can only inspect the
+                # block-assembly layer that computes the EIP-7685 requests_hash.
+                7002: [
+                    "crates/ethereum/evm/src/build.rs",
+                    "crates/ethereum/evm/src/lib.rs",
+                ],
+                7251: [
+                    "crates/ethereum/evm/src/build.rs",
+                    "crates/ethereum/evm/src/lib.rs",
                 ],
             },
         },

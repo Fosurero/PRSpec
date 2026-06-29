@@ -156,6 +156,42 @@ class TestPectraEipMappings(unittest.TestCase):
         self.assertGreater(len(eip_files[7702]), 0)
 
 
+class TestStakingRequestEipMappings(unittest.TestCase):
+    """Verify EIP-7002 (withdrawals) and EIP-7251 (consolidation) mappings exist.
+
+    These are the execution-layer "requests" EIPs that staking protocols
+    (Lido, Ether.fi, EigenLayer) depend on for the validator exit/consolidation
+    path, so every execution client must carry file mappings for them.
+    """
+
+    STAKING_EIPS = [7002, 7251]
+
+    def test_all_clients_have_staking_request_mappings(self):
+        for client in ("go-ethereum", "nethermind", "besu", "reth"):
+            eip_files = CodeFetcher.CLIENTS[client]["eip_files"]
+            for eip in self.STAKING_EIPS:
+                self.assertIn(eip, eip_files, f"{client} missing EIP-{eip} mappings")
+                self.assertGreater(
+                    len(eip_files[eip]), 0, f"{client} EIP-{eip} mapping is empty"
+                )
+
+    def test_geth_7002_uses_state_processor(self):
+        # geth processes the withdrawal queue system call in state_processor.go
+        files = CodeFetcher.CLIENTS["go-ethereum"]["eip_files"][7002]
+        self.assertTrue(any("state_processor.go" in f for f in files))
+
+    def test_nethermind_7002_uses_execution_requests_processor(self):
+        # Nethermind's EL-triggerable withdrawals live in ExecutionRequestsProcessor,
+        # NOT the EIP-4895 WithdrawalProcessor — guard against the wrong file.
+        files = CodeFetcher.CLIENTS["nethermind"]["eip_files"][7002]
+        self.assertTrue(any("ExecutionRequestsProcessor.cs" in f for f in files))
+        self.assertFalse(any("Withdrawals/WithdrawalProcessor.cs" in f for f in files))
+
+    def test_besu_7251_uses_system_call_request_processor(self):
+        files = CodeFetcher.CLIENTS["besu"]["eip_files"][7251]
+        self.assertTrue(any("SystemCallRequestProcessor.java" in f for f in files))
+
+
 # ---------------------------------------------------------------------------
 # C# parser tests
 # ---------------------------------------------------------------------------
