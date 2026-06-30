@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prspec"
-version = "1.7.0"
+version = "1.7.1"
 description = "Ethereum specification compliance checker — compares EIP specs against client source code using LLM analysis"
 readme = "README.md"
 license = {text = "MIT"}

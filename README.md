@@ -16,7 +16,7 @@ This release adds **Reth (Rust) support** and **Pectra EIP coverage** — PRSpec
 - **Reth client support.** PRSpec now analyzes [paradigmxyz/reth](https://github.com/paradigmxyz/reth) in Rust alongside go-ethereum, Nethermind, and Besu.
 - **Rust parser.** A new `fn`, `impl`, `struct`, `trait` parser handles Rust source files end-to-end.
 - **Pectra EIPs.** Full file mappings for EIP-7702 (Set EOA Account Code), EIP-2935 (Historical Block Hashes), EIP-2537 (BLS12-381 precompiles), and EIP-6110 (Validator Deposits) across all four clients.
-- **145 passing tests.** 20 new tests for Rust parser correctness, Reth registry validation, Pectra EIP file mappings, and branch-aware fetching.
+- **149 passing tests.** Rust parser correctness, Reth registry validation, Pectra EIP file mappings, branch-aware fetching, and staking-EIP (7002/7251) request-processor mappings.
 
 See the [changelog](#changelog) for the full details.
 
@@ -44,7 +44,28 @@ These are not hypothetical results. PRSpec has produced findings that have been 
 
 These are publicly verifiable interactions, linked above, with named engineers at the Nethermind and Ethereum Foundation organizations. They demonstrate that the tool is producing technically meaningful output that practitioners take seriously.
 
-> This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*. See [GRANT_PROPOSAL.md](GRANT_PROPOSAL.md) for the full proposal.
+> This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*.
+
+---
+
+## Staking-EIP cross-client coverage
+
+PRSpec now covers the execution-layer EIPs that the staking lifecycle depends on: EIP-7002
+(triggerable withdrawals), EIP-7251 (consolidation), EIP-6110 (deposits), and EIP-4788
+(beacon block root). These are the code paths underneath validator entry and exit, where
+client-level protocol divergence matters most and where almost nothing monitors compliance
+continuously.
+
+Running the analysis across go-ethereum, Nethermind, and Besu surfaced a cross-client
+divergence in the request system-call path: go-ethereum does not invalidate a block when a
+*checked* request predeploy (EIP-7002 / 7251) has no code, where the execution-specs reference,
+Nethermind, and Besu all invalidate. Confirmed across two independent EIPs and re-verified by
+hand against client source and the reference. Write-up:
+[`findings/geth-eip7002-missing-code-invalidation.md`](findings/geth-eip7002-missing-code-invalidation.md).
+
+This is a latent divergence, not a live mainnet split (the predeploys are deployed at fork
+activation). It is exactly the class of risk that should be watched continuously rather than
+audited once.
 
 ---
 
@@ -128,10 +149,10 @@ on its own.
 
 | Client | Language | EIPs supported | Repo |
 |--------|----------|---------------|------|
-| go-ethereum | Go | 1559, 4844, 4788, 2930, 7702, 2935, 2537, 6110 | [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) |
-| Nethermind | C# | 1559, 4844, 7702, 2935, 2537, 6110 | [NethermindEth/nethermind](https://github.com/NethermindEth/nethermind) |
-| Besu | Java | 1559, 4844, 7702, 2935, 2537, 6110 | [hyperledger/besu](https://github.com/hyperledger/besu) |
-| Reth | Rust | 1559, 4844, 7702, 2935, 2537 | [paradigmxyz/reth](https://github.com/paradigmxyz/reth) |
+| go-ethereum | Go | 1559, 4844, 4788, 2930, 7702, 2935, 2537, 6110, 7002, 7251 | [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) |
+| Nethermind | C# | 1559, 4844, 4788, 7702, 2935, 2537, 6110, 7002, 7251 | [NethermindEth/nethermind](https://github.com/NethermindEth/nethermind) |
+| Besu | Java | 1559, 4844, 4788, 7702, 2935, 2537, 6110, 7002, 7251 | [hyperledger/besu](https://github.com/hyperledger/besu) |
+| Reth | Rust | 1559, 4844, 7702, 2935, 2537, 7002, 7251 | [paradigmxyz/reth](https://github.com/paradigmxyz/reth) |
 
 ### EIPs
 
@@ -139,10 +160,10 @@ on its own.
 |-----|-------|---------------|------------------|-----------------|
 | 1559 | Fee market change | EIP + execution | geth 5 · nethermind 6 · besu 5 · reth 4 | base fee, gas limit, fee cap, state transition |
 | 4844 | Shard Blob Transactions | EIP + execution + consensus | geth 5 · nethermind 5 · besu 5 · reth 4 | blob gas, KZG, max blobs, sidecar, tx pool |
-| 4788 | Beacon block root in EVM | EIP + execution | geth 1 | beacon root |
+| 4788 | Beacon block root in EVM | EIP + execution | geth 2 · nethermind 1 · besu 2 | beacon root system call, missing-code handling (unchecked class) |
 | 2930 | Optional access lists | EIP + execution | geth 2 | access list validation |
-| 7002 | Execution layer withdrawals | EIP + execution | spec only | withdrawal requests |
-| 7251 | Increase MAX_EFFECTIVE_BALANCE | EIP + consensus | spec only | consolidation |
+| **7002** | **Execution layer withdrawals** | EIP + execution | geth 2 · nethermind 2 · besu 3 | withdrawal request predeploy, missing-code invalidation (checked class) |
+| **7251** | **Increase MAX_EFFECTIVE_BALANCE** | EIP + execution + consensus | geth 2 · nethermind 2 · besu 3 · reth 2 | consolidation request, missing-code invalidation (checked class) |
 | **7702** | **Set EOA Account Code** | EIP + execution | geth 5 · nethermind 5 · besu 5 · reth 4 | authorization tuple, delegation designator, nonce, chain ID |
 | **2935** | **Historical Block Hashes** | EIP + execution | geth 3 · nethermind 3 · besu 2 · reth 2 | ring buffer, system contract, blockhash opcode |
 | **2537** | **BLS12-381 Precompiles** | EIP + execution | geth 3 · nethermind 3 · besu 3 · reth 2 | G1/G2 ops, gas costs, subgroup checks |
@@ -291,7 +312,6 @@ run_demo.py
 CONTRIBUTING.md
 SECURITY.md
 LICENSE
-GRANT_PROPOSAL.md
 ```
 
 ---
@@ -327,7 +347,7 @@ python -m pytest tests/ -v
 python -m pytest tests/ --cov=src
 ```
 
-The test suite covers 145 cases including multi-client registry validation (all 4 clients), Go/C#/Java/Rust parser correctness, cross-client differential comparison, finding verification and spec grounding, fork-to-fork diff extraction, provider wiring, and live fetch integration.
+The test suite covers 149 cases including multi-client registry validation (all 4 clients), Go/C#/Java/Rust parser correctness, cross-client differential comparison, finding verification and spec grounding, fork-to-fork diff extraction, staking-EIP request-processor mappings, provider wiring, and live fetch integration.
 
 ---
 
@@ -431,6 +451,12 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 ---
 
 ## Changelog
+
+### v1.7.1 (2026-06-30)
+- **Staking-EIP coverage**: EIP-7002 (triggerable withdrawals) and EIP-7251 (consolidation) file mappings across go-ethereum, Nethermind, Besu, and Reth; EIP-4788 mappings extended to Nethermind and Besu; geth EIP-4788/6110 mappings corrected to the real processing paths
+- **Finding**: confirmed cross-client divergence in the request system-call path (geth accepts a block with a missing checked-request predeploy where the reference, Nethermind, and Besu invalidate), corroborated across EIP-7002 and EIP-7251
+- **Fix**: updated execution-specs fetch paths for the upstream `src/ethereum/forks/<fork>/` restructure (fork-to-fork spec diffs were silently failing)
+- 4 new tests (149 passing total)
 
 ### v1.7.0 (2026-06-26)
 - **Reth (Rust) client support**: PRSpec now analyzes [paradigmxyz/reth](https://github.com/paradigmxyz/reth) alongside go-ethereum, Nethermind, and Besu — Rust parser with `fn`, `impl`, `struct`, and `trait` extraction added to `CodeParser`
