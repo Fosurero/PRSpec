@@ -64,4 +64,4 @@ checkArgument(
 Found via **PRSpec** ([github.com/safi842/PRSpec](https://github.com/safi842/PRSpec)), an automated LLM-based tool that compares Ethereum client implementations against EIP specifications. The finding was verified at confidence 100/100 by adversarial verification.
 
 ---
-*PRSpec is an open-source tool built for the Ethereum Foundation grant program to help maintain cross-client EIP compliance.*
+*PRSpec is an open-source tool that helps maintain cross-client EIP compliance.*

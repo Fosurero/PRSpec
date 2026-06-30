@@ -66,4 +66,4 @@ This creates a **cross-client mempool divergence**: a transaction valid per spec
 Found via **PRSpec** ([github.com/safi842/PRSpec](https://github.com/safi842/PRSpec)), an automated LLM-based tool that compares Ethereum client implementations against EIP specifications and flags behavioral deviations. The finding was independently verified by reading the source directly.
 
 ---
-*PRSpec is an open-source tool built for the Ethereum Foundation grant program to help maintain cross-client EIP compliance.*
+*PRSpec is an open-source tool that helps maintain cross-client EIP compliance.*
