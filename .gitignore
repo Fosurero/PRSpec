@@ -48,3 +48,9 @@ htmlcov/
 output/*.json
 output/*.md
 output/*.html
+
+# --- Private strategy / outreach (never publish) ---
+CLAUDE.md
+GRANT_PROPOSAL.md
+findings/ETHERFI_PITCH.md
+findings/OUTREACH_MESSAGES.md
