@@ -44,7 +44,7 @@ These are not hypothetical results. PRSpec has produced findings that have been 
 
 These are publicly verifiable interactions, linked above, with named engineers at the Nethermind and Ethereum Foundation organizations. They demonstrate that the tool is producing technically meaningful output that practitioners take seriously.
 
-> This project is being developed under the Ethereum Foundation ESP program for *Integrating LLMs into Ethereum Protocol Security Research*.
+> PRSpec is independent, open-source infrastructure for cross-client EIP compliance. It is built and maintained by one developer, and it welcomes sponsors. Organizations that depend on correct client implementations are invited to support the work and be recognized publicly as official backers. See [Support & Sponsorship](#support--sponsorship).
 
 ---
 
@@ -521,13 +521,17 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 
 ---
 
-## Support This Public Good
+## Support & Sponsorship
 
-PRSpec is built entirely in the open and provided free under the MIT license. If this tool is useful to the Ethereum ecosystem, or if you believe cross-client spec compliance deserves better tooling, consider supporting continued development:
+PRSpec is built entirely in the open and provided free under the MIT license. It is the work of one developer who believes cross-client spec compliance deserves serious, continuous tooling.
+
+**Sponsors are welcome.** If your protocol, client team, or organization depends on execution clients implementing the EIPs correctly, you have a direct stake in this work. Sponsorship funds staking-EIP coverage, monthly cross-client compliance reports, and priority alerts on protocol-path deviations. Everything stays open-source, and **official sponsors are recognized publicly here in the README and project page**. Tiered backing and scoped pilots are both fine.
+
+To sponsor or discuss support, reach out through the project page, or contribute directly:
 
 [![Support on Giveth](https://img.shields.io/badge/Support%20on-Giveth-purple.svg)](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
 
-Every contribution goes directly toward LLM API costs, infrastructure, and full-time development of new features including cross-client differential analysis and GitHub Action integration.
+Every contribution goes directly toward LLM API costs, infrastructure, and continued full-time development.
 
 ---
 

@@ -83,4 +83,4 @@ However:
 Found via **PRSpec** ([github.com/Fosurero/PRSpec](https://github.com/Fosurero/PRSpec)), an automated LLM-based EIP compliance checker. The finding was graded **CONFIRMED at 100/100 confidence** by adversarial verification and then re-checked by hand against both the go-ethereum source and the execution-specs `forks/prague/fork.py` reference.
 
 ---
-*PRSpec is an open-source tool built for the Ethereum Foundation ESP program to help maintain cross-client EIP compliance.*
+*PRSpec is an open-source tool that helps maintain cross-client EIP compliance.*
