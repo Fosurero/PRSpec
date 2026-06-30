@@ -2,10 +2,17 @@
 
 **Ethereum specification compliance checker:** Compares EIP specs against client source code using LLM analysis.
 
+<div align="center">
+
+[<img src="https://img.shields.io/badge/Support%20on-Giveth-purple.svg" alt="Support on Giveth" width="160"/>](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
+<br>
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Powered by: Gemini](https://img.shields.io/badge/Gemini_2.5_Pro-AI-cyan.svg)](https://ai.google.dev/)
-[![Support on Giveth](https://img.shields.io/badge/Support%20on-Giveth-purple.svg)](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
+
+</div>
+
+
 
 ---
 
