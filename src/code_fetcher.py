@@ -37,8 +37,11 @@ class CodeFetcher:
                     "params/protocol_params.go",
                     "core/txpool/legacypool/legacypool.go",
                 ],
+                # EIP-4788: beacon root processing is the ProcessBeaconBlockRoot
+                # system call in state_processor.go — NOT a precompile in geth.
                 4788: [
-                    "core/vm/contracts.go",
+                    "core/state_processor.go",
+                    "params/protocol_params.go",
                 ],
                 2930: [
                     "core/types/tx_access_list.go",
@@ -98,6 +101,10 @@ class CodeFetcher:
                     "src/Nethermind/Nethermind.Crypto/KzgPolynomialCommitments.cs",
                     "src/Nethermind/Nethermind.Consensus/Validators/TxValidator.cs",
                     "src/Nethermind/Nethermind.Consensus/Validators/HeaderValidator.cs",
+                ],
+                # EIP-4788: beacon block root system call handler.
+                4788: [
+                    "src/Nethermind/Nethermind.Blockchain/BeaconBlockRoot/BeaconBlockRootHandler.cs",
                 ],
                 # Pectra EIPs
                 7702: [
@@ -167,6 +174,13 @@ class CodeFetcher:
                     "evm/src/main/java/org/hyperledger/besu/evm/precompile/BLSG1AddPrecompiledContract.java",
                     "evm/src/main/java/org/hyperledger/besu/evm/precompile/BLSG2AddPrecompiledContract.java",
                     "evm/src/main/java/org/hyperledger/besu/evm/precompile/BLS12G1MultiExpPrecompiledContract.java",
+                ],
+                # EIP-4788: beacon root pre-execution. Routes through the shared
+                # SystemCallProcessor but CATCHES SystemCallNoCodeAtAddressException
+                # and fails silently — the "unchecked" system-call class.
+                4788: [
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/blockhash/CancunPreExecutionProcessor.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/systemcall/SystemCallProcessor.java",
                 ],
                 6110: [
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/requests/DepositRequestProcessor.java",
