@@ -1,14 +1,17 @@
 """Fetches Ethereum EIP specs, execution specs, and consensus specs from GitHub."""
 
 import difflib
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import requests
 
+from .github_fetcher import CachedGitHubFetcher
 
-class SpecFetcher:
+
+class SpecFetcher(CachedGitHubFetcher):
     """Fetches Ethereum specifications from GitHub and other sources"""
+
+    DEFAULT_CACHE_DIRNAME = ".spec_cache"
 
     # Supported EIPs: title, fork, and where to find their specs.
     EIP_REGISTRY = {
@@ -102,18 +105,6 @@ class SpecFetcher:
         },
     }
 
-    def __init__(self, github_token: Optional[str] = None, cache_dir: Optional[str] = None):
-        """Set up HTTP session and local cache directory."""
-        self.github_token = github_token
-        self.cache_dir = Path(cache_dir) if cache_dir else Path.cwd() / ".spec_cache"
-        self.session = requests.Session()
-
-        if github_token:
-            self.session.headers["Authorization"] = f"token {github_token}"
-
-        # Create cache directory
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-
     # ---- Supported EIP helpers ----
 
     @classmethod
@@ -133,57 +124,28 @@ class SpecFetcher:
 
     def fetch_eip(self, eip_number: int, use_cache: bool = True) -> str:
         """Fetch the raw EIP markdown. Works for any EIP number."""
-        cache_file = self.cache_dir / f"eip-{eip_number}.md"
-
-        # Check cache
-        if use_cache and cache_file.exists():
-            return cache_file.read_text(encoding="utf-8")
-
-        # Fetch from GitHub
-        url = f"https://raw.githubusercontent.com/ethereum/EIPs/master/EIPS/eip-{eip_number}.md"
-        response = self.session.get(url)
-        response.raise_for_status()
-
-        content = response.text
-
-        # Cache the result
-        cache_file.write_text(content, encoding="utf-8")
-
-        return content
+        return self.fetch_raw_file(
+            "ethereum", "EIPs", f"EIPS/eip-{eip_number}.md", "master",
+            cache_key=f"eip-{eip_number}.md", use_cache=use_cache,
+        )
 
     def fetch_execution_spec(self, file_path: str, branch: str = "master",
                              use_cache: bool = True) -> str:
         """Fetch a Python file from ethereum/execution-specs."""
-        cache_file = self.cache_dir / f"exec_spec_{file_path.replace('/', '_')}"
-
-        if use_cache and cache_file.exists():
-            return cache_file.read_text(encoding="utf-8")
-
-        url = f"https://raw.githubusercontent.com/ethereum/execution-specs/{branch}/{file_path}"
-        response = self.session.get(url)
-        response.raise_for_status()
-
-        content = response.text
-        cache_file.write_text(content, encoding="utf-8")
-
-        return content
+        return self.fetch_raw_file(
+            "ethereum", "execution-specs", file_path, branch,
+            cache_key=f"exec_spec_{file_path.replace('/', '_')}",
+            use_cache=use_cache,
+        )
 
     def fetch_consensus_spec(self, file_path: str, branch: str = "dev",
                              use_cache: bool = True) -> str:
         """Fetch a file from ethereum/consensus-specs."""
-        cache_file = self.cache_dir / f"consensus_spec_{file_path.replace('/', '_')}"
-
-        if use_cache and cache_file.exists():
-            return cache_file.read_text(encoding="utf-8")
-
-        url = f"https://raw.githubusercontent.com/ethereum/consensus-specs/{branch}/{file_path}"
-        response = self.session.get(url)
-        response.raise_for_status()
-
-        content = response.text
-        cache_file.write_text(content, encoding="utf-8")
-
-        return content
+        return self.fetch_raw_file(
+            "ethereum", "consensus-specs", file_path, branch,
+            cache_key=f"consensus_spec_{file_path.replace('/', '_')}",
+            use_cache=use_cache,
+        )
 
     def fetch_execution_spec_diff(self, eip_number: int, branch: str = "master",
                                   use_cache: bool = True) -> Optional[str]:
@@ -347,15 +309,6 @@ class SpecFetcher:
 
     # ---- Cache management ----
 
-    def clear_cache(self):
-        """Clear the specification cache"""
-        import shutil
-        if self.cache_dir.exists():
-            shutil.rmtree(self.cache_dir)
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-
     def list_cached_specs(self) -> List[str]:
         """List all cached specification files"""
-        if not self.cache_dir.exists():
-            return []
-        return [f.name for f in self.cache_dir.iterdir() if f.is_file()]
+        return self.list_cached_files()

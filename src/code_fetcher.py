@@ -1,10 +1,11 @@
 """Fetches implementation files from Ethereum client repos (geth, Nethermind, Besu)."""
 
 import tempfile
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
+
+from .github_fetcher import CachedGitHubFetcher
 
 try:
     from git import Repo
@@ -13,8 +14,10 @@ except ImportError:
     GIT_AVAILABLE = False
 
 
-class CodeFetcher:
+class CodeFetcher(CachedGitHubFetcher):
     """Fetches code from Ethereum client implementations"""
+
+    DEFAULT_CACHE_DIRNAME = ".code_cache"
 
     # Client repos and per-EIP file paths.
     # "branch" defaults to "master" when absent.
@@ -253,15 +256,8 @@ class CodeFetcher:
 
     def __init__(self, github_token: Optional[str] = None, cache_dir: Optional[str] = None):
         """Set up HTTP session and local cache directory."""
-        self.github_token = github_token
-        self.cache_dir = Path(cache_dir) if cache_dir else Path.cwd() / ".code_cache"
-        self.session = requests.Session()
-
-        if github_token:
-            self.session.headers["Authorization"] = f"token {github_token}"
+        super().__init__(github_token=github_token, cache_dir=cache_dir)
         self.session.headers["Accept"] = "application/vnd.github.v3+json"
-
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     # ---- Helpers ----
 
@@ -291,21 +287,11 @@ class CodeFetcher:
     def fetch_file(self, owner: str, repo: str, path: str,
                    branch: str = "master", use_cache: bool = True) -> str:
         """Fetch a single file from a GitHub repo via raw URL."""
-        cache_key = f"{owner}_{repo}_{path.replace('/', '_')}_{branch}"
-        cache_file = self.cache_dir / cache_key
-
-        if use_cache and cache_file.exists():
-            return cache_file.read_text(encoding="utf-8")
-
-        # Use raw GitHub URL
-        url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-        response = self.session.get(url)
-        response.raise_for_status()
-
-        content = response.text
-        cache_file.write_text(content, encoding="utf-8")
-
-        return content
+        return self.fetch_raw_file(
+            owner, repo, path, branch,
+            cache_key=f"{owner}_{repo}_{path.replace('/', '_')}_{branch}",
+            use_cache=use_cache,
+        )
 
     def fetch_geth_file(self, path: str, branch: str = "master",
                         use_cache: bool = True) -> str:
@@ -401,18 +387,3 @@ class CodeFetcher:
         return target_dir
 
     # get_file_functions() removed — use CodeParser for function extraction.
-
-    # ---- Cache management ----
-
-    def clear_cache(self):
-        """Clear the code cache"""
-        import shutil
-        if self.cache_dir.exists():
-            shutil.rmtree(self.cache_dir)
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-
-    def list_cached_files(self) -> List[str]:
-        """List all cached code files"""
-        if not self.cache_dir.exists():
-            return []
-        return [f.name for f in self.cache_dir.iterdir() if f.is_file()]

@@ -148,6 +148,27 @@ Flagged finding under review:
 {claim}
 """
 
+    def _result_from_payload(self, payload: Dict[str, Any],
+                             raw_response: Optional[str] = None) -> AnalysisResult:
+        """Build an :class:`AnalysisResult` from a parsed LLM JSON payload."""
+        return AnalysisResult(
+            status=payload.get("status", "UNCERTAIN"),
+            confidence=payload.get("confidence", 0),
+            issues=payload.get("issues", []),
+            summary=payload.get("summary", ""),
+            raw_response=raw_response,
+        )
+
+    @staticmethod
+    def _error_result(provider: str, error: Exception) -> AnalysisResult:
+        """Build the ERROR result returned when a backend call fails."""
+        return AnalysisResult(
+            status="ERROR",
+            confidence=0,
+            issues=[],
+            summary=f"{provider} analysis failed: {str(error)}",
+        )
+
     def _parse_json_response(self, response_text: str) -> Dict[str, Any]:
         """Parse JSON from LLM response, handling markdown code blocks
         and truncated output from the model."""
@@ -251,21 +272,10 @@ class GeminiAnalyzer(BaseAnalyzer):
 
             result = self._parse_json_response(response.text)
 
-            return AnalysisResult(
-                status=result.get("status", "UNCERTAIN"),
-                confidence=result.get("confidence", 0),
-                issues=result.get("issues", []),
-                summary=result.get("summary", ""),
-                raw_response=response.text
-            )
+            return self._result_from_payload(result, response.text)
 
         except Exception as e:
-            return AnalysisResult(
-                status="ERROR",
-                confidence=0,
-                issues=[],
-                summary=f"Gemini analysis failed: {str(e)}"
-            )
+            return self._error_result("Gemini", e)
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model"""
@@ -318,21 +328,10 @@ class OpenAIAnalyzer(BaseAnalyzer):
             response_text = response.choices[0].message.content
             result = self._parse_json_response(response_text)
 
-            return AnalysisResult(
-                status=result.get("status", "UNCERTAIN"),
-                confidence=result.get("confidence", 0),
-                issues=result.get("issues", []),
-                summary=result.get("summary", ""),
-                raw_response=response_text
-            )
+            return self._result_from_payload(result, response_text)
 
         except Exception as e:
-            return AnalysisResult(
-                status="ERROR",
-                confidence=0,
-                issues=[],
-                summary=f"OpenAI analysis failed: {str(e)}"
-            )
+            return self._error_result("OpenAI", e)
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model"""
@@ -453,21 +452,10 @@ class AzureAIAnalyzer(BaseAnalyzer):
             )
             result = self._parse_json_response(response_text)
 
-            return AnalysisResult(
-                status=result.get("status", "UNCERTAIN"),
-                confidence=result.get("confidence", 0),
-                issues=result.get("issues", []),
-                summary=result.get("summary", ""),
-                raw_response=response_text
-            )
+            return self._result_from_payload(result, response_text)
 
         except Exception as e:
-            return AnalysisResult(
-                status="ERROR",
-                confidence=0,
-                issues=[],
-                summary=f"Azure AI analysis failed: {str(e)}"
-            )
+            return self._error_result("Azure AI", e)
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model"""
@@ -479,32 +467,25 @@ class AzureAIAnalyzer(BaseAnalyzer):
         }
 
 
+# Analyzer class and its required constructor arguments, per provider.
+_PROVIDERS = {
+    "gemini": (GeminiAnalyzer, ["api_key"]),
+    "openai": (OpenAIAnalyzer, ["api_key"]),
+    "azure": (AzureAIAnalyzer, ["api_key", "endpoint", "model"]),
+}
+
+
 def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
     """Factory: return a GeminiAnalyzer, OpenAIAnalyzer, or AzureAIAnalyzer."""
     provider = provider.lower()
 
-    if provider == "gemini":
-        required = ["api_key"]
-        for key in required:
-            if key not in kwargs:
-                raise ValueError(f"Missing required parameter: {key}")
-        return GeminiAnalyzer(**kwargs)
-
-    elif provider == "openai":
-        required = ["api_key"]
-        for key in required:
-            if key not in kwargs:
-                raise ValueError(f"Missing required parameter: {key}")
-        return OpenAIAnalyzer(**kwargs)
-
-    elif provider == "azure":
-        required = ["api_key", "endpoint", "model"]
-        for key in required:
-            if key not in kwargs:
-                raise ValueError(f"Missing required parameter: {key}")
-        return AzureAIAnalyzer(**kwargs)
-
-    else:
+    if provider not in _PROVIDERS:
         raise ValueError(
             f"Unknown provider: {provider}. Use 'gemini', 'openai', or 'azure'."
         )
+
+    analyzer_cls, required = _PROVIDERS[provider]
+    for key in required:
+        if key not in kwargs:
+            raise ValueError(f"Missing required parameter: {key}")
+    return analyzer_cls(**kwargs)

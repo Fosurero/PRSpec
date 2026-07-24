@@ -42,6 +42,35 @@ def cli():
     pass
 
 
+def _print_info_panel(title: str, rows):
+    """Render the banner plus a two-column key/value configuration panel."""
+    console.print(BANNER)
+    info_table = Table(show_header=False, box=None, padding=(0, 2))
+    info_table.add_column(style="bold white")
+    info_table.add_column(style="cyan")
+    for label, value in rows:
+        info_table.add_row(label, value)
+    console.print(Panel(info_table, title=f"[bold]{title}[/bold]", border_style="blue"))
+
+
+def _abort_on_error(error: Exception, verbose: bool):
+    """Print a command failure (with optional traceback) and abort."""
+    if RICH_AVAILABLE:
+        console.print(f"[red]Error:[/red] {str(error)}")
+    else:
+        click.echo(f"Error: {str(error)}", err=True)
+
+    if verbose:
+        import traceback
+        trace = traceback.format_exc()
+        if RICH_AVAILABLE:
+            console.print(f"[dim]{trace}[/dim]")
+        else:
+            click.echo(trace, err=True)
+
+    raise click.Abort()
+
+
 def _analyze_one_file(analyzer, spec_text, file_path, code_content, context):
     """Analyze a single file — designed to run inside a thread pool."""
     result = analyzer.analyze_compliance(spec_text, code_content, context)
@@ -180,16 +209,13 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
 
         # Banner + config summary
         if RICH_AVAILABLE:
-            console.print(BANNER)
-            info_table = Table(show_header=False, box=None, padding=(0, 2))
-            info_table.add_column(style="bold white")
-            info_table.add_column(style="cyan")
-            info_table.add_row("EIP", str(eip))
-            info_table.add_row("Client", client)
-            info_table.add_row("Provider", llm_provider)
-            info_table.add_row("Output", output)
-            info_table.add_row("Verify", f"on · {verify_rounds} rounds" if verify else "off")
-            console.print(Panel(info_table, title="[bold]Configuration[/bold]", border_style="blue"))
+            _print_info_panel("Configuration", [
+                ("EIP", str(eip)),
+                ("Client", client),
+                ("Provider", llm_provider),
+                ("Output", output),
+                ("Verify", f"on · {verify_rounds} rounds" if verify else "off"),
+            ])
         else:
             click.echo("\n  PRSpec - Ethereum Specification Compliance Checker\n")
             click.echo(f"  EIP: {eip}  |  Client: {client}  |  Provider: {llm_provider}")
@@ -250,17 +276,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             click.echo(f"\nReport saved to: {report_path}")
 
     except Exception as e:
-        if RICH_AVAILABLE:
-            console.print(f"[red]Error:[/red] {str(e)}")
-            if verbose:
-                import traceback
-                console.print(f"[dim]{traceback.format_exc()}[/dim]")
-        else:
-            click.echo(f"Error: {str(e)}", err=True)
-            if verbose:
-                import traceback
-                click.echo(traceback.format_exc(), err=True)
-        raise click.Abort()
+        _abort_on_error(e, verbose)
 
 
 @cli.command()
@@ -287,7 +303,7 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
         prspec diff --eip 1559
         prspec diff --eip 4844 --clients go-ethereum,nethermind,besu --output html
     """
-    from .differential import ClientAnalysis, DifferentialEngine
+    from .differential import analyze_clients
 
     try:
         cfg = Config(config)
@@ -315,47 +331,29 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
                 f"Usable: {usable or 'none'}."
             )
 
+        rows = [
+            ("EIP", str(eip)),
+            ("Clients", ", ".join(usable)),
+            ("Provider", llm_provider),
+            ("Output", output),
+        ]
         if RICH_AVAILABLE:
-            console.print(BANNER)
-            info_table = Table(show_header=False, box=None, padding=(0, 2))
-            info_table.add_column(style="bold white")
-            info_table.add_column(style="cyan")
-            info_table.add_row("EIP", str(eip))
-            info_table.add_row("Clients", ", ".join(usable))
-            info_table.add_row("Provider", llm_provider)
-            info_table.add_row("Output", output)
             if skipped:
-                info_table.add_row("Skipped", ", ".join(skipped))
-            console.print(Panel(info_table, title="[bold]Differential[/bold]", border_style="blue"))
+                rows.append(("Skipped", ", ".join(skipped)))
+            _print_info_panel("Differential", rows)
         else:
             click.echo(f"\n  PRSpec differential — EIP-{eip} across {', '.join(usable)}\n")
 
-        # Analyze each client through the standard pipeline.
-        per_client = {}
-        last_analyzer = None
-        for client in usable:
+        def on_client_start(client):
             if RICH_AVAILABLE:
                 console.print(f"[dim]Analyzing {client}...[/dim]")
-            results, analyzer = _run_analysis(
-                eip, client, cfg, llm_provider,
-                verify=verify, verify_rounds=verify_rounds,
-            )
-            per_client[client] = ClientAnalysis(
-                client=client,
-                language=CodeFetcher.client_language(client),
-                results=results,
-            )
-            last_analyzer = analyzer
 
-        # Build the differential.
-        engine = DifferentialEngine(focus_areas=cfg.get_eip_focus_areas(eip))
-        eip_title = SpecFetcher.get_eip_title(eip)
-        differential = engine.build(per_client, eip, eip_title, confirmed_only=verify)
-
-        if llm_synthesis and last_analyzer is not None:
-            differential.llm_synthesis = engine.synthesize(
-                last_analyzer, differential, per_client
-            )
+        differential = analyze_clients(
+            eip, usable, cfg, provider=llm_provider,
+            use_llm_synthesis=llm_synthesis,
+            verify=verify, verify_rounds=verify_rounds,
+            on_client_start=on_client_start,
+        )
 
         # Report.
         report_gen = ReportGenerator(cfg.output_config.get("directory", "output"))
@@ -371,17 +369,7 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
     except click.ClickException:
         raise
     except Exception as e:
-        if RICH_AVAILABLE:
-            console.print(f"[red]Error:[/red] {str(e)}")
-            if verbose:
-                import traceback
-                console.print(f"[dim]{traceback.format_exc()}[/dim]")
-        else:
-            click.echo(f"Error: {str(e)}", err=True)
-            if verbose:
-                import traceback
-                click.echo(traceback.format_exc(), err=True)
-        raise click.Abort()
+        _abort_on_error(e, verbose)
 
 
 @cli.command()
