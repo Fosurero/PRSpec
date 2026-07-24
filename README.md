@@ -354,7 +354,7 @@ python -m pytest tests/ -v
 python -m pytest tests/ --cov=src
 ```
 
-The test suite covers 149 cases including multi-client registry validation (all 4 clients), Go/C#/Java/Rust parser correctness, cross-client differential comparison, finding verification and spec grounding, fork-to-fork diff extraction, staking-EIP request-processor mappings, provider wiring, and live fetch integration.
+The test suite covers 385 cases (96% statement coverage of `src/`) including multi-client registry validation (all 4 clients), Go/C#/Java/Rust/Python parser correctness, cross-client differential comparison, finding verification and spec grounding, fork-to-fork diff extraction, staking-EIP request-processor mappings, provider wiring, configuration and env-var precedence, report rendering in all three formats, the CLI commands end to end, and live fetch integration.
 
 ---
 
