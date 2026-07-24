@@ -413,7 +413,8 @@ The returned dict has the structure:
   "tool_version": "1.5.0",
   "ruleset": "ethereum",
   "findings": [{"id", "severity", "title", "message", "file", "line", "hint"}],
-  "summary": {"high": 0, "med": 0, "low": 0, "info": 5, "files_scanned": 12}
+  "summary": {"high": 0, "med": 0, "low": 0, "info": 5, "files_scanned": 12, "files_skipped": 1},
+  "errors": [{"file": "vendor/unreadable.go", "error": "Permission denied"}]
 }
 ```
 

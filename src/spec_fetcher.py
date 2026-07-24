@@ -1,10 +1,15 @@
 """Fetches Ethereum EIP specs, execution specs, and consensus specs from GitHub."""
 
 import difflib
+import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
+
+from .errors import SpecFetchError
+
+logger = logging.getLogger(__name__)
 
 
 class SpecFetcher:
@@ -136,8 +141,9 @@ class SpecFetcher:
         cache_file = self.cache_dir / f"eip-{eip_number}.md"
 
         # Check cache
-        if use_cache and cache_file.exists():
-            return cache_file.read_text(encoding="utf-8")
+        cached = self._read_cache(cache_file, use_cache)
+        if cached is not None:
+            return cached
 
         # Fetch from GitHub
         url = f"https://raw.githubusercontent.com/ethereum/EIPs/master/EIPS/eip-{eip_number}.md"
@@ -145,26 +151,44 @@ class SpecFetcher:
         response.raise_for_status()
 
         content = response.text
-
-        # Cache the result
-        cache_file.write_text(content, encoding="utf-8")
+        self._write_cache(cache_file, content)
 
         return content
+
+    # ---- Cache helpers (best-effort: a broken cache must not break a fetch) ----
+
+    @staticmethod
+    def _read_cache(cache_file: Path, use_cache: bool) -> Optional[str]:
+        if not (use_cache and cache_file.exists()):
+            return None
+        try:
+            return cache_file.read_text(encoding="utf-8")
+        except OSError as e:
+            logger.warning("Ignoring unreadable cache entry %s: %s", cache_file, e)
+            return None
+
+    @staticmethod
+    def _write_cache(cache_file: Path, content: str) -> None:
+        try:
+            cache_file.write_text(content, encoding="utf-8")
+        except OSError as e:
+            logger.warning("Could not write cache entry %s: %s", cache_file, e)
 
     def fetch_execution_spec(self, file_path: str, branch: str = "master",
                              use_cache: bool = True) -> str:
         """Fetch a Python file from ethereum/execution-specs."""
         cache_file = self.cache_dir / f"exec_spec_{file_path.replace('/', '_')}"
 
-        if use_cache and cache_file.exists():
-            return cache_file.read_text(encoding="utf-8")
+        cached = self._read_cache(cache_file, use_cache)
+        if cached is not None:
+            return cached
 
         url = f"https://raw.githubusercontent.com/ethereum/execution-specs/{branch}/{file_path}"
         response = self.session.get(url)
         response.raise_for_status()
 
         content = response.text
-        cache_file.write_text(content, encoding="utf-8")
+        self._write_cache(cache_file, content)
 
         return content
 
@@ -173,15 +197,16 @@ class SpecFetcher:
         """Fetch a file from ethereum/consensus-specs."""
         cache_file = self.cache_dir / f"consensus_spec_{file_path.replace('/', '_')}"
 
-        if use_cache and cache_file.exists():
-            return cache_file.read_text(encoding="utf-8")
+        cached = self._read_cache(cache_file, use_cache)
+        if cached is not None:
+            return cached
 
         url = f"https://raw.githubusercontent.com/ethereum/consensus-specs/{branch}/{file_path}"
         response = self.session.get(url)
         response.raise_for_status()
 
         content = response.text
-        cache_file.write_text(content, encoding="utf-8")
+        self._write_cache(cache_file, content)
 
         return content
 
@@ -213,7 +238,11 @@ class SpecFetcher:
         try:
             new_src = self.fetch_execution_spec(new_path, branch, use_cache)
             old_src = self.fetch_execution_spec(old_path, branch, use_cache)
-        except (requests.HTTPError, requests.ConnectionError):
+        except requests.RequestException as e:
+            logger.warning(
+                "Fork diff for EIP-%s unavailable (%s vs %s): %s",
+                eip_number, new_path, old_path, e,
+            )
             return None
 
         diff = difflib.unified_diff(
@@ -239,12 +268,16 @@ class SpecFetcher:
         info = self.EIP_REGISTRY.get(eip_number, {})
         title = info.get("title", f"EIP-{eip_number}")
 
-        result: Dict[str, Optional[str]] = {
+        result: Dict[str, Any] = {
             "eip_markdown": self.fetch_eip(eip_number),
             "execution_spec": None,
             "execution_spec_mode": "full",
             "consensus_spec": None,
             "title": title,
+            # Non-fatal degradations (e.g. a spec file that could not be
+            # fetched) so callers can tell the user the analysis is thinner
+            # than it should be instead of silently proceeding.
+            "warnings": [],
         }
 
         # Prefer the focused fork diff when asked for it.
@@ -255,23 +288,43 @@ class SpecFetcher:
                 result["execution_spec_mode"] = "diff"
 
         # Fall back to (or default to) the first whole spec file that fetches.
+        exec_paths = info.get("execution_spec_paths", [])
         if result["execution_spec"] is None:
-            for path in info.get("execution_spec_paths", []):
+            exec_errors: List[str] = []
+            for path in exec_paths:
                 try:
                     result["execution_spec"] = self.fetch_execution_spec(path)
                     break
-                except (requests.HTTPError, requests.ConnectionError):
-                    continue
+                except requests.RequestException as e:
+                    logger.warning("Could not fetch execution spec %s: %s", path, e)
+                    exec_errors.append(f"{path}: {e}")
+            if result["execution_spec"] is None and exec_paths:
+                result["warnings"].append(
+                    f"No execution spec available for EIP-{eip_number} "
+                    f"({'; '.join(exec_errors)})"
+                )
 
         # Try consensus spec paths; concatenate all that succeed
+        consensus_paths = info.get("consensus_spec_paths", [])
         consensus_parts: List[str] = []
-        for path in info.get("consensus_spec_paths", []):
+        for path in consensus_paths:
             try:
                 consensus_parts.append(self.fetch_consensus_spec(path))
-            except (requests.HTTPError, requests.ConnectionError):
-                continue
+            except requests.RequestException as e:
+                logger.warning("Could not fetch consensus spec %s: %s", path, e)
+                result["warnings"].append(f"Consensus spec {path} unavailable: {e}")
         if consensus_parts:
             result["consensus_spec"] = "\n\n---\n\n".join(consensus_parts)
+
+        # An EIP with registered spec sources but nothing fetched leaves the
+        # analysis with prose only; that is a failure worth propagating.
+        if (exec_paths or consensus_paths) and not (
+            result["execution_spec"] or result["consensus_spec"]
+        ):
+            raise SpecFetchError(
+                f"No specification source could be fetched for EIP-{eip_number}: "
+                + "; ".join(result["warnings"])
+            )
 
         return result
 

@@ -1,16 +1,35 @@
 """Fetches implementation files from Ethereum client repos (geth, Nethermind, Besu)."""
 
+import logging
 import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
+
+from .errors import CodeFetchError
 
 try:
     from git import Repo
     GIT_AVAILABLE = True
 except ImportError:
     GIT_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FetchOutcome:
+    """Files fetched for an EIP/client pair, plus the ones that failed.
+
+    ``failures`` maps a file path to the error that prevented fetching it, so
+    callers can report partial results instead of silently analyzing a subset
+    of the implementation.
+    """
+
+    files: Dict[str, str] = field(default_factory=dict)
+    failures: Dict[str, str] = field(default_factory=dict)
 
 
 class CodeFetcher:
@@ -295,7 +314,10 @@ class CodeFetcher:
         cache_file = self.cache_dir / cache_key
 
         if use_cache and cache_file.exists():
-            return cache_file.read_text(encoding="utf-8")
+            try:
+                return cache_file.read_text(encoding="utf-8")
+            except OSError as e:
+                logger.warning("Ignoring unreadable cache entry %s: %s", cache_file, e)
 
         # Use raw GitHub URL
         url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
@@ -303,7 +325,10 @@ class CodeFetcher:
         response.raise_for_status()
 
         content = response.text
-        cache_file.write_text(content, encoding="utf-8")
+        try:
+            cache_file.write_text(content, encoding="utf-8")
+        except OSError as e:
+            logger.warning("Could not write cache entry %s: %s", cache_file, e)
 
         return content
 
@@ -314,8 +339,13 @@ class CodeFetcher:
 
     # ---- Generic EIP implementation fetcher ----
 
-    def fetch_eip_implementation(self, client: str, eip_number: int) -> Dict[str, str]:
-        """Fetch all registered implementation files for an EIP/client pair."""
+    def fetch_eip_files(self, client: str, eip_number: int) -> FetchOutcome:
+        """Fetch the registered implementation files for an EIP/client pair.
+
+        Returns both the files that were fetched and, per path, the error for
+        the ones that were not. Raises :class:`CodeFetchError` when no file
+        could be fetched at all — an empty analysis is a failure, not a result.
+        """
         if client not in self.CLIENTS:
             raise ValueError(
                 f"Unknown client: {client}. "
@@ -338,15 +368,37 @@ class CodeFetcher:
         owner, repo = url_parts[-2], url_parts[-1]
         branch = client_info.get("branch", "master")
 
-        files: Dict[str, str] = {}
+        outcome = FetchOutcome()
         for file_path in file_paths:
             try:
-                content = self.fetch_file(owner, repo, file_path, branch=branch)
-                files[file_path] = content
-            except requests.HTTPError as e:
-                files[file_path] = f"# Error fetching file: {e}"
+                outcome.files[file_path] = self.fetch_file(
+                    owner, repo, file_path, branch=branch
+                )
+            except requests.RequestException as e:
+                # Never hand the error text to the analyzer as if it were
+                # source code — record the failure and drop the file.
+                logger.warning(
+                    "Failed to fetch %s from %s/%s@%s: %s",
+                    file_path, owner, repo, branch, e,
+                )
+                outcome.failures[file_path] = str(e)
 
-        return files
+        if not outcome.files:
+            detail = "; ".join(f"{p}: {err}" for p, err in outcome.failures.items())
+            raise CodeFetchError(
+                f"Could not fetch any EIP-{eip_number} implementation file for "
+                f"{client} ({detail})"
+            )
+
+        return outcome
+
+    def fetch_eip_implementation(self, client: str, eip_number: int) -> Dict[str, str]:
+        """Fetch all registered implementation files for an EIP/client pair.
+
+        Files that cannot be fetched are omitted (and logged); see
+        :meth:`fetch_eip_files` to inspect those failures.
+        """
+        return self.fetch_eip_files(client, eip_number).files
 
     # ---- Legacy convenience methods ----
 

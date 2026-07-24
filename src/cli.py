@@ -1,8 +1,9 @@
 """Command-line interface for PRSpec."""
 
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import click
 
@@ -25,6 +26,8 @@ from .config import Config
 from .report_generator import ReportGenerator, ReportMetadata
 from .spec_fetcher import SpecFetcher
 
+logger = logging.getLogger(__name__)
+
 BANNER = """[cyan]
   ██████╗ ██████╗ ███████╗██████╗ ███████╗ ██████╗
   ██╔══██╗██╔══██╗██╔════╝██╔══██╗██╔════╝██╔════╝
@@ -40,6 +43,39 @@ BANNER = """[cyan]
 def cli():
     """PRSpec — check Ethereum client code against EIP specifications."""
     pass
+
+
+def _configure_logging(verbose: bool = False) -> None:
+    """Send library warnings to stderr so degraded runs are visible."""
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.WARNING,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
+
+
+def _warn(message: str) -> None:
+    """Print a warning that is visible with or without rich."""
+    if RICH_AVAILABLE:
+        console.print(f"[yellow]Warning:[/yellow] {message}")
+    else:
+        click.echo(f"Warning: {message}", err=True)
+
+
+def _fail(e: Exception, verbose: bool = False) -> None:
+    """Report a command failure and abort with a non-zero exit status."""
+    logger.debug("Command failed", exc_info=True)
+    if RICH_AVAILABLE:
+        console.print(f"[red]Error:[/red] {e}")
+    else:
+        click.echo(f"Error: {e}", err=True)
+    if verbose:
+        import traceback
+        detail = traceback.format_exc()
+        if RICH_AVAILABLE:
+            console.print(f"[dim]{detail}[/dim]")
+        else:
+            click.echo(detail, err=True)
+    raise click.Abort()
 
 
 def _analyze_one_file(analyzer, spec_text, file_path, code_content, context):
@@ -88,9 +124,14 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
     # Prefer the focused fork-to-fork diff; falls back to the full spec file.
     spec_data = spec_fetcher.fetch_eip_spec(eip, mode="diff")
     eip_title = spec_data.get("title", f"EIP-{eip}")
+    for warning in spec_data.get("warnings", []):
+        _warn(warning)
 
     # --- Fetch implementation code (generic for any EIP) ---
-    code_files = code_fetcher.fetch_eip_implementation(client, eip)
+    outcome = code_fetcher.fetch_eip_files(client, eip)
+    code_files = outcome.files
+    for path, err in outcome.failures.items():
+        _warn(f"{client}: skipping {path} — could not fetch it ({err})")
     language = CodeFetcher.client_language(client)
 
     # --- Build analyzer ---
@@ -135,6 +176,8 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
     file_order = list(code_files.keys())
     results.sort(key=lambda r: file_order.index(r["file_name"]))
 
+    _report_analysis_errors(results, client, eip)
+
     # --- Adversarial verification (optional) ---
     if verify:
         from .verifier import VerificationEngine
@@ -149,6 +192,29 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
         engine.verify_results(results, spec_text, code_files, base_context)
 
     return results, analyzer
+
+
+def _report_analysis_errors(results: List[dict], client: str, eip: int) -> None:
+    """Surface per-file analysis failures; abort when every file failed.
+
+    Files whose analysis errored carry no verdict, so folding them into the
+    report as UNCERTAIN would hide the failure.
+    """
+    failed = [r for r in results if r.get("status") == "ERROR"]
+    if not failed:
+        return
+
+    for result in failed:
+        _warn(
+            f"analysis of {result['file_name']} failed: "
+            f"{result.get('error') or result.get('summary', 'unknown error')}"
+        )
+
+    if len(failed) == len(results):
+        raise click.ClickException(
+            f"Every file analysis failed for EIP-{eip} on {client}; "
+            f"no report was produced."
+        )
 
 
 @cli.command()
@@ -173,6 +239,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
         prspec analyze --eip 4844 --client go-ethereum --output html
         prspec analyze --eip 1559 --client nethermind --verify
     """
+    _configure_logging(verbose)
     try:
         # Load configuration
         cfg = Config(config)
@@ -249,18 +316,10 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
         else:
             click.echo(f"\nReport saved to: {report_path}")
 
+    except click.ClickException:
+        raise
     except Exception as e:
-        if RICH_AVAILABLE:
-            console.print(f"[red]Error:[/red] {str(e)}")
-            if verbose:
-                import traceback
-                console.print(f"[dim]{traceback.format_exc()}[/dim]")
-        else:
-            click.echo(f"Error: {str(e)}", err=True)
-            if verbose:
-                import traceback
-                click.echo(traceback.format_exc(), err=True)
-        raise click.Abort()
+        _fail(e, verbose)
 
 
 @cli.command()
@@ -289,6 +348,7 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
     """
     from .differential import ClientAnalysis, DifferentialEngine
 
+    _configure_logging(verbose)
     try:
         cfg = Config(config)
         llm_provider = provider if provider else cfg.llm_provider
@@ -371,17 +431,7 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
     except click.ClickException:
         raise
     except Exception as e:
-        if RICH_AVAILABLE:
-            console.print(f"[red]Error:[/red] {str(e)}")
-            if verbose:
-                import traceback
-                console.print(f"[dim]{traceback.format_exc()}[/dim]")
-        else:
-            click.echo(f"Error: {str(e)}", err=True)
-            if verbose:
-                import traceback
-                click.echo(traceback.format_exc(), err=True)
-        raise click.Abort()
+        _fail(e, verbose)
 
 
 @cli.command()
@@ -406,7 +456,7 @@ def fetch_spec(eip: int):
             click.echo("\n...[Truncated]")
 
     except Exception as e:
-        click.echo(f"Error: {str(e)}", err=True)
+        _fail(e)
 
 
 @cli.command()
@@ -420,9 +470,13 @@ def list_files(client: str, eip: int):
         prspec list-files --client go-ethereum --eip 1559
         prspec list-files --client go-ethereum --eip 4844
     """
+    _configure_logging()
     try:
         code_fetcher = CodeFetcher()
-        files = code_fetcher.fetch_eip_implementation(client, eip)
+        outcome = code_fetcher.fetch_eip_files(client, eip)
+        files = outcome.files
+        for path, err in outcome.failures.items():
+            _warn(f"could not fetch {path}: {err}")
 
         if RICH_AVAILABLE:
             from rich.table import Table
@@ -441,7 +495,7 @@ def list_files(client: str, eip: int):
                 click.echo(f"  - {path} ({len(content.split(chr(10)))} lines)")
 
     except Exception as e:
-        click.echo(f"Error: {str(e)}", err=True)
+        _fail(e)
 
 
 @cli.command()
@@ -474,7 +528,7 @@ def list_eips():
                 click.echo(f"  EIP-{eip_num}: {title}")
 
     except Exception as e:
-        click.echo(f"Error: {str(e)}", err=True)
+        _fail(e)
 
 
 @cli.command()
@@ -493,7 +547,7 @@ def clear_cache():
             click.echo("Cache cleared successfully")
 
     except Exception as e:
-        click.echo(f"Error: {str(e)}", err=True)
+        _fail(e)
 
 
 @cli.command()
@@ -555,7 +609,7 @@ def check_config():
                 click.echo(f"  {name}: {status}")
 
     except Exception as e:
-        click.echo(f"Error: {str(e)}", err=True)
+        _fail(e)
 
 
 def main():

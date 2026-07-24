@@ -15,6 +15,13 @@ class Finding(TypedDict, total=False):
     hint: str
 
 
+class ScanError(TypedDict):
+    """A file that could not be scanned, and why."""
+
+    file: str
+    error: str
+
+
 class Summary(TypedDict):
     """Aggregate counts for a scan run."""
 
@@ -23,6 +30,7 @@ class Summary(TypedDict):
     low: int
     info: int
     files_scanned: int
+    files_skipped: int
 
 
 class ScanResult(TypedDict):
@@ -33,3 +41,4 @@ class ScanResult(TypedDict):
     ruleset: str
     findings: List[Finding]
     summary: Summary
+    errors: List[ScanError]

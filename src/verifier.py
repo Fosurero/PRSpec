@@ -20,11 +20,14 @@ Gemini and OpenAI backends and is trivial to drive with a stub in tests.
 
 from __future__ import annotations
 
+import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Spec grounding (deterministic, no API)
@@ -207,6 +210,20 @@ class VerificationEngine:
                 refutation_spec, code_text, context
             )
         except Exception:
+            # A failed round must not masquerade as a considered verdict, so
+            # it votes 'unsure' — but it is never silent.
+            logger.exception(
+                "Skeptic round failed for %s; counting the vote as unsure",
+                context.get("file_name", "<unknown>"),
+            )
+            return "unsure"
+
+        if getattr(result, "failed", False):
+            logger.warning(
+                "Skeptic round for %s returned an ERROR result: %s",
+                context.get("file_name", "<unknown>"),
+                getattr(result, "error", None) or getattr(result, "summary", ""),
+            )
             return "unsure"
 
         status = str(getattr(result, "status", "")).upper()

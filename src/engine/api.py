@@ -11,16 +11,19 @@ Usage::
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..parser import CodeParser
 
+logger = logging.getLogger(__name__)
+
 # Attempt to read the package version; fall back to "dev".
 try:
     from src import __version__ as _prspec_version
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     _prspec_version = "dev"
 
 # ---------------------------------------------------------------------------
@@ -87,7 +90,8 @@ def _get_eip_keywords() -> Dict[int, List[str]]:
     try:
         from ..parser import CodeParser as _CP
         return dict(_CP.EIP_KEYWORDS)
-    except Exception:
+    except (ImportError, AttributeError) as e:
+        logger.warning("Falling back to the built-in EIP keyword map: %s", e)
         return dict(_DEFAULT_EIP_KEYWORDS)
 
 
@@ -144,6 +148,7 @@ def scan_path(
     eip_keywords = _get_eip_keywords()
 
     findings: List[Dict[str, Any]] = []
+    skipped: Dict[str, str] = {}
     finding_id = 0
 
     for fpath in files:
@@ -153,7 +158,9 @@ def scan_path(
 
         try:
             content = Path(fpath).read_text(errors="replace")
-        except OSError:
+        except OSError as e:
+            logger.warning("Skipping unreadable file %s: %s", fpath, e)
+            skipped[fpath] = str(e)
             continue
 
         blocks = parser.parse_file(content, lang)
@@ -210,8 +217,12 @@ def scan_path(
             "med": med,
             "low": low,
             "info": info,
-            "files_scanned": len(files),
+            "files_scanned": len(files) - len(skipped),
+            "files_skipped": len(skipped),
         },
+        # Per-file read errors, so a scan that silently covered less than the
+        # whole tree is visible to the caller.
+        "errors": [{"file": f, "error": err} for f, err in sorted(skipped.items())],
     }
 
     if output == "json-pretty":
