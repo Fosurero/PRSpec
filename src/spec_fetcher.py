@@ -1,10 +1,21 @@
 """Fetches Ethereum EIP specs, execution specs, and consensus specs from GitHub."""
 
 import difflib
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import requests
+
+# Seconds to wait for a spec download before giving up.
+DEFAULT_TIMEOUT = 30
+
+_UNSAFE_CACHE_CHARS = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _cache_name(*parts: str) -> str:
+    """Build a flat, traversal-safe file name from arbitrary path parts."""
+    return "_".join(_UNSAFE_CACHE_CHARS.sub("_", str(p)) for p in parts)
 
 
 class SpecFetcher:
@@ -133,7 +144,7 @@ class SpecFetcher:
 
     def fetch_eip(self, eip_number: int, use_cache: bool = True) -> str:
         """Fetch the raw EIP markdown. Works for any EIP number."""
-        cache_file = self.cache_dir / f"eip-{eip_number}.md"
+        cache_file = self.cache_dir / _cache_name(f"eip-{eip_number}.md")
 
         # Check cache
         if use_cache and cache_file.exists():
@@ -141,7 +152,7 @@ class SpecFetcher:
 
         # Fetch from GitHub
         url = f"https://raw.githubusercontent.com/ethereum/EIPs/master/EIPS/eip-{eip_number}.md"
-        response = self.session.get(url)
+        response = self.session.get(url, timeout=DEFAULT_TIMEOUT)
         response.raise_for_status()
 
         content = response.text
@@ -154,13 +165,13 @@ class SpecFetcher:
     def fetch_execution_spec(self, file_path: str, branch: str = "master",
                              use_cache: bool = True) -> str:
         """Fetch a Python file from ethereum/execution-specs."""
-        cache_file = self.cache_dir / f"exec_spec_{file_path.replace('/', '_')}"
+        cache_file = self.cache_dir / _cache_name("exec_spec", branch, file_path)
 
         if use_cache and cache_file.exists():
             return cache_file.read_text(encoding="utf-8")
 
         url = f"https://raw.githubusercontent.com/ethereum/execution-specs/{branch}/{file_path}"
-        response = self.session.get(url)
+        response = self.session.get(url, timeout=DEFAULT_TIMEOUT)
         response.raise_for_status()
 
         content = response.text
@@ -171,13 +182,13 @@ class SpecFetcher:
     def fetch_consensus_spec(self, file_path: str, branch: str = "dev",
                              use_cache: bool = True) -> str:
         """Fetch a file from ethereum/consensus-specs."""
-        cache_file = self.cache_dir / f"consensus_spec_{file_path.replace('/', '_')}"
+        cache_file = self.cache_dir / _cache_name("consensus_spec", branch, file_path)
 
         if use_cache and cache_file.exists():
             return cache_file.read_text(encoding="utf-8")
 
         url = f"https://raw.githubusercontent.com/ethereum/consensus-specs/{branch}/{file_path}"
-        response = self.session.get(url)
+        response = self.session.get(url, timeout=DEFAULT_TIMEOUT)
         response.raise_for_status()
 
         content = response.text
