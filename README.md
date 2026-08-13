@@ -14,10 +14,6 @@
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License MIT">
 </a>
 
-<a href="https://ai.google.dev/">
-  <img src="https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Pro-AI-cyan.svg" alt="Powered by Gemini">
-</a>
-
 </div>
 
 
