@@ -4,7 +4,6 @@
 
 <div align="center">
 
-[<img src="https://img.shields.io/badge/Support%20on-Giveth-purple.svg" alt="Support on Giveth" width="160"/>](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
 <br>
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
