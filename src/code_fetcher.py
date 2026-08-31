@@ -1,8 +1,10 @@
 """Fetches implementation files from Ethereum client repos (geth, Nethermind, Besu)."""
 
+import re
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 import requests
 
@@ -11,6 +13,16 @@ try:
     GIT_AVAILABLE = True
 except ImportError:
     GIT_AVAILABLE = False
+
+# Seconds to wait for a GitHub request before giving up.
+DEFAULT_TIMEOUT = 30
+
+_UNSAFE_CACHE_CHARS = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _cache_name(*parts: str) -> str:
+    """Build a flat, traversal-safe file name from arbitrary path parts."""
+    return "_".join(_UNSAFE_CACHE_CHARS.sub("_", str(p)) for p in parts)
 
 
 class CodeFetcher:
@@ -291,15 +303,14 @@ class CodeFetcher:
     def fetch_file(self, owner: str, repo: str, path: str,
                    branch: str = "master", use_cache: bool = True) -> str:
         """Fetch a single file from a GitHub repo via raw URL."""
-        cache_key = f"{owner}_{repo}_{path.replace('/', '_')}_{branch}"
-        cache_file = self.cache_dir / cache_key
+        cache_file = self.cache_dir / _cache_name(owner, repo, path, branch)
 
         if use_cache and cache_file.exists():
             return cache_file.read_text(encoding="utf-8")
 
         # Use raw GitHub URL
         url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-        response = self.session.get(url)
+        response = self.session.get(url, timeout=DEFAULT_TIMEOUT)
         response.raise_for_status()
 
         content = response.text
@@ -378,7 +389,7 @@ class CodeFetcher:
         url = "https://api.github.com/search/code"
         params = {"q": search_query, "per_page": 10}
 
-        response = self.session.get(url, params=params)
+        response = self.session.get(url, params=params, timeout=DEFAULT_TIMEOUT)
         response.raise_for_status()
 
         return response.json().get("items", [])
@@ -386,6 +397,9 @@ class CodeFetcher:
     def clone_repository(self, url: str, target_dir: Optional[str] = None,
                          branch: str = "master", shallow: bool = True) -> str:
         """Clone a repo locally for deeper analysis. Requires gitpython."""
+        self._validate_clone_url(url)
+        self._validate_branch(branch)
+
         if not GIT_AVAILABLE:
             raise RuntimeError("GitPython not installed. Install with: pip install gitpython")
 
@@ -399,6 +413,25 @@ class CodeFetcher:
         Repo.clone_from(url, target_dir, **clone_args)
 
         return target_dir
+
+    @staticmethod
+    def _validate_clone_url(url: str) -> None:
+        """Reject clone URLs that git would treat as an option or a transport
+        capable of running commands (``ext::``, ``--upload-pack=``, ...)."""
+        if not url or url.startswith("-"):
+            raise ValueError(f"Invalid repository URL: {url!r}")
+        scheme = urlparse(url).scheme.lower()
+        if scheme not in ("https", "http", "ssh", "git"):
+            raise ValueError(
+                f"Unsupported repository URL scheme: {scheme or 'none'!r}. "
+                "Use an https, ssh, or git URL."
+            )
+
+    @staticmethod
+    def _validate_branch(branch: str) -> None:
+        """Allow only plain ref names, so a branch cannot become a git flag."""
+        if not branch or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch) or branch.startswith("-"):
+            raise ValueError(f"Invalid branch name: {branch!r}")
 
     # get_file_functions() removed — use CodeParser for function extraction.
 
