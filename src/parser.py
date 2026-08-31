@@ -5,6 +5,42 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 
+def _brace_delta(line: str) -> int:
+    """Net brace nesting change contributed by *line*."""
+    return line.count('{') - line.count('}')
+
+
+def _close_block(lines: List[str], start: int, depth: int, limit: int) -> int:
+    """Advance from *start* until the open braces (*depth*) are closed."""
+    end = start
+    while depth > 0 and end < limit:
+        end += 1
+        depth += _brace_delta(lines[end])
+    return end
+
+
+def _find_block_end(lines: List[str], start: int, limit: Optional[int] = None,
+                    lookahead: int = 0) -> int:
+    """Index of the line closing the brace block opened at *start*.
+
+    Returns *start* when no block opens there.  *lookahead* allows the opening
+    brace to sit on one of the next few lines (K&R vs. Allman brace styles),
+    and *limit* caps the scan (defaults to the last line).
+    """
+    if limit is None:
+        limit = len(lines) - 1
+
+    depth = _brace_delta(lines[start])
+    end = start
+    if depth == 0 and lookahead:
+        for j in range(start + 1, min(start + 1 + lookahead, len(lines))):
+            if '{' in lines[j]:
+                depth = _brace_delta(lines[j])
+                end = j
+                break
+    return _close_block(lines, end, depth, limit)
+
+
 @dataclass
 class CodeBlock:
     """Represents a parsed code block (function, class, etc.)"""
@@ -106,14 +142,7 @@ class CodeParser:
                 receiver = match.group(2) if match.group(2) else None
                 start_line = i + 1
 
-                # Find matching closing brace
-                brace_count = line.count('{') - line.count('}')
-                end_line = i
-
-                while brace_count > 0 and end_line < len(lines) - 1:
-                    end_line += 1
-                    brace_count += lines[end_line].count('{')
-                    brace_count -= lines[end_line].count('}')
+                end_line = _find_block_end(lines, i)
 
                 content_block = '\n'.join(lines[i:end_line + 1])
 
@@ -240,18 +269,7 @@ class CodeParser:
             if fm and '{' not in stripped[:stripped.find(fm.group(0))]:
                 name = fm.group(1)
                 m_start = i + 1
-                brace_count = stripped.count('{') - stripped.count('}')
-                m_end = i
-                if brace_count == 0:
-                    for j in range(i + 1, min(i + 4, len(lines))):
-                        if '{' in lines[j]:
-                            brace_count = lines[j].count('{') - lines[j].count('}')
-                            m_end = j
-                            break
-                while brace_count > 0 and m_end < end:
-                    m_end += 1
-                    brace_count += lines[m_end].count('{')
-                    brace_count -= lines[m_end].count('}')
+                m_end = _find_block_end(lines, i, limit=end, lookahead=3)
                 if m_end > i:
                     methods.append(CodeBlock(
                         name=name, type="method",
@@ -280,19 +298,8 @@ class CodeParser:
             if cm:
                 name = cm.group(1)
                 start_line = i + 1
-                brace_count = stripped.count('{') - stripped.count('}')
-                end_line = i
-                # If opening brace not on this line, scan forward
-                if brace_count == 0:
-                    for j in range(i + 1, min(i + 4, len(lines))):
-                        if '{' in lines[j]:
-                            brace_count = lines[j].count('{') - lines[j].count('}')
-                            end_line = j
-                            break
-                while brace_count > 0 and end_line < len(lines) - 1:
-                    end_line += 1
-                    brace_count += lines[end_line].count('{')
-                    brace_count -= lines[end_line].count('}')
+                # The opening brace may sit on one of the next few lines.
+                end_line = _find_block_end(lines, i, lookahead=3)
                 class_body = '\n'.join(lines[i:end_line + 1])
                 blocks.append(CodeBlock(
                     name=name, type="class",
@@ -313,18 +320,7 @@ class CodeParser:
             if fm and '{' not in stripped[:stripped.find(fm.group(0))]:
                 name = fm.group(1)
                 start_line = i + 1
-                brace_count = stripped.count('{') - stripped.count('}')
-                end_line = i
-                if brace_count == 0:
-                    for j in range(i + 1, min(i + 4, len(lines))):
-                        if '{' in lines[j]:
-                            brace_count = lines[j].count('{') - lines[j].count('}')
-                            end_line = j
-                            break
-                while brace_count > 0 and end_line < len(lines) - 1:
-                    end_line += 1
-                    brace_count += lines[end_line].count('{')
-                    brace_count -= lines[end_line].count('}')
+                end_line = _find_block_end(lines, i, lookahead=3)
                 if end_line > i:
                     blocks.append(CodeBlock(
                         name=name, type="method",
@@ -394,12 +390,7 @@ class CodeParser:
                 trait_for = impl_match.group(2)
                 name = f"impl {trait_for} for {type_name}" if trait_for else f"impl {type_name}"
                 start_line = i + 1
-                brace_count = line.count('{') - line.count('}')
-                end_line = i
-                while brace_count > 0 and end_line < len(lines) - 1:
-                    end_line += 1
-                    brace_count += lines[end_line].count('{')
-                    brace_count -= lines[end_line].count('}')
+                end_line = _find_block_end(lines, i)
                 blocks.append(CodeBlock(
                     name=name, type="impl",
                     content='\n'.join(lines[i:end_line + 1]),
@@ -414,7 +405,7 @@ class CodeParser:
             if struct_match:
                 name = struct_match.group(1)
                 start_line = i + 1
-                brace_count = line.count('{') - line.count('}')
+                brace_count = _brace_delta(line)
                 if brace_count == 0 and '{' not in line:
                     # Tuple struct or unit struct — single line
                     blocks.append(CodeBlock(
@@ -424,11 +415,7 @@ class CodeParser:
                     ))
                     i += 1
                     continue
-                end_line = i
-                while brace_count > 0 and end_line < len(lines) - 1:
-                    end_line += 1
-                    brace_count += lines[end_line].count('{')
-                    brace_count -= lines[end_line].count('}')
+                end_line = _close_block(lines, i, brace_count, len(lines) - 1)
                 blocks.append(CodeBlock(
                     name=name, type="struct",
                     content='\n'.join(lines[i:end_line + 1]),
@@ -443,20 +430,16 @@ class CodeParser:
             if fn_match:
                 name = fn_match.group(1)
                 start_line = i + 1
-                brace_count = line.count('{') - line.count('}')
+                brace_count = _brace_delta(line)
                 end_line = i
                 # fn signature may span multiple lines before the opening brace
                 if brace_count == 0:
                     while end_line < len(lines) - 1:
                         end_line += 1
-                        brace_count += lines[end_line].count('{')
-                        brace_count -= lines[end_line].count('}')
+                        brace_count += _brace_delta(lines[end_line])
                         if brace_count > 0:
                             break
-                while brace_count > 0 and end_line < len(lines) - 1:
-                    end_line += 1
-                    brace_count += lines[end_line].count('{')
-                    brace_count -= lines[end_line].count('}')
+                end_line = _close_block(lines, end_line, brace_count, len(lines) - 1)
                 if end_line > i:
                     blocks.append(CodeBlock(
                         name=name, type="function",

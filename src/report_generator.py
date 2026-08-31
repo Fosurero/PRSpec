@@ -19,6 +19,8 @@ except ImportError:
 
 from src import __version__
 
+from .summary import summarize_results
+
 
 @dataclass
 class ReportMetadata:
@@ -384,58 +386,7 @@ against the official EIP-{metadata.eip_number} specification.
 
     def _generate_summary(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate summary statistics from results"""
-        total_issues = 0
-        high_severity = 0
-        medium_severity = 0
-        low_severity = 0
-        confidences = []
-        statuses = []
-        verification = {"verified": False, "confirmed": 0,
-                        "disputed": 0, "refuted": 0}
-
-        for result in results:
-            issues = result.get('issues', [])
-            total_issues += len(issues)
-
-            for issue in issues:
-                severity = issue.get('severity', '').upper()
-                if severity == 'HIGH':
-                    high_severity += 1
-                elif severity == 'MEDIUM':
-                    medium_severity += 1
-                elif severity == 'LOW':
-                    low_severity += 1
-
-                verdict = issue.get('verification', {}).get('verdict')
-                if verdict:
-                    verification["verified"] = True
-                    key = verdict.lower()
-                    if key in verification:
-                        verification[key] += 1
-
-            confidences.append(result.get('confidence', 0))
-            statuses.append(result.get('status', 'UNKNOWN'))
-
-        # Determine overall status
-        if 'MISSING' in statuses or high_severity > 0:
-            overall_status = "ISSUES FOUND"
-        elif 'PARTIAL_MATCH' in statuses or medium_severity > 0:
-            overall_status = "PARTIAL"
-        elif all(s == 'FULL_MATCH' for s in statuses):
-            overall_status = "COMPLIANT"
-        else:
-            overall_status = "UNCERTAIN"
-
-        return {
-            "overall_status": overall_status,
-            "average_confidence": round(sum(confidences) / len(confidences)) if confidences else 0,
-            "files_analyzed": len(results),
-            "total_issues": total_issues,
-            "high_severity": high_severity,
-            "medium_severity": medium_severity,
-            "low_severity": low_severity,
-            "verification": verification,
-        }
+        return summarize_results(results, count_verification=True)
 
     # ------------------------------------------------------------------
     # Cross-client differential reports

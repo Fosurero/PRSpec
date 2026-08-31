@@ -13,66 +13,17 @@ adds a natural-language narrative of the divergences.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-from .verifier import confirmed_issues
-
-# ---------------------------------------------------------------------------
-# Result summarisation (kept standalone so the engine has no dependency on the
-# report generator).
-# ---------------------------------------------------------------------------
+from .summary import summarize_results as _summarize
 
 
 def summarize_results(results: List[Dict[str, Any]],
                       confirmed_only: bool = False) -> Dict[str, Any]:
-    """Aggregate per-file analysis dicts into client-level summary stats.
-
-    When *confirmed_only* is set and the results carry verification verdicts,
-    only CONFIRMED findings are counted, so cross-client stats reflect what
-    survived adversarial verification rather than raw candidates.
-    """
-    total_issues = 0
-    high = med = low = 0
-    confidences: List[int] = []
-    statuses: List[str] = []
-    type_counts: Dict[str, int] = {}
-
-    for result in results:
-        issues = confirmed_issues(result) if confirmed_only else (result.get("issues", []) or [])
-        total_issues += len(issues)
-        for issue in issues:
-            severity = str(issue.get("severity", "")).upper()
-            if severity == "HIGH":
-                high += 1
-            elif severity == "MEDIUM":
-                med += 1
-            elif severity == "LOW":
-                low += 1
-            itype = str(issue.get("type", "")).upper()
-            if itype:
-                type_counts[itype] = type_counts.get(itype, 0) + 1
-        confidences.append(int(result.get("confidence", 0) or 0))
-        statuses.append(str(result.get("status", "UNKNOWN")))
-
-    if "MISSING" in statuses or high > 0:
-        overall = "ISSUES FOUND"
-    elif "PARTIAL_MATCH" in statuses or med > 0:
-        overall = "PARTIAL"
-    elif statuses and all(s == "FULL_MATCH" for s in statuses):
-        overall = "COMPLIANT"
-    else:
-        overall = "UNCERTAIN"
-
-    return {
-        "overall_status": overall,
-        "average_confidence": round(sum(confidences) / len(confidences)) if confidences else 0,
-        "files_analyzed": len(results),
-        "total_issues": total_issues,
-        "high_severity": high,
-        "medium_severity": med,
-        "low_severity": low,
-        "issue_types": type_counts,
-    }
+    """Aggregate per-file analysis dicts into client-level summary stats."""
+    return _summarize(
+        results, confirmed_only=confirmed_only, count_issue_types=True
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -414,8 +365,13 @@ def analyze_clients(eip: int, clients: List[str], config: Any,
                     provider: Optional[str] = None,
                     use_llm_synthesis: bool = False,
                     verify: bool = False,
-                    verify_rounds: int = 2) -> DifferentialResult:
+                    verify_rounds: int = 2,
+                    on_client_start: Optional[Callable[[str], None]] = None
+                    ) -> DifferentialResult:
     """Run analysis for each client and build a differential.
+
+    *on_client_start* is invoked with each client name before it is analyzed,
+    so callers can report progress.
 
     Thin wrapper over the standard analysis pipeline for programmatic use::
 
@@ -435,6 +391,8 @@ def analyze_clients(eip: int, clients: List[str], config: Any,
     last_analyzer = None
 
     for client in clients:
+        if on_client_start:
+            on_client_start(client)
         results, analyzer = _run_analysis(
             eip, client, config, llm_provider,
             verify=verify, verify_rounds=verify_rounds,
