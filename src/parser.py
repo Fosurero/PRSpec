@@ -1,8 +1,11 @@
 """Source code parser — extracts functions, classes, and EIP-relevant blocks."""
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -58,8 +61,11 @@ class CodeParser:
             self._ts_parsers["python"] = Parser(py_lang)
             self._ts_parsers["go"] = Parser(go_lang)
 
-        except (ImportError, TypeError):
+        except (ImportError, TypeError) as e:
             # TypeError handles older tree-sitter API gracefully
+            logger.warning(
+                "tree-sitter unavailable (%s); falling back to regex parsing", e
+            )
             self.use_tree_sitter = False
 
     def parse_file(self, content: str, language: str,

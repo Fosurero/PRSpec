@@ -131,8 +131,12 @@ def print_banner():
     print(BANNER)
 
 
-def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
-    """Run a demonstration of PRSpec capabilities for any supported EIP."""
+def run_demo(eip_number: int = 1559, client: str = "go-ethereum") -> bool:
+    """Run a demonstration of PRSpec capabilities for any supported EIP.
+
+    Returns ``True`` when the demo completed and ``False`` when it bailed out,
+    so the process exit status reflects what actually happened.
+    """
     print_banner()
 
     # Import PRSpec components
@@ -146,7 +150,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     except ImportError as e:
         print(f"Import error: {e}")
         print("Make sure you've installed requirements: pip install -r requirements.txt")
-        return
+        return False
 
     # Check for Rich library
     try:
@@ -166,7 +170,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
         print(f"   ✓ Config loaded from: {config.config_path}")
     except Exception as e:
         print(f"   Error loading config: {e}")
-        return
+        return False
 
     # Check API key
     print("\nChecking API credentials...")
@@ -176,7 +180,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     except ValueError as e:
         print(f"   {e}")
         print("   Please set GEMINI_API_KEY in your .env file")
-        return
+        return False
 
     # Validate EIP support
     spec_fetcher = SpecFetcher(github_token=config.github_token)
@@ -186,7 +190,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     if eip_number not in spec_fetcher.supported_eips():
         print(f"   EIP-{eip_number} is not in the registry. "
               f"Supported: {spec_fetcher.supported_eips()}")
-        return
+        return False
 
     eip_title = spec_fetcher.get_eip_title(eip_number)
     print(f"\nTarget: EIP-{eip_number} ({eip_title}) -- {client}")
@@ -214,7 +218,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
             print(f"   ✓ Consensus spec: {len(spec_data['consensus_spec'])} characters")
     except Exception as e:
         print(f"   Error fetching spec: {e}")
-        return
+        return False
 
     # Fetch client implementation
     print(f"\nFetching {client} implementation...")
@@ -235,7 +239,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
             code_files = SAMPLE_CODE[eip_number]
         else:
             print("   No sample code available for this EIP. Exiting.")
-            return
+            return False
 
     # Parse the code
     language = code_fetcher.client_language(client)
@@ -342,6 +346,7 @@ def run_demo(eip_number: int = 1559, client: str = "go-ethereum"):
     print("=" * 60)
     print("\nReports are in the 'output' directory.")
     print()
+    return True
 
 
 def quick_test():
@@ -387,6 +392,8 @@ if __name__ == "__main__":
     args = arg_parser.parse_args()
 
     if args.test:
-        quick_test()
+        ok = quick_test()
     else:
-        run_demo(eip_number=args.eip, client=args.client)
+        ok = run_demo(eip_number=args.eip, client=args.client)
+
+    sys.exit(0 if ok else 1)

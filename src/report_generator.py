@@ -416,8 +416,13 @@ against the official EIP-{metadata.eip_number} specification.
             confidences.append(result.get('confidence', 0))
             statuses.append(result.get('status', 'UNKNOWN'))
 
+        failed_files = sum(1 for s in statuses if s == 'ERROR')
+
         # Determine overall status
-        if 'MISSING' in statuses or high_severity > 0:
+        if statuses and failed_files == len(statuses):
+            # Every file errored: that is a failed run, not an uncertain one.
+            overall_status = "ANALYSIS FAILED"
+        elif 'MISSING' in statuses or high_severity > 0:
             overall_status = "ISSUES FOUND"
         elif 'PARTIAL_MATCH' in statuses or medium_severity > 0:
             overall_status = "PARTIAL"
@@ -430,6 +435,7 @@ against the official EIP-{metadata.eip_number} specification.
             "overall_status": overall_status,
             "average_confidence": round(sum(confidences) / len(confidences)) if confidences else 0,
             "files_analyzed": len(results),
+            "failed_files": failed_files,
             "total_issues": total_issues,
             "high_severity": high_severity,
             "medium_severity": medium_severity,

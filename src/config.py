@@ -1,11 +1,16 @@
 """Configuration management for PRSpec."""
 
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import yaml
 from dotenv import load_dotenv
+
+from .errors import ConfigError
+
+logger = logging.getLogger(__name__)
 
 
 class Config:
@@ -38,9 +43,29 @@ class Config:
         raise FileNotFoundError("config.yaml not found")
 
     def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from YAML file"""
-        with open(self.config_path, 'r') as f:
-            return yaml.safe_load(f)
+        """Load configuration from YAML file.
+
+        Raises :class:`ConfigError` when the file cannot be read or does not
+        contain a YAML mapping — an empty or malformed config would otherwise
+        surface much later as a confusing ``AttributeError``.
+        """
+        try:
+            with open(self.config_path, 'r') as f:
+                loaded = yaml.safe_load(f)
+        except OSError as e:
+            raise ConfigError(f"Could not read config file {self.config_path}: {e}") from e
+        except yaml.YAMLError as e:
+            raise ConfigError(f"Invalid YAML in {self.config_path}: {e}") from e
+
+        if loaded is None:
+            logger.warning("Config file %s is empty; using defaults", self.config_path)
+            return {}
+        if not isinstance(loaded, dict):
+            raise ConfigError(
+                f"Config file {self.config_path} must contain a mapping, "
+                f"got {type(loaded).__name__}"
+            )
+        return loaded
 
     @property
     def llm_provider(self) -> str:

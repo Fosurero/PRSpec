@@ -1,6 +1,7 @@
 """LLM-based spec compliance analysis (Gemini, OpenAI, and Azure AI backends)."""
 
 import json
+import logging
 import re
 import time
 from abc import ABC, abstractmethod
@@ -8,6 +9,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import requests
+
+from .errors import AnalysisError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -18,14 +23,24 @@ class AnalysisResult:
     issues: List[Dict[str, Any]]
     summary: str
     raw_response: Optional[str] = None
+    # Set when the analysis failed; carries the underlying error so callers
+    # (reports, CLI exit codes) can distinguish a failure from a verdict.
+    error: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        data: Dict[str, Any] = {
             "status": self.status,
             "confidence": self.confidence,
             "issues": self.issues,
             "summary": self.summary,
         }
+        if self.error:
+            data["error"] = self.error
+        return data
+
+    @property
+    def failed(self) -> bool:
+        return self.status == "ERROR"
 
     @property
     def has_issues(self) -> bool:
@@ -161,6 +176,16 @@ Flagged finding under review:
         # Strip surrounding prose — some models wrap JSON in explanation text
         text = text.strip()
 
+        if not text:
+            logger.error("LLM returned an empty response")
+            return {
+                "status": "ERROR",
+                "confidence": 0,
+                "issues": [],
+                "summary": "The model returned an empty response.",
+                "error": "empty response",
+            }
+
         try:
             return json.loads(text)
         except json.JSONDecodeError:
@@ -206,13 +231,31 @@ Flagged finding under review:
                     except json.JSONDecodeError:
                         continue
 
+        logger.error(
+            "Could not parse a JSON object out of a %d-char model response; "
+            "first 200 chars: %s", len(text), text[:200],
+        )
         return {
             "status": "ERROR",
             "confidence": 0,
             "issues": [],
             "summary": f"Failed to parse response ({len(text)} chars). "
-                       f"The model output may have been truncated."
+                       f"The model output may have been truncated.",
+            "error": "unparseable response",
         }
+
+    @staticmethod
+    def _result_from_payload(result: Dict[str, Any],
+                             raw_response: Optional[str]) -> "AnalysisResult":
+        """Build an :class:`AnalysisResult` from a parsed model payload."""
+        return AnalysisResult(
+            status=result.get("status", "UNCERTAIN"),
+            confidence=result.get("confidence", 0),
+            issues=result.get("issues", []),
+            summary=result.get("summary", ""),
+            raw_response=raw_response,
+            error=result.get("error"),
+        )
 
 
 class GeminiAnalyzer(BaseAnalyzer):
@@ -225,8 +268,10 @@ class GeminiAnalyzer(BaseAnalyzer):
         try:
             from google import genai  # type: ignore[import-untyped]
             from google.genai import types as genai_types  # type: ignore[import-untyped]
-        except ImportError:
-            raise ImportError("google-genai not installed. Run: pip install google-genai")
+        except ImportError as e:
+            raise ImportError(
+                "google-genai not installed. Run: pip install google-genai"
+            ) from e
 
         self._genai_types = genai_types
         self.client = genai.Client(api_key=api_key)
@@ -249,22 +294,25 @@ class GeminiAnalyzer(BaseAnalyzer):
                 ),
             )
 
-            result = self._parse_json_response(response.text)
+            if response.text is None:
+                raise AnalysisError(
+                    "Gemini returned no text (the response may have been "
+                    "blocked or truncated)"
+                )
 
-            return AnalysisResult(
-                status=result.get("status", "UNCERTAIN"),
-                confidence=result.get("confidence", 0),
-                issues=result.get("issues", []),
-                summary=result.get("summary", ""),
-                raw_response=response.text
-            )
+            result = self._parse_json_response(response.text)
+            return self._result_from_payload(result, response.text)
 
         except Exception as e:
+            logger.exception(
+                "Gemini analysis of %s failed", context.get("file_name", "<unknown>")
+            )
             return AnalysisResult(
                 status="ERROR",
                 confidence=0,
                 issues=[],
-                summary=f"Gemini analysis failed: {str(e)}"
+                summary=f"Gemini analysis failed: {str(e)}",
+                error=f"{type(e).__name__}: {e}",
             )
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -286,8 +334,8 @@ class OpenAIAnalyzer(BaseAnalyzer):
         try:
             from openai import OpenAI
             self.client = OpenAI(api_key=api_key)
-        except ImportError:
-            raise ImportError("openai not installed. Run: pip install openai")
+        except ImportError as e:
+            raise ImportError("openai not installed. Run: pip install openai") from e
 
         self.model = model
         self.max_tokens = max_tokens
@@ -316,22 +364,19 @@ class OpenAIAnalyzer(BaseAnalyzer):
             )
 
             response_text = response.choices[0].message.content
-            result = self._parse_json_response(response_text)
-
-            return AnalysisResult(
-                status=result.get("status", "UNCERTAIN"),
-                confidence=result.get("confidence", 0),
-                issues=result.get("issues", []),
-                summary=result.get("summary", ""),
-                raw_response=response_text
-            )
+            result = self._parse_json_response(response_text or "")
+            return self._result_from_payload(result, response_text)
 
         except Exception as e:
+            logger.exception(
+                "OpenAI analysis of %s failed", context.get("file_name", "<unknown>")
+            )
             return AnalysisResult(
                 status="ERROR",
                 confidence=0,
                 issues=[],
-                summary=f"OpenAI analysis failed: {str(e)}"
+                summary=f"OpenAI analysis failed: {str(e)}",
+                error=f"{type(e).__name__}: {e}",
             )
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -398,7 +443,7 @@ class AzureAIAnalyzer(BaseAnalyzer):
         ``HTTPError`` if every attempt is exhausted.
         """
         last_exc: Optional[Exception] = None
-        for attempt in range(self.max_retries + 1):
+        for attempt in range(max(self.max_retries, 0) + 1):
             response = self.session.post(
                 self.endpoint, json=body, headers=headers, timeout=120
             )
@@ -415,10 +460,17 @@ class AzureAIAnalyzer(BaseAnalyzer):
             retry_after = response.headers.get("Retry-After")
             try:
                 delay = float(retry_after) if retry_after is not None else 2.0 ** attempt
-            except ValueError:
+            except (TypeError, ValueError):
+                logger.warning("Ignoring malformed Retry-After header: %r", retry_after)
                 delay = 2.0 ** attempt
+            logger.warning(
+                "Azure AI returned %s; retrying in %.1fs (attempt %d/%d)",
+                response.status_code, delay, attempt + 1, self.max_retries,
+            )
             time.sleep(delay)
 
+        if last_exc is None:  # pragma: no cover - defensive
+            raise AnalysisError("Azure AI request loop exited without a response")
         raise last_exc
 
     def analyze_compliance(self, spec_text: str, code_text: str,
@@ -452,21 +504,18 @@ class AzureAIAnalyzer(BaseAnalyzer):
                 if block.get("type") == "text"
             )
             result = self._parse_json_response(response_text)
-
-            return AnalysisResult(
-                status=result.get("status", "UNCERTAIN"),
-                confidence=result.get("confidence", 0),
-                issues=result.get("issues", []),
-                summary=result.get("summary", ""),
-                raw_response=response_text
-            )
+            return self._result_from_payload(result, response_text)
 
         except Exception as e:
+            logger.exception(
+                "Azure AI analysis of %s failed", context.get("file_name", "<unknown>")
+            )
             return AnalysisResult(
                 status="ERROR",
                 confidence=0,
                 issues=[],
-                summary=f"Azure AI analysis failed: {str(e)}"
+                summary=f"Azure AI analysis failed: {str(e)}",
+                error=f"{type(e).__name__}: {e}",
             )
 
     def get_model_info(self) -> Dict[str, Any]:

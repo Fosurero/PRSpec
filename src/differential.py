@@ -12,10 +12,13 @@ adds a natural-language narrative of the divergences.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from .verifier import confirmed_issues
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Result summarisation (kept standalone so the engine has no dependency on the
@@ -54,7 +57,13 @@ def summarize_results(results: List[Dict[str, Any]],
         confidences.append(int(result.get("confidence", 0) or 0))
         statuses.append(str(result.get("status", "UNKNOWN")))
 
-    if "MISSING" in statuses or high > 0:
+    failed = sum(1 for s in statuses if s == "ERROR")
+
+    if statuses and failed == len(statuses):
+        # Nothing was actually analyzed; reporting that as UNCERTAIN would
+        # present a failed run as an inconclusive one.
+        overall = "ANALYSIS FAILED"
+    elif "MISSING" in statuses or high > 0:
         overall = "ISSUES FOUND"
     elif "PARTIAL_MATCH" in statuses or med > 0:
         overall = "PARTIAL"
@@ -65,6 +74,7 @@ def summarize_results(results: List[Dict[str, Any]],
 
     return {
         "overall_status": overall,
+        "failed_files": failed,
         "average_confidence": round(sum(confidences) / len(confidences)) if confidences else 0,
         "files_analyzed": len(results),
         "total_issues": total_issues,
@@ -250,8 +260,15 @@ class DifferentialEngine:
                 "focus_areas": self.focus_areas,
             }
             result = analyzer.analyze_compliance(spec_text, findings_blob, context)
+            if getattr(result, "failed", False):
+                logger.warning(
+                    "Differential synthesis unavailable: %s",
+                    getattr(result, "error", None) or result.summary,
+                )
+                return None
             return result.summary or None
         except Exception:
+            logger.exception("Differential synthesis failed for EIP-%s", differential.eip)
             return None
 
     # ---- row builders ----
