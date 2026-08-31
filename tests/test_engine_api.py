@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.engine import scan_path
+from src.engine.models import Finding, ScanResult, Summary
 
 
 class TestScanPathBasic(unittest.TestCase):
@@ -166,6 +167,30 @@ class TestScanPathMultiEIP(unittest.TestCase):
         finally:
             import shutil
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+class TestResultModels(unittest.TestCase):
+    """The declared result types must match what scan_path actually returns."""
+
+    def test_scan_result_keys_match_annotations(self):
+        tmpdir = tempfile.mkdtemp(prefix="prspec_models_")
+        try:
+            Path(tmpdir, "eip1559.go").write_text(
+                "package core\n\nfunc CalcBaseFee() {}\n// EIP-1559\n")
+            result = scan_path(tmpdir)
+            self.assertEqual(set(ScanResult.__annotations__),
+                             set(result) - {"_json"})
+            self.assertEqual(set(Summary.__annotations__), set(result["summary"]))
+            self.assertTrue(set(result["findings"][0]).issubset(
+                set(Finding.__annotations__)))
+        finally:
+            import shutil
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def test_finding_fields_are_optional(self):
+        # total=False — a partial Finding is still a valid instance at runtime.
+        self.assertFalse(Finding.__total__)
+        self.assertTrue(Summary.__total__)
 
 
 if __name__ == "__main__":
