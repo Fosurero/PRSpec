@@ -3,6 +3,13 @@
 **Repository:** https://github.com/ethereum/go-ethereum
 **Labels:** question, consensus
 
+> **Status (2026-11-09):** resolved upstream. go-ethereum `master` invalidates the block when a
+> request predeploy has no code since commit
+> [`26d0b2171`](https://github.com/ethereum/go-ethereum/commit/26d0b2171) (#35514, 2026-08-18).
+> Issue [#35263](https://github.com/ethereum/go-ethereum/issues/35263) was closed on 2026-07-13.
+> Test coverage: execution-spec-tests `test_contract_deployment` (`deploy_after_fork-zero_balance`,
+> `fail_on_empty_code=True`) for EIP-7002 and EIP-7251.
+
 ---
 
 ## Title

@@ -86,6 +86,14 @@ This is a latent divergence, not a live mainnet split (the predeploys are deploy
 activation). It is exactly the class of risk that should be watched continuously rather than
 audited once.
 
+> **Status update (2026-11-09):** go-ethereum `master` now returns
+> `empty system contract: no code at …` from `processRequestsSystemCall`, added in
+> [`26d0b2171`](https://github.com/ethereum/go-ethereum/commit/26d0b2171) (#35514, 2026-08-18).
+> The behaviour is also exercised by the execution-spec-tests case
+> `test_contract_deployment[...deploy_after_fork-zero_balance]` for EIP-7002 and EIP-7251
+> (`fail_on_empty_code=True`). The divergence described above applies to go-ethereum
+> before that commit.
+
 ---
 
 ## Technical Differentiators
