@@ -33,13 +33,21 @@ See the [changelog](#changelog) for the full details.
 
 ---
 
-## What PRSpec Does, and Why Nothing Else Does It
+## What PRSpec Does
 
 Most Ethereum security tooling (Slither, Mythril, Echidna) is designed to catch **bugs in smart contracts** through static analysis, symbolic execution, or fuzzing. They operate entirely within code, with no knowledge of the EIP specifications those clients are supposed to implement.
 
 **PRSpec solves a different and harder problem:** *Does the client implementation actually match what the spec says?*
 
-It fetches official EIP documents, execution specs, and consensus specs directly from the Ethereum repos, pulls the corresponding implementation files from multiple Ethereum clients, and sends both to a large-context LLM (Gemini 2.5 Pro, GPT-4, or a Claude deployment on Azure AI Foundry) to identify deviations, missing checks, and edge cases the spec requires but the code omits. No existing open-source tool does this.
+It fetches official EIP documents, execution specs, and consensus specs directly from the Ethereum repos, pulls the corresponding implementation files from multiple Ethereum clients, and sends both to a large-context LLM (Gemini 2.5 Pro, GPT-4, or a Claude deployment on Azure AI Foundry) to identify deviations, missing checks, and edge cases the spec requires but the code omits.
+
+**Related work.** PRSpec is not the only effort in this space, and we would rather build with these than compete:
+the EF Protocol Security [wishlist](https://security.ethereum.org/wishlist) lists "Differential LLMing" and "LLM Test Generation";
+EPF Cohort 6 has a [Differential LLMing](https://github.com/eth-protocol-fellows/cohort-six/blob/master/projects/differential-llming.md) project;
+[SpecTrum](https://arxiv.org/pdf/2608.17738) reports consensus-layer divergences across clients; and
+[LLM-driven differential testing](https://www.youtube.com/watch?v=btaJkpmFs4s) was presented at Black Hat Asia 2026.
+PRSpec's focus is continuous, reproducible spec-to-code checks across execution clients, with every result tied to
+a pinned spec and client commit and an honest "incomplete" when it could not check something.
 
 ---
 
@@ -93,7 +101,7 @@ audited once.
 | Targets protocol-layer client code | ✅ | Smart contracts |
 | Detects spec deviations vs. code bugs | ✅ | ❌ |
 
-The core technical insight is that EIP compliance is a **semantic problem**, not a syntactic one. A base fee calculation can be syntactically correct Go and still deviate from the spec, because the spec is written in English and the deviation is in the logic, not in the syntax. LLMs with large context windows are uniquely suited to bridge this gap.
+The core technical insight is that EIP compliance is a **semantic problem**, not a syntactic one. A base fee calculation can be syntactically correct Go and still deviate from the spec, because the spec is written in English and the deviation is in the logic, not in the syntax. LLMs with large context windows are well suited to help bridge this gap.
 
 ---
 
@@ -462,6 +470,13 @@ PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
 ---
 
 ## Changelog
+
+### v1.8.0 "Evidence Pilot" (unreleased)
+- **Fix**: the installed `prspec` command works (`No module named 'src'`, and `config.yaml not found` outside a checkout); CI now installs the package and runs it
+- **Fail-closed**: files that cannot be fetched are no longer sent to the LLM as error text; distinct exit codes `0` clean, `10` findings (`--fail-on findings`), `20` analysis incomplete, `1` tool error
+- **Reproducibility**: `--ref <sha>` pins the client commit (cache keyed by it); `--source-dir` analyses a local checkout
+- **Besu**: registry moved to `besu-eth/besu@main`; EIP-4844 now maps `BlobFeeMarket.java` and `CancunTargetingGasLimitCalculator.java`, where the core fee logic lives
+- **Besu pilot kit** (`pilot/besu/`) and a pre-registered **mutation scoreboard** (`scripts/mutation_scoreboard.py`, 10 mutations)
 
 ### v1.7.1 (2026-06-30)
 - **Staking-EIP coverage**: EIP-7002 (triggerable withdrawals) and EIP-7251 (consolidation) file mappings across go-ethereum, Nethermind, Besu, and Reth; EIP-4788 mappings extended to Nethermind and Besu; geth EIP-4788/6110 mappings corrected to the real processing paths
