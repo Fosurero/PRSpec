@@ -154,6 +154,20 @@ class TestAnalyzeCommandExit(unittest.TestCase):
 
 
 class TestPackaging(unittest.TestCase):
+    def test_bundled_default_config_matches_repo_config(self):
+        root = Path(__file__).parent.parent
+        self.assertEqual((root / "src/default_config.yaml").read_text(),
+                         (root / "config.yaml").read_text())
+
+    def test_config_falls_back_to_bundled_defaults(self):
+        from src.config import Config
+        empty = tempfile.mkdtemp()
+        with patch("src.config.Path.cwd", return_value=Path(empty) / "sub"), \
+             patch("src.config.Path.exists", autospec=True,
+                   side_effect=lambda p: p.name == "default_config.yaml"):
+            path = Config()._find_config_file()
+        self.assertTrue(path.endswith("default_config.yaml"))
+
     def test_src_package_is_declared(self):
         text = (Path(__file__).parent.parent / "pyproject.toml").read_text()
         self.assertIn("[tool.setuptools.packages.find]", text)

@@ -1,0 +1,41 @@
+# PRSpec configuration for the Besu pilot. The pilot workflow writes this
+# exact content at run time (it is never read from the PR under review).
+llm:
+  provider: gemini
+  gemini:
+    model: gemini-2.5-pro        # pinned model id; record changes in the changelog
+    max_output_tokens: 8192
+    temperature: 0.1
+
+eips:
+  1559:
+    title: "Fee market change for ETH 1.0 chain"
+    focus_areas:
+      - base_fee_calculation
+      - gas_limit_validation
+      - fee_cap_check
+      - priority_fee_handling
+      - transaction_validation
+      - base_fee_burn_destination
+  4844:
+    title: "Shard Blob Transactions"
+    focus_areas:
+      - blob_gas_price_calculation
+      - excess_blob_gas_update
+      - kzg_commitment_validation
+      - max_blobs_per_block_check
+      - blob_transaction_validation
+      - point_evaluation_precompile
+
+analysis:
+  focus_areas:
+    - specification_compliance
+    - edge_case_handling
+    - validation_checks
+    - security_implications
+
+output:
+  format: markdown
+  directory: output
+  include_code_snippets: true
+  include_spec_references: true

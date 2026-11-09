@@ -61,6 +61,11 @@ prspec = "src.cli:cli"
 where = ["."]
 include = ["src", "src.*"]
 
+# Ship the default config so an installed "prspec" works outside a checkout.
+# src/default_config.yaml must stay identical to ./config.yaml (tested).
+[tool.setuptools.package-data]
+src = ["default_config.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

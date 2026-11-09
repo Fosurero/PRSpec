@@ -1,0 +1,118 @@
+llm:
+  # Provider: "gemini", "openai", or "azure"
+  provider: gemini
+  
+  # Gemini settings
+  gemini:
+    model: gemini-2.5-pro
+    max_output_tokens: 8192
+    temperature: 0.1
+  
+  # OpenAI settings (alternative)
+  openai:
+    model: gpt-4-turbo-preview
+    max_tokens: 4096
+    temperature: 0.1
+
+  # Azure AI Foundry settings (a Claude deployment in your own resource).
+  # The Anthropic Messages endpoint, deployment name, and key come from the
+  # environment (AZURE_AI_ENDPOINT / AZURE_AI_DEPLOYMENT / AZURE_AI_API_KEY);
+  # the values below are just the generation defaults.
+  azure:
+    # anthropic_version: "2023-06-01"  # Messages API version header
+    max_tokens: 8192
+    # temperature: 0.1  # omit for Opus 4.x / newer Claude models that reject it
+
+repositories:
+  execution_specs:
+    url: https://github.com/ethereum/execution-specs
+    branch: master
+  
+  consensus_specs:
+    url: https://github.com/ethereum/consensus-specs
+    branch: dev
+  
+  go_ethereum:
+    url: https://github.com/ethereum/go-ethereum
+    branch: master
+
+# Per-EIP analysis configuration
+eips:
+  1559:
+    title: "Fee market change for ETH 1.0 chain"
+    focus_areas:
+      - base_fee_calculation
+      - gas_limit_validation
+      - fee_cap_check
+      - priority_fee_handling
+      - transaction_validation
+      # The spec mandates the base fee be *burned* (removed from supply).
+      # Track where collected base fees actually go after PayFees, since a
+      # redirect to a fee-collector address is a deviation from the burn.
+      - base_fee_burn_destination
+
+  4844:
+    title: "Shard Blob Transactions"
+    focus_areas:
+      - blob_gas_price_calculation
+      - excess_blob_gas_update
+      - kzg_commitment_validation
+      - max_blobs_per_block_check
+      - blob_transaction_validation
+      - point_evaluation_precompile
+      - blob_sidecar_handling
+
+  # Pectra / Prague EIPs
+  7702:
+    title: "Set EOA Account Code"
+    focus_areas:
+      - authorization_tuple_validation
+      - authority_signature_verification
+      - nonce_increment_on_delegation
+      - delegation_designator_prefix
+      - eoa_code_setting_and_clearing
+      - chain_id_check
+      - invalid_authority_handling
+      - gas_cost_per_empty_account_cleared
+
+  2935:
+    title: "Serve Historical Block Hashes from State"
+    focus_areas:
+      - block_hash_storage_contract_address
+      - history_storage_window_size
+      - ring_buffer_index_calculation
+      - system_call_on_block_processing
+      - blockhash_opcode_compatibility
+
+  2537:
+    title: "Precompile for BLS12-381 Curve Operations"
+    focus_areas:
+      - precompile_address_assignment
+      - input_length_validation
+      - infinity_point_handling
+      - subgroup_membership_check
+      - gas_cost_per_operation
+      - g1_g2_add_multiply_multiexp
+
+  6110:
+    title: "Supply Validator Deposits on Chain"
+    focus_areas:
+      - deposit_contract_address
+      - deposit_log_parsing
+      - deposit_request_in_block_body
+      - max_deposits_per_block_limit
+      - deposit_data_validation
+
+analysis:
+  # Default focus areas (used when EIP-specific areas are not defined)
+  focus_areas:
+    - specification_compliance
+    - edge_case_handling
+    - validation_checks
+    - security_implications
+
+output:
+  format: json  # json, markdown, html
+  directory: output
+  include_code_snippets: true
+  include_spec_references: true

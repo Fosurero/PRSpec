@@ -1,0 +1,186 @@
+# PRSpec pilot, part 2 of 2 (copy to besu/.github/workflows/).
+#
+# Read-only and non-blocking:
+#   * runs in the base-repo context after part 1, so fork PRs never see the
+#     secret; the PR's code is checked out as plain text and never executed
+#   * PRSpec itself is installed from a pinned commit, not from the PR
+#   * never fails the PR; results go to the job summary and an artifact
+#   * posts at most one comment per PR, edited in place (set POST_COMMENT=false
+#     to disable comments entirely)
+# Opt-out: delete both files, or disable the workflow in the Actions tab.
+name: PRSpec pilot
+
+on:
+  workflow_run:
+    workflows: ["PRSpec pilot (trigger)"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read          # download the artifact from part 1
+  pull-requests: write   # the single optional comment
+
+env:
+  PRSPEC_REPO: https://github.com/Fosurero/PRSpec
+  PRSPEC_COMMIT: REPLACE_WITH_RELEASE_SHA   # pin to a reviewed PRSpec commit
+  POST_COMMENT: "true"
+
+jobs:
+  analyze:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - name: Download PR info
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: prspec-pr
+          path: pr
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Validate PR info
+        id: pr
+        run: |
+          number=$(cat pr/number); sha=$(cat pr/head_sha)
+          [[ "$number" =~ ^[0-9]+$ ]] || { echo "bad PR number"; exit 1; }
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "bad head sha"; exit 1; }
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Check out PR files as data (never executed)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          path: pr-src
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            ethereum/core/src/main/java
+            evm/src/main/java
+            datatypes/src/main/java
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned PRSpec
+        run: pip install "git+${PRSPEC_REPO}@${PRSPEC_COMMIT}"
+
+      - name: Write the pilot config (trusted copy, not from the PR)
+        run: |
+          cat > config.yaml <<'CFG'
+          # PRSpec configuration for the Besu pilot. The pilot workflow writes this
+          # exact content at run time (it is never read from the PR under review).
+          llm:
+            provider: gemini
+            gemini:
+              model: gemini-2.5-pro        # pinned model id; record changes in the changelog
+              max_output_tokens: 8192
+              temperature: 0.1
+
+          eips:
+            1559:
+              title: "Fee market change for ETH 1.0 chain"
+              focus_areas:
+                - base_fee_calculation
+                - gas_limit_validation
+                - fee_cap_check
+                - priority_fee_handling
+                - transaction_validation
+                - base_fee_burn_destination
+            4844:
+              title: "Shard Blob Transactions"
+              focus_areas:
+                - blob_gas_price_calculation
+                - excess_blob_gas_update
+                - kzg_commitment_validation
+                - max_blobs_per_block_check
+                - blob_transaction_validation
+                - point_evaluation_precompile
+
+          analysis:
+            focus_areas:
+              - specification_compliance
+              - edge_case_handling
+              - validation_checks
+              - security_implications
+
+          output:
+            format: markdown
+            directory: output
+            include_code_snippets: true
+            include_spec_references: true
+          CFG
+
+      - name: Pick EIPs touched by this PR
+        id: eips
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename' > changed.txt
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          from src.code_fetcher import CodeFetcher
+          changed = set(open("changed.txt").read().split())
+          reg = CodeFetcher.CLIENTS["besu"]["eip_files"]
+          eips = [str(e) for e in (1559, 4844) if changed & set(reg[e])]
+          print("list=" + " ".join(eips))
+          PY
+
+      - name: Run PRSpec (verify on, never blocks)
+        if: steps.eips.outputs.list != ''
+        env:
+          GEMINI_API_KEY: ${{ secrets.PRSPEC_GEMINI_API_KEY }}
+          EIPS: ${{ steps.eips.outputs.list }}
+          SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          mkdir -p output
+          status=0
+          for eip in $EIPS; do
+            prspec analyze --eip "$eip" --client besu --source-dir pr-src \
+              --ref "$SHA" --output markdown --fail-on incomplete || status=$?
+          done
+          echo "exit_status=$status" >> "$GITHUB_ENV"
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## PRSpec pilot (advisory, non-blocking)"
+            echo "PR head: \`${{ steps.pr.outputs.sha }}\` · EIPs: ${{ steps.eips.outputs.list || 'none touched' }}"
+            if [ "${exit_status:-0}" = "20" ]; then
+              echo "> ⚠️ Analysis incomplete: some files were not analysed. Treat as no signal."
+            fi
+            cat output/*.md 2>/dev/null || echo "No report produced."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: prspec-report
+          path: output
+          if-no-files-found: ignore
+
+      - name: One collapsed comment (edited in place)
+        if: env.POST_COMMENT == 'true' && steps.eips.outputs.list != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          marker="<!-- prspec-pilot -->"
+          body="$marker
+          <details><summary>PRSpec pilot: advisory EIP compliance check (click to expand)</summary>
+
+          Results are in the [job summary]($RUN_URL). This check never blocks the PR.
+          Findings are LLM output that went through adversarial verification; please treat them as review hints, not verdicts.
+          </details>"
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+                 --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/$id" -f body="$body" >/dev/null
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -f body="$body" >/dev/null
+          fi

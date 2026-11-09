@@ -1,0 +1,36 @@
+# PRSpec pilot, part 1 of 2 (copy to besu/.github/workflows/).
+# Runs on every PR that touches an EIP-1559 / EIP-4844 file PRSpec maps.
+# No secrets, no write permissions: it only records which PR to look at.
+name: PRSpec pilot (trigger)
+
+on:
+  pull_request:
+    paths:
+      - ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/**
+      - ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionValidator.java
+      - ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CancunTargetingGasLimitCalculator.java
+      - ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/headervalidationrules/BlobGasValidationRule.java
+      - ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java
+      - evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java
+      - evm/src/main/java/org/hyperledger/besu/evm/precompile/KZGPointEvalPrecompiledContract.java
+      - datatypes/src/main/java/org/hyperledger/besu/datatypes/BlobGas.java
+
+permissions: {}
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record PR number and head commit
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir pr
+          echo "$PR_NUMBER" > pr/number
+          echo "$HEAD_SHA" > pr/head_sha
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prspec-pr
+          path: pr
+          retention-days: 3

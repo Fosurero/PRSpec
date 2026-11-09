@@ -35,6 +35,11 @@ class Config:
             if path.exists():
                 return str(path)
 
+        # Installed package (pip install): fall back to the bundled defaults.
+        bundled = Path(__file__).parent / "default_config.yaml"
+        if bundled.exists():
+            return str(bundled)
+
         raise FileNotFoundError("config.yaml not found")
 
     def _load_config(self) -> Dict[str, Any]:
