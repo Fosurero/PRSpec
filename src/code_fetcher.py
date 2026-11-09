@@ -13,6 +13,10 @@ except ImportError:
     GIT_AVAILABLE = False
 
 
+class FetchError(RuntimeError):
+    """No implementation file could be loaded for an EIP/client pair."""
+
+
 class CodeFetcher:
     """Fetches code from Ethereum client implementations"""
 
@@ -141,8 +145,11 @@ class CodeFetcher:
             },
         },
         "besu": {
-            "url": "https://github.com/hyperledger/besu",
+            # Moved from hyperledger/besu; the default branch is "main" (there
+            # is no "master" ref, raw URLs only worked through redirects).
+            "url": "https://github.com/besu-eth/besu",
             "language": "java",
+            "branch": "main",
             "eip_files": {
                 1559: [
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
@@ -157,6 +164,11 @@ class CodeFetcher:
                     "datatypes/src/main/java/org/hyperledger/besu/datatypes/BlobGas.java",
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/headervalidationrules/BlobGasValidationRule.java",
                     "evm/src/main/java/org/hyperledger/besu/evm/precompile/KZGPointEvalPrecompiledContract.java",
+                    # Core EIP-4844 fee logic lives here: fake_exponential and
+                    # MIN_BASE_FEE_PER_BLOB_GAS (BlobFeeMarket) and the
+                    # excess-blob-gas update (CancunTargetingGasLimitCalculator).
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java",
+                    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CancunTargetingGasLimitCalculator.java",
                 ],
                 # Pectra EIPs
                 7702: [
@@ -251,9 +263,14 @@ class CodeFetcher:
         },
     }
 
+    REQUEST_TIMEOUT = 30  # seconds per raw-file request
+
     def __init__(self, github_token: Optional[str] = None, cache_dir: Optional[str] = None):
         """Set up HTTP session and local cache directory."""
         self.github_token = github_token
+        # Files that could not be fetched by the last fetch_eip_implementation
+        # call, mapped to the error. They are *not* returned as code content.
+        self.last_fetch_errors: Dict[str, str] = {}
         self.cache_dir = Path(cache_dir) if cache_dir else Path.cwd() / ".code_cache"
         self.session = requests.Session()
 
@@ -299,7 +316,7 @@ class CodeFetcher:
 
         # Use raw GitHub URL
         url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-        response = self.session.get(url)
+        response = self.session.get(url, timeout=self.REQUEST_TIMEOUT)
         response.raise_for_status()
 
         content = response.text
@@ -314,8 +331,19 @@ class CodeFetcher:
 
     # ---- Generic EIP implementation fetcher ----
 
-    def fetch_eip_implementation(self, client: str, eip_number: int) -> Dict[str, str]:
-        """Fetch all registered implementation files for an EIP/client pair."""
+    def fetch_eip_implementation(self, client: str, eip_number: int,
+                                 ref: Optional[str] = None,
+                                 source_dir: Optional[str] = None) -> Dict[str, str]:
+        """Fetch all registered implementation files for an EIP/client pair.
+
+        ``ref`` pins a branch, tag or (preferably) a full commit SHA instead of
+        the client's default branch. ``source_dir`` reads the files from a
+        local checkout instead of GitHub (used for replays and mutation runs).
+
+        Files that cannot be fetched are left out of the result and recorded in
+        ``self.last_fetch_errors``; error text is never passed off as source
+        code. Raises ``FetchError`` if no file at all could be loaded.
+        """
         if client not in self.CLIENTS:
             raise ValueError(
                 f"Unknown client: {client}. "
@@ -336,15 +364,27 @@ class CodeFetcher:
         # Parse owner/repo from URL; use client-specific branch if declared.
         url_parts = client_info["url"].rstrip('/').split('/')
         owner, repo = url_parts[-2], url_parts[-1]
-        branch = client_info.get("branch", "master")
+        branch = ref or client_info.get("branch", "master")
 
         files: Dict[str, str] = {}
+        self.last_fetch_errors = {}
         for file_path in file_paths:
             try:
-                content = self.fetch_file(owner, repo, file_path, branch=branch)
-                files[file_path] = content
-            except requests.HTTPError as e:
-                files[file_path] = f"# Error fetching file: {e}"
+                if source_dir:
+                    local = Path(source_dir) / file_path
+                    files[file_path] = local.read_text(encoding="utf-8")
+                else:
+                    files[file_path] = self.fetch_file(owner, repo, file_path, branch=branch)
+            except (requests.RequestException, OSError) as e:
+                self.last_fetch_errors[file_path] = f"{type(e).__name__}: {e}"
+
+        if not files:
+            where = source_dir or f"{owner}/{repo}@{branch}"
+            raise FetchError(
+                f"Could not load any of the {len(file_paths)} registered "
+                f"EIP-{eip_number} files for {client} from {where}: "
+                + "; ".join(f"{k}: {v}" for k, v in self.last_fetch_errors.items())
+            )
 
         return files
 

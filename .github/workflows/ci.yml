@@ -31,6 +31,15 @@ jobs:
         run: |
           python -m pytest tests/ -v --tb=short
 
+      - name: Install package and smoke-test the entry point
+        # Catches packaging regressions such as "No module named 'src'",
+        # which the tests above cannot see because they run from the repo root.
+        run: |
+          pip install .
+          cd "$RUNNER_TEMP"
+          prspec --version
+          prspec --help
+
       - name: Run tests with coverage
         if: matrix.python-version == '3.12'
         run: |

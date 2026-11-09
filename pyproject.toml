@@ -54,6 +54,13 @@ Issues = "https://github.com/Fosurero/PRSpec/issues"
 [project.scripts]
 prspec = "src.cli:cli"
 
+# The package is literally named "src" (imports use "from src..."), so
+# setuptools must not treat ./src as a src-layout root. Without this the
+# installed "prspec" entry point fails with "No module named 'src'".
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

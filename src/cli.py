@@ -73,11 +73,66 @@ def _build_verify_analyzer(llm_provider, cfg, primary):
     return primary
 
 
+# ---- Exit codes (fail-closed) ----
+#
+#   0   every registered file was analysed and no finding was reported
+#   1   PRSpec itself failed (bad config, no API key, spec/code not loadable)
+#   2   usage error (raised by click)
+#   10  analysis complete and at least one finding was reported
+#       (only with --fail-on findings; CONFIRMED findings when --verify is on)
+#   20  analysis incomplete: at least one file was not fetched or the LLM
+#       call for it failed, so the report does NOT cover the whole surface
+#
+# "incomplete" wins over "findings": a partial run must never look clean.
+EXIT_OK = 0
+EXIT_FINDINGS = 10
+EXIT_INCOMPLETE = 20
+FAIL_ON_CHOICES = ("never", "incomplete", "findings")
+
+
+def _run_outcome(results, verified: bool) -> dict:
+    """Summarise a result list into the facts the exit code depends on."""
+    from .verifier import confirmed_issues
+    incomplete = [r.get("file_name", "?") for r in results if r.get("status") == "ERROR"]
+    if verified:
+        n_findings = sum(len(confirmed_issues(r)) for r in results)
+    else:
+        n_findings = sum(len(r.get("issues", []) or []) for r in results)
+    return {"files": len(results), "incomplete_files": incomplete,
+            "findings": n_findings}
+
+
+def _exit_code(outcome: dict, fail_on: str) -> int:
+    """Map an outcome to an exit code according to --fail-on."""
+    if fail_on == "never":
+        return EXIT_OK
+    if outcome["incomplete_files"]:
+        return EXIT_INCOMPLETE
+    if fail_on == "findings" and outcome["findings"]:
+        return EXIT_FINDINGS
+    return EXIT_OK
+
+
+def _report_outcome(outcome: dict, fail_on: str) -> int:
+    """Print an unmissable incomplete-run warning and return the exit code."""
+    code = _exit_code(outcome, fail_on)
+    if outcome["incomplete_files"]:
+        msg = (f"ANALYSIS INCOMPLETE: {len(outcome['incomplete_files'])} of "
+               f"{outcome['files']} file(s) were not analysed: "
+               + ", ".join(outcome["incomplete_files"]))
+        if RICH_AVAILABLE:
+            console.print(f"[bold red]{msg}[/bold red]")
+        else:
+            click.echo(msg, err=True)
+    return code
+
+
 # ---- Helper: shared analysis pipeline (parallel) ----
 
 def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
                   progress_callback=None, verify: bool = False,
-                  verify_rounds: int = 2):
+                  verify_rounds: int = 2, ref: Optional[str] = None,
+                  source_dir: Optional[str] = None):
     """Fetch spec+code, build analyzer, return (results_list, analyzer).
     Runs all file analyses in parallel via threads for speed.  When *verify*
     is set, each candidate finding is then cross-examined and grounded."""
@@ -90,7 +145,9 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
     eip_title = spec_data.get("title", f"EIP-{eip}")
 
     # --- Fetch implementation code (generic for any EIP) ---
-    code_files = code_fetcher.fetch_eip_implementation(client, eip)
+    code_files = code_fetcher.fetch_eip_implementation(
+        client, eip, ref=ref, source_dir=source_dir)
+    fetch_errors = dict(code_fetcher.last_fetch_errors)
     language = CodeFetcher.client_language(client)
 
     # --- Build analyzer ---
@@ -131,9 +188,21 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
             if progress_callback:
                 progress_callback(futures[future])
 
-    # Keep original file order
-    file_order = list(code_files.keys())
-    results.sort(key=lambda r: file_order.index(r["file_name"]))
+    # Files that could not be loaded are reported as ERROR results so the run
+    # is visibly incomplete instead of silently smaller.
+    for file_path, err in fetch_errors.items():
+        results.append({
+            "status": "ERROR",
+            "confidence": 0,
+            "issues": [],
+            "summary": f"File not analysed: could not be loaded ({err})",
+            "file_name": file_path,
+        })
+
+    # Keep registry file order
+    file_order = CodeFetcher.CLIENTS[client]["eip_files"][eip]
+    results.sort(key=lambda r: file_order.index(r["file_name"])
+                 if r["file_name"] in file_order else len(file_order))
 
     # --- Adversarial verification (optional) ---
     if verify:
@@ -161,9 +230,19 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
               help='Cross-examine each finding and grade it (extra API calls)')
 @click.option('--verify-rounds', default=2, show_default=True,
               help='Independent skeptic passes per finding')
+@click.option('--ref', default=None,
+              help='Client git ref to analyse (prefer a full commit SHA); '
+                   'defaults to the client branch in the registry')
+@click.option('--source-dir', default=None, type=click.Path(exists=True, file_okay=False),
+              help='Read client files from this local checkout instead of GitHub')
+@click.option('--fail-on', type=click.Choice(FAIL_ON_CHOICES), default='incomplete',
+              show_default=True,
+              help='Non-zero exit when the run is incomplete (20) or, with '
+                   '"findings", also when findings are reported (10)')
 @click.option('--verbose', '-v', is_flag=True, help='Verbose output')
 def analyze(eip: int, client: str, provider: Optional[str], output: str,
             config: Optional[str], verify: bool, verify_rounds: int,
+            ref: Optional[str], source_dir: Optional[str], fail_on: str,
             verbose: bool):
     """
     Analyze a client implementation against an EIP specification.
@@ -216,6 +295,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
                     eip, client, cfg, llm_provider,
                     progress_callback=on_file_done,
                     verify=verify, verify_rounds=verify_rounds,
+                    ref=ref, source_dir=source_dir,
                 )
             if verify:
                 n_found = sum(len(r.get("issues", [])) for r in results)
@@ -228,6 +308,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             results, analyzer = _run_analysis(
                 eip, client, cfg, llm_provider,
                 verify=verify, verify_rounds=verify_rounds,
+                ref=ref, source_dir=source_dir,
             )
 
         # Generate report
@@ -249,6 +330,8 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
         else:
             click.echo(f"\nReport saved to: {report_path}")
 
+        exit_code = _report_outcome(_run_outcome(results, verify), fail_on)
+
     except Exception as e:
         if RICH_AVAILABLE:
             console.print(f"[red]Error:[/red] {str(e)}")
@@ -261,6 +344,9 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
                 import traceback
                 click.echo(traceback.format_exc(), err=True)
         raise click.Abort()
+
+    if exit_code:
+        raise SystemExit(exit_code)
 
 
 @cli.command()
@@ -276,10 +362,14 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
               help='Verify each finding before comparing (extra API calls per client)')
 @click.option('--verify-rounds', default=2, show_default=True,
               help='Independent skeptic passes per finding')
+@click.option('--fail-on', type=click.Choice(FAIL_ON_CHOICES), default='incomplete',
+              show_default=True,
+              help='Non-zero exit when any client run is incomplete (20) or, with '
+                   '"findings", also when findings are reported (10)')
 @click.option('--verbose', '-v', is_flag=True, help='Verbose output')
 def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
          config: Optional[str], llm_synthesis: bool, verify: bool,
-         verify_rounds: int, verbose: bool):
+         verify_rounds: int, fail_on: str, verbose: bool):
     """
     Cross-client differential: compare how multiple clients implement one EIP.
 
@@ -368,6 +458,15 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
             click.echo(differential.narrative)
             click.echo(f"\nReport saved to: {report_path}")
 
+        # A client whose run was incomplete can make the differential show a
+        # divergence (or agreement) that is an artefact of missing files.
+        all_results = []
+        for ca in per_client.values():
+            all_results.extend(
+                dict(r, file_name=f"{ca.client}:{r.get('file_name', '?')}")
+                for r in ca.results)
+        exit_code = _report_outcome(_run_outcome(all_results, verify), fail_on)
+
     except click.ClickException:
         raise
     except Exception as e:
@@ -382,6 +481,9 @@ def diff(eip: int, clients: Optional[str], provider: Optional[str], output: str,
                 import traceback
                 click.echo(traceback.format_exc(), err=True)
         raise click.Abort()
+
+    if exit_code:
+        raise SystemExit(exit_code)
 
 
 @cli.command()

@@ -57,9 +57,21 @@ class TestBesuRegistry(unittest.TestCase):
         files = self.info["eip_files"].get(1559, [])
         self.assertEqual(len(files), 5)
 
-    def test_eip4844_has_five_files(self):
+    def test_eip4844_has_seven_files(self):
         files = self.info["eip_files"].get(4844, [])
-        self.assertEqual(len(files), 5)
+        self.assertEqual(len(files), 7)
+
+    def test_eip4844_core_fee_logic_files_present(self):
+        # fake_exponential / MIN_BASE_FEE_PER_BLOB_GAS and the excess-blob-gas
+        # update live in these two files; without them PRSpec cannot see the
+        # core EIP-4844 fee rules in Besu at all.
+        names = [f.split("/")[-1] for f in self.info["eip_files"][4844]]
+        self.assertIn("BlobFeeMarket.java", names)
+        self.assertIn("CancunTargetingGasLimitCalculator.java", names)
+
+    def test_besu_repo_and_branch(self):
+        self.assertEqual(self.info["url"], "https://github.com/besu-eth/besu")
+        self.assertEqual(self.info["branch"], "main")
 
     def test_eip1559_key_files_present(self):
         files = self.info["eip_files"][1559]
@@ -374,7 +386,7 @@ class TestCodeFetcherMultiClient(unittest.TestCase):
         mock_get.return_value = mock_resp
 
         files = self.fetcher.fetch_eip_implementation("besu", 4844)
-        self.assertEqual(len(files), 5)
+        self.assertEqual(len(files), 7)
         self.assertTrue(mock_get.called)
 
     @patch("requests.Session.get")
