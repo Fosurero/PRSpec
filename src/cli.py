@@ -129,6 +129,19 @@ def _report_outcome(outcome: dict, fail_on: str) -> int:
 
 # ---- Helper: shared analysis pipeline (parallel) ----
 
+def build_spec_text(spec_data: dict, eip: int) -> str:
+    """EIP prose plus, when available, the execution-spec fork diff."""
+    spec_text = spec_data.get("eip_markdown", "")
+    exec_spec = spec_data.get("execution_spec")
+    if exec_spec and spec_data.get("execution_spec_mode") == "diff":
+        spec_text = (
+            f"{spec_text}\n\n"
+            f"=== EXECUTION-SPEC FORK DIFF ({spec_data.get('title', eip)}) ===\n"
+            f"{exec_spec}"
+        )
+    return spec_text
+
+
 def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
                   progress_callback=None, verify: bool = False,
                   verify_rounds: int = 2, ref: Optional[str] = None,
@@ -155,14 +168,7 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
 
     # --- Assemble spec text (EIP prose + reference-impl fork diff) ---
     focus_areas = cfg.get_eip_focus_areas(eip)
-    spec_text = spec_data.get("eip_markdown", "")
-    exec_spec = spec_data.get("execution_spec")
-    if exec_spec and spec_data.get("execution_spec_mode") == "diff":
-        spec_text = (
-            f"{spec_text}\n\n"
-            f"=== EXECUTION-SPEC FORK DIFF ({spec_data.get('title', eip)}) ===\n"
-            f"{exec_spec}"
-        )
+    spec_text = build_spec_text(spec_data, eip)
 
     # --- Run analysis (parallel) ---
     futures = {}

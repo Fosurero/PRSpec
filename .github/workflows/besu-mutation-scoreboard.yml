@@ -1,0 +1,100 @@
+# Runs the Besu mutation scoreboard (pilot/besu/mutations.yaml) on demand.
+# Manual trigger only, read-only token, actions pinned by commit SHA.
+# Needs one repository secret for the chosen provider (e.g. GEMINI_API_KEY).
+# Results: job summary + "besu-scoreboard" artifact (raw JSON, patches, table).
+name: Besu mutation scoreboard
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: LLM provider
+        type: choice
+        options: [gemini, openai, azure]
+        default: gemini
+      runs:
+        description: Repeat the whole experiment N times (LLM output varies)
+        default: "1"
+      only:
+        description: Optional comma-separated mutation ids (e.g. M1,M5); empty = all
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: besu-scoreboard
+  cancel-in-progress: false
+
+jobs:
+  scoreboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out PRSpec
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read pinned Besu commit
+        id: pin
+        run: |
+          commit=$(python3 -c "import yaml;print(yaml.safe_load(open('pilot/besu/mutations.yaml'))['besu']['commit'])")
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+      - name: Check out Besu at the pinned commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: besu-eth/besu
+          ref: ${{ steps.pin.outputs.commit }}
+          path: besu
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            ethereum/core/src/main/java
+            evm/src/main/java
+            datatypes/src/main/java
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install PRSpec
+        run: pip install .
+
+      - name: Validate the experiment (no LLM calls)
+        run: python scripts/mutation_scoreboard.py --besu-dir besu --dry-run
+
+      - name: Run the scoreboard
+        env:
+          LLM_PROVIDER: ${{ inputs.provider }}
+          RUNS: ${{ inputs.runs }}
+          ONLY: ${{ inputs.only }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AZURE_AI_API_KEY: ${{ secrets.AZURE_AI_API_KEY }}
+          AZURE_AI_ENDPOINT: ${{ secrets.AZURE_AI_ENDPOINT }}
+          AZURE_AI_DEPLOYMENT: ${{ secrets.AZURE_AI_DEPLOYMENT }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          args=(--besu-dir besu --provider "$LLM_PROVIDER" --runs "$RUNS")
+          if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          python scripts/mutation_scoreboard.py "${args[@]}"
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f output/besu-scoreboard/scoreboard.md ]; then
+            cat output/besu-scoreboard/scoreboard.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Scoreboard was not produced. See the logs above." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload raw results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: besu-scoreboard
+          path: output/besu-scoreboard
+          if-no-files-found: warn

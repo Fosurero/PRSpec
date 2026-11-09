@@ -1,0 +1,126 @@
+# Besu mutation scoreboard: 10 realistic EIP-1559 / EIP-4844 deviations.
+#
+# Each mutation is an exact, single-occurrence text replacement against the
+# pinned Besu commit below. The scoreboard script refuses to run if a "find"
+# string does not occur exactly once, so the experiment cannot silently drift.
+#
+# DETECTION CRITERIA (pre-registered, fixed before any LLM run):
+#   flagged    = the analysis of the mutated file reports >= 1 issue whose text
+#                (code_location, description, spec_reference, suggestion,
+#                potential_impact) contains at least one of the mutation's
+#                keywords (case-insensitive), AND no issue in the clean
+#                baseline run of the same file matches those keywords.
+#   confirmed  = flagged, and that issue's verification verdict is CONFIRMED.
+#   noisy      = the clean baseline already matches the keywords; the mutation
+#                is reported as "inconclusive", never as detected.
+#   missed     = none of the above.
+# False positives = CONFIRMED issues on the clean baseline, triaged by hand
+# and published with the raw JSON.
+
+besu:
+  repo: https://github.com/besu-eth/besu
+  commit: 8f01c7a3200780b00163ab76d544e0ef6646da41   # main, 2026-11-08
+
+mutations:
+  - id: M1
+    eip: 1559
+    title: ELASTICITY_MULTIPLIER 2 -> 3
+    spec_rule: "ELASTICITY_MULTIPLIER = 2; gas target = gas_limit // ELASTICITY_MULTIPLIER"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+    find: "static final long DEFAULT_SLACK_COEFFICIENT = 2L;"
+    replace: "static final long DEFAULT_SLACK_COEFFICIENT = 3L;"
+    keywords: [SLACK_COEFFICIENT, slack coefficient, ELASTICITY_MULTIPLIER, elasticity]
+
+  - id: M2
+    eip: 1559
+    title: BASE_FEE_MAX_CHANGE_DENOMINATOR 8 -> 9
+    spec_rule: "BASE_FEE_MAX_CHANGE_DENOMINATOR = 8"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+    find: "static final long DEFAULT_BASEFEE_MAX_CHANGE_DENOMINATOR = 8L;"
+    replace: "static final long DEFAULT_BASEFEE_MAX_CHANGE_DENOMINATOR = 9L;"
+    keywords: [MAX_CHANGE_DENOMINATOR, change denominator, "= 9"]
+
+  - id: M3
+    eip: 1559
+    title: drop max(..., 1) on base fee increase
+    spec_rule: "base_fee_per_gas_delta = max(parent_base_fee * gas_used_delta // target // DENOM, 1)"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+    find: |-
+      feeDelta =
+                UInt256s.max(
+                    parentBaseFee.multiply(gasDelta).divide(targetGasUsed).divide(denominator), Wei.ONE);
+    replace: |-
+      feeDelta =
+                parentBaseFee.multiply(gasDelta).divide(targetGasUsed).divide(denominator);
+    keywords: ["max(", "minimum increase", "at least 1", "Wei.ONE", "UInt256s.max", "minimum of 1", "floor of 1"]
+
+  - id: M4
+    eip: 1559
+    title: gas target rounds up instead of floor division
+    spec_rule: "parent_gas_target = parent_gas_limit // ELASTICITY_MULTIPLIER"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BaseFeeMarket.java
+    find: "return blockHeader.getGasLimit() / getSlackCoefficient();"
+    replace: "return (blockHeader.getGasLimit() + getSlackCoefficient() - 1) / getSlackCoefficient();"
+    keywords: [targetGasUsed, gas target, rounding, ceil, round up, floor division, integer division]
+
+  - id: M5
+    eip: 4844
+    title: fake_exponential off-by-one in the Taylor series index
+    spec_rule: "fake_exponential: i = 1; numerator_accum = (numerator_accum * numerator) // (denominator * i)"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java
+    find: "    int i = 1;\n    BigInteger output = BigInteger.ZERO;"
+    replace: "    int i = 2;\n    BigInteger output = BigInteger.ZERO;"
+    keywords: [fakeExponential, fake_exponential, "i = 2", Taylor, series index, iteration counter]
+
+  - id: M6
+    eip: 4844
+    title: excess_blob_gas computed against max instead of target
+    spec_rule: "excess = parent_excess + parent_used - TARGET_BLOB_GAS_PER_BLOCK (0 if below target)"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CancunTargetingGasLimitCalculator.java
+    find: |-
+      if (currentExcessBlobGas < targetBlobGasPerBlock) {
+            return 0L;
+          }
+          return currentExcessBlobGas - targetBlobGasPerBlock;
+    replace: |-
+      if (currentExcessBlobGas < maxBlobGasPerBlock) {
+            return 0L;
+          }
+          return currentExcessBlobGas - maxBlobGasPerBlock;
+    keywords: [computeExcessBlobGas, excess blob gas, excess_blob_gas, maxBlobGasPerBlock, TARGET_BLOB_GAS]
+
+  - id: M7
+    eip: 4844
+    title: MIN_BASE_FEE_PER_BLOB_GAS 1 -> 2
+    spec_rule: "MIN_BASE_FEE_PER_BLOB_GAS = 1 (factor of fake_exponential)"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java
+    find: "protected static final BigInteger BLOB_GAS_PRICE = BigInteger.ONE;"
+    replace: "protected static final BigInteger BLOB_GAS_PRICE = BigInteger.TWO;"
+    keywords: [BLOB_GAS_PRICE, MIN_BASE_FEE_PER_BLOB_GAS, MIN_BLOB_GASPRICE, minimum blob, BigInteger.TWO]
+
+  - id: M8
+    eip: 4844
+    title: GAS_PER_BLOB 2**17 -> 2**16
+    spec_rule: "GAS_PER_BLOB = 2**17"
+    file: evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java
+    find: "private static final long BLOB_GAS_PER_BLOB = 1 << 17;"
+    replace: "private static final long BLOB_GAS_PER_BLOB = 1 << 16;"
+    keywords: [BLOB_GAS_PER_BLOB, GAS_PER_BLOB, "1 << 16", "2**16", "65536", "131072"]
+
+  - id: M9
+    eip: 1559
+    title: base fee rises when the parent block is below target
+    spec_rule: "if gas_used < target: base_fee = parent_base_fee - delta"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+    find: "baseFee = parentBaseFee.subtract(feeDelta);"
+    replace: "baseFee = parentBaseFee.add(feeDelta);"
+    keywords: [subtract, decrease, below target, less than target, sign, "add(feeDelta)"]
+
+  - id: M10
+    eip: 1559
+    title: initial base fee applied one block after the fork block
+    spec_rule: "if block.number == FORK_BLOCK: base_fee = INITIAL_BASE_FEE"
+    file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+    find: "if (londonForkBlockNumber == blockNumber) {\n      return getInitialBasefee();"
+    replace: "if (londonForkBlockNumber + 1 == blockNumber) {\n      return getInitialBasefee();"
+    keywords: [londonForkBlockNumber, fork block, INITIAL_BASE_FEE, initial base fee, getInitialBasefee, off-by-one]
