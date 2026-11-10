@@ -2,65 +2,85 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, evidence-pilot, "release/**"]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-
+        python-version: ["3.10", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
+      - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
-
-      - name: Run tests
+          pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Tests
+        run: python -m pytest tests/ -q --tb=short
+      - name: Installed entry point works outside the checkout
+        # Catches packaging regressions such as "No module named 'src'" and
+        # missing package data (default config, witness rulebooks).
         run: |
-          python -m pytest tests/ -v --tb=short
-
-      - name: Install package and smoke-test the entry point
-        # Catches packaging regressions such as "No module named 'src'",
-        # which the tests above cannot see because they run from the repo root.
-        run: |
-          pip install .
+          python -m venv "$RUNNER_TEMP/clean"
+          "$RUNNER_TEMP/clean/bin/pip" install .
           cd "$RUNNER_TEMP"
-          prspec --version
-          prspec --help
+          "$RUNNER_TEMP/clean/bin/prspec" --version
+          "$RUNNER_TEMP/clean/bin/prspec" witness --eip 4844 --list
 
-      - name: Run tests with coverage
-        if: matrix.python-version == '3.12'
-        run: |
-          python -m pytest tests/ --cov=src --cov-report=term-missing
-
-  lint:
+  docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.12"
-
-      - name: Install dependencies
+          persist-credentials: false
+      - name: Build image
+        run: docker build -t prspec:ci .
+      - name: Smoke test (non-root, no secrets)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff
+          docker run --rm prspec:ci --version
+          test "$(docker run --rm --entrypoint id prspec:ci -u)" = "10001"
+          docker run --rm prspec:ci witness --eip 1559 --list
 
-      - name: Lint with ruff
+  witness-live-clients:
+    # Deterministic, key-free check of real client code: the EIP-1559/4844
+    # witness matrix for Besu, Geth and Nethermind at their current default
+    # branches. Fails (exit 10/20) if a constant drifts or an anchor moves.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: pip install .
+      - name: Sparse-clone clients and EIPs
+        run: scripts/fetch_clients.sh "$RUNNER_TEMP/clients"
+      - name: Witness matrix
         run: |
-          ruff check src/ tests/ run_demo.py
+          C="$RUNNER_TEMP/clients"
+          for eip in 1559 4844; do
+            prspec witness --eip $eip -t besu=$C/besu -t go-ethereum=$C/go-ethereum \
+              -t nethermind=$C/nethermind --eips-dir $C/EIPs --spec-ref HEAD \
+              --markdown witness-$eip.md --json witness-$eip.json
+            cat witness-$eip.md >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: witness-matrix
+          path: witness-*.*

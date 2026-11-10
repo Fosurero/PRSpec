@@ -3,9 +3,8 @@
 llm:
   provider: gemini
   gemini:
-    model: gemini-2.5-pro        # pinned model id; record changes in the changelog
-    max_output_tokens: 8192
-    temperature: 0.1
+    model: gemini-3.8-flash      # pinned model id; record changes in the changelog
+    max_output_tokens: 32768
 
 eips:
   1559:

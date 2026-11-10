@@ -1,0 +1,11 @@
+.git
+.venv
+venv
+output
+findings
+docs
+demo
+tests
+**/__pycache__
+.env
+*.patch

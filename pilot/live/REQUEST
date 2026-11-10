@@ -1,0 +1,4 @@
+# Changing this file on the evidence-pilot branch triggers .github/workflows/gemini-live.yml
+model=gemini-3.8-flash
+only=
+request=2026-11-10 initial PRSpec 2.0 live run

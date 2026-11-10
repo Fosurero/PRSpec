@@ -1,0 +1,136 @@
+# PRSpec 2.0 live Gemini experiment.
+#
+# Real API calls with the repository secret GEMINI_API_KEY (never printed).
+# Triggers: manual dispatch (once this file is on the default branch) or a
+# push to the evidence-pilot branch that changes pilot/live/REQUEST, so the
+# experiment can run before anything is merged into main. Pushes come only
+# from collaborators with write access; fork PRs never receive the secret.
+#
+# Steps: 1) list models visible to the key and probe the configured model,
+# 2) one full `prspec analyze` of Besu EIP-1559 at the pinned commit,
+# 3) the Besu mutation scoreboard (LLM + deterministic witness columns).
+# Everything (raw JSON, reports, logs) is uploaded as the "gemini-live" artifact.
+name: Gemini live experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Gemini model id (empty = config default)
+        default: ""
+      only:
+        description: Mutation ids for the scoreboard (empty = all 10)
+        default: ""
+  push:
+    branches: [evidence-pilot]
+    paths: [pilot/live/REQUEST]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gemini-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GITHUB_TOKEN: ${{ github.token }}
+      OUT: output/gemini-live
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+
+      - name: Install PRSpec
+        run: pip install .
+
+      - name: Read request
+        id: req
+        run: |
+          model="${{ inputs.model }}"; only="${{ inputs.only }}"
+          if [ -f pilot/live/REQUEST ]; then
+            [ -z "$model" ] && model=$(sed -n 's/^model=//p' pilot/live/REQUEST)
+            [ -z "$only" ] && only=$(sed -n 's/^only=//p' pilot/live/REQUEST)
+          fi
+          echo "model=$model" >> "$GITHUB_OUTPUT"
+          echo "only=$only" >> "$GITHUB_OUTPUT"
+
+      - name: Require the secret
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Repository secret GEMINI_API_KEY is not set (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+      - name: Models visible to the key + probe
+        env:
+          GEMINI_MODEL: ${{ steps.req.outputs.model }}
+        run: |
+          mkdir -p "$OUT"
+          model="${GEMINI_MODEL:-$(python -c "from src.config import Config;print(Config().gemini_config['model'])")}"
+          echo "model=$model" | tee "$OUT/model.txt"
+          prspec models --filter gemini > "$OUT/models.txt"
+          grep -qx "$model" "$OUT/models.txt" || { echo "::error::$model is not visible to this key"; cat "$OUT/models.txt"; exit 1; }
+          prspec models --probe "$model" --filter "$model" | tee "$OUT/probe.json"
+
+      - name: Fetch pinned sources
+        run: |
+          commit=$(python3 -c "import yaml;print(yaml.safe_load(open('pilot/besu/mutations.yaml'))['besu']['commit'])")
+          scripts/fetch_clients.sh clients "$commit" "" "" "542e62eb129517130b7facc52bbb9a1f333c711e" | tee "$OUT/sources.txt"
+
+      - name: Deterministic witness (no LLM)
+        run: |
+          prspec witness --eip 1559 -t besu=clients/besu --eips-dir clients/EIPs \
+            --markdown "$OUT/witness-1559.md" --json "$OUT/witness-1559.json"
+          prspec witness --eip 4844 -t besu=clients/besu --eips-dir clients/EIPs \
+            --markdown "$OUT/witness-4844.md" --json "$OUT/witness-4844.json"
+
+      - name: Live analysis, Besu EIP-1559 at the pinned commit
+        env:
+          GEMINI_MODEL: ${{ steps.req.outputs.model }}
+        run: |
+          set +e
+          ( time prspec analyze --eip 1559 --client besu --source-dir clients/besu \
+              --provider gemini --output json --verify --verify-rounds 2 ) \
+            > "$OUT/analyze-besu-1559.log" 2>&1
+          code=$?
+          echo "exit_code=$code" | tee "$OUT/analyze-exit.txt"
+          cp -r output/*.json output/*.html output/*.md "$OUT/" 2>/dev/null || true
+          tail -40 "$OUT/analyze-besu-1559.log"
+          exit 0
+
+      - name: Mutation scoreboard (LLM + witness)
+        env:
+          GEMINI_MODEL: ${{ steps.req.outputs.model }}
+          ONLY: ${{ steps.req.outputs.only }}
+        run: |
+          args=(--besu-dir clients/besu --provider gemini --runs 1 --workers 2
+                --eips-dir clients/EIPs --out "$OUT/scoreboard")
+          [ -n "$ONLY" ] && args+=(--only "$ONLY")
+          set +e
+          python scripts/mutation_scoreboard.py "${args[@]}" 2>&1 | tee "$OUT/scoreboard.log"
+          echo "exit_code=${PIPESTATUS[0]}" | tee "$OUT/scoreboard-exit.txt"
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Gemini live experiment"; echo
+            echo '```'; cat "$OUT/model.txt" "$OUT/probe.json" "$OUT/sources.txt" 2>/dev/null; echo '```'
+            cat "$OUT/scoreboard/scoreboard.md" 2>/dev/null || echo "scoreboard not produced"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: gemini-live
+          path: output/gemini-live
+          if-no-files-found: warn

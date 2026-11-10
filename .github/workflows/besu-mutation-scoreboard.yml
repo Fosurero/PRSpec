@@ -62,6 +62,7 @@ jobs:
             ethereum/core/src/main/java
             evm/src/main/java
             datatypes/src/main/java
+            config/src/main/java
 
       - name: Validate the experiment (no LLM calls)
         run: python scripts/mutation_scoreboard.py --besu-dir besu --dry-run
