@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       model:
-        description: Gemini model id (empty = config default)
+        description: Gemini model id (comma-separated preference list; empty = config default)
         default: ""
       only:
         description: Mutation ids for the scoreboard (empty = all 10)
@@ -71,15 +71,32 @@ jobs:
           fi
 
       - name: Models visible to the key + probe
+        id: probe
         env:
           GEMINI_MODEL: ${{ steps.req.outputs.model }}
         run: |
+          # model= may be a comma-separated preference list; the first model that is
+          # visible to the key AND answers a one-line probe is used for every later step.
+          # A 503 "high demand" on one model is capacity, not a key problem.
           mkdir -p "$OUT"
-          model="${GEMINI_MODEL:-$(python -c "from src.config import Config;print(Config().gemini_config['model'])")}"
-          echo "model=$model" | tee "$OUT/model.txt"
+          wanted="${GEMINI_MODEL:-$(python -c "from src.config import Config;print(Config().gemini_config['model'])")}"
           prspec models --filter gemini > "$OUT/models.txt"
-          grep -qx "$model" "$OUT/models.txt" || { echo "::error::$model is not visible to this key"; cat "$OUT/models.txt"; exit 1; }
-          prspec models --probe "$model" --filter "$model" | tee "$OUT/probe.json"
+          : > "$OUT/probe-attempts.txt"
+          chosen=""
+          for pass in 1 2 3; do
+            for m in ${wanted//,/ }; do
+              if ! grep -qx "$m" "$OUT/models.txt"; then echo "pass $pass $m: not visible to this key" >> "$OUT/probe-attempts.txt"; continue; fi
+              if prspec models --probe "$m" --filter "$m" > "$OUT/probe-$m.json" 2>> "$OUT/probe-attempts.txt"; then
+                echo "pass $pass $m: probe ok" >> "$OUT/probe-attempts.txt"; cp "$OUT/probe-$m.json" "$OUT/probe.json"; chosen=$m; break 2
+              fi
+              echo "pass $pass $m: probe failed (error above)" >> "$OUT/probe-attempts.txt"
+            done
+            [ "$pass" -lt 3 ] && sleep 90
+          done
+          cat "$OUT/probe-attempts.txt"
+          [ -n "$chosen" ] || { echo "::error::no model in '$wanted' answered the probe"; exit 1; }
+          echo "requested=$wanted" > "$OUT/model.txt"; echo "model=$chosen" | tee -a "$OUT/model.txt"
+          echo "model=$chosen" >> "$GITHUB_OUTPUT"
 
       - name: Fetch pinned sources
         run: |
@@ -95,7 +112,7 @@ jobs:
 
       - name: Live analysis, Besu EIP-1559 at the pinned commit
         env:
-          GEMINI_MODEL: ${{ steps.req.outputs.model }}
+          GEMINI_MODEL: ${{ steps.probe.outputs.model }}
         run: |
           set +e
           ( time prspec analyze --eip 1559 --client besu --source-dir clients/besu \
@@ -109,7 +126,7 @@ jobs:
 
       - name: Mutation scoreboard (LLM + witness)
         env:
-          GEMINI_MODEL: ${{ steps.req.outputs.model }}
+          GEMINI_MODEL: ${{ steps.probe.outputs.model }}
           ONLY: ${{ steps.req.outputs.only }}
         run: |
           args=(--besu-dir clients/besu --provider gemini --runs 1 --workers 2

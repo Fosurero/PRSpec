@@ -1,4 +1,7 @@
 # Changing this file on the evidence-pilot branch triggers .github/workflows/gemini-live.yml
-model=gemini-3.8-flash
+# model= is a preference list: the first model that answers the probe is used (recorded in model.txt).
+# 2026-11-10: gemini-3.8-flash answered 503 "high demand" on every local probe; gemini-3.6-flash passed a live
+# M3 smoke test locally, then also returned 503 once. Up to 3 passes over the list, 90 s apart.
+model=gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash
 only=
-request=2026-11-10 initial PRSpec 2.0 live run
+request=2026-11-10 PRSpec 2.0 live run, all 10 pre-registered mutations, 1 run
