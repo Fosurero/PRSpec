@@ -1,5 +1,7 @@
 # PRSpec 2.0 demo video
 
+For the interactive Besu case walkthrough, see [pilot/besu/DEMO.md](../pilot/besu/DEMO.md). The older slide-based video below is not the main demo.
+
 `demo/build_video.py` renders the demo as 1920×1080 HTML frames (Playwright + Chromium), then
 joins them with `ffmpeg` cross-fades into an MP4. There is no narration or audio track.
 

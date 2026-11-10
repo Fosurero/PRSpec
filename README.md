@@ -12,12 +12,12 @@ it was produced from.
 <img src="https://img.shields.io/badge/version-2.0.0-informational.svg" alt="2.0.0">
 </p>
 
-> **Status of 2.0.0 (2026-11-10).** Code is on the `evidence-pilot` branch, not yet merged or tagged.
+> **Status of 2.0.0 (2026-11-10).** Evidence Pilot is a preliminary build, not a tagged production release.
 > Everything under [Verified results](#verified-results-2026-11-10) was produced by commands you can
 > rerun ([VERIFICATION.md](VERIFICATION.md)). The live Gemini experiment runs in
 > [`gemini-live.yml`](.github/workflows/gemini-live.yml); its results are published in
 > [`docs/evidence/`](docs/evidence/) only after the run has actually happened. As of 2026-11-10 the
-> full scoreboard has run once on **Meta Muse Spark** (not Gemini); the Gemini scoreboard is still pending
+> full scoreboard has run once on **Meta Muse Spark**; the optional Gemini scoreboard is still pending
 > (free-tier quota, and GitHub Actions is blocked by an account billing lock). See
 > [PROJECT_STATUS.md](PROJECT_STATUS.md) for what is done, partial, and planned.
 

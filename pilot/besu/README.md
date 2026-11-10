@@ -58,7 +58,13 @@ python scripts/mutation_scoreboard.py --besu-dir ../besu --dry-run   # no API ke
 python scripts/mutation_scoreboard.py --besu-dir ../besu --runs 2    # needs GEMINI_API_KEY
 ```
 
-Results: _pending the first published run (link here)._
+Recorded Meta Muse Spark run: [scoreboard](../../docs/evidence/2026-11-10/meta-live/scoreboard/scoreboard.md),
+[raw data](../../docs/evidence/2026-11-10/meta-live/scoreboard/scoreboard.json).
+Six mutations were confirmed by automated verification, one flagged, and three inconclusive.
+The clean baseline produced 33 raw issues; none survived automated verification. These results
+are a single experiment, not an independently measured false-positive rate or proof of a real bug.
+
+For a reproducible key-free walkthrough, see [Besu demo guide](DEMO.md).
 
 ## Known limitations (read before trusting a result)
 

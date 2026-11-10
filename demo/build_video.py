@@ -86,7 +86,7 @@ def frames(live: Path | None):
         '<div class="kicker">PRSpec 2.0 · Ethereum execution clients</div>'
         '<h1>Does the client code match the EIP text it implements?</h1>'
         '<p>Reproducible spec-to-code evidence for Besu, go-ethereum and Nethermind: '
-        'deterministic witnesses, Fork Watch, and LLM-assisted semantic analysis (Gemini by default).</p>',
+        'deterministic checks, Fork Watch, and provider-flexible LLM-assisted analysis.</p>',
         "Every table in this video is rendered from raw output files in docs/evidence/. Nothing is typed in by hand."), 6))
 
     out.append((page(
@@ -170,7 +170,7 @@ def frames(live: Path | None):
 
     out.append((page(
         '<div class="kicker">Try it · MIT licensed</div><h2>One command, no key, your own checkout</h2>'
-        '<div class="term">$ pip install git+https://github.com/Fosurero/PRSpec@evidence-pilot\n'
+        '<div class="term">$ pip install git+https://github.com/Fosurero/PRSpec\n'
         '$ prspec witness --eip 4844 -t besu=../besu -t nethermind=../nethermind\n'
         '$ prspec fork-watch --eip 4844 --from &lt;old&gt; --to &lt;new&gt; --check besu=../besu\n'
         '$ prspec --no-cloud analyze --provider local --eip 1559 --client besu --source-dir ../besu</div>'
@@ -206,8 +206,6 @@ def live_frame(live: Path | None) -> str:
     tok = sb.get("tokens_primary_pass", {})
     warn = ('<p class="bad">INCOMPLETE RUN: at least one call failed. These numbers are partial.</p>'
             if sb.get("incomplete") else "")
-    if m.get("provider") != "gemini":
-        warn += (f'<p class="warn">Provider: {esc(label)}, not Gemini. The pre-registered Gemini run has not completed yet.</p>')
     warn += ('<p class="small">Pre-registered rules: confirmed = matching issue upheld by verification; flagged = matching issue, '
              'not upheld; inconclusive = the clean baseline already raised a matching issue, so the hit is not counted.</p>')
     return page(
@@ -243,7 +241,7 @@ def main():
             pg.screenshot(path=str(fdir / f"{i:02d}.png"))
         b.close()
     provider = load(live / "scoreboard" / "scoreboard.json")["manifest"].get("provider") if final else None
-    # Only a Gemini scoreboard makes the final cut; any other provider is named after itself.
+    # Name each evidence-backed cut after its provider.
     name = ("prspec-2.0-demo.mp4" if provider == "gemini" else f"prspec-2.0-demo-{provider}.mp4") if final \
         else "prspec-2.0-demo-preliminary.mp4"
     dst = a.out / name
@@ -264,7 +262,7 @@ def main():
            "-map", f"[{last}]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
            "-movflags", "+faststart", str(dst)]
     subprocess.run(cmd, check=True)
-    print(f"{dst} ({('final' if provider == 'gemini' else f'{provider} results, not the Gemini final cut') if final else 'PRELIMINARY: no live LLM results'})")
+    print(f"{dst} ({('final' if provider == 'gemini' else f'{provider} results') if final else 'PRELIMINARY: no live LLM results'})")
     return 0
 
 
