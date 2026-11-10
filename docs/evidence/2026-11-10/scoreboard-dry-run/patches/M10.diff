@@ -1,0 +1,11 @@
+--- a/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
++++ b/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+@@ -89,7 +89,7 @@
+       final Wei parentBaseFee,
+       final long parentBlockGasUsed,
+       final long targetGasUsed) {
+-    if (londonForkBlockNumber == blockNumber) {
++    if (londonForkBlockNumber + 1 == blockNumber) {
+       return getInitialBasefee();
+     }
+ 

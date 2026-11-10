@@ -1,0 +1,173 @@
+{
+  "eip": 1559,
+  "spec_ref": "542e62eb129517130b7facc52bbb9a1f333c711e",
+  "spec_sha256": "4460ad966a22d8501e12d75165c2c784c61748d8128229f115ebac1bfccac59f",
+  "commits": {
+    "besu": "8f01c7a3200780b00163ab76d544e0ef6646da41",
+    "go-ethereum": "c863eecbddb2c9db2cd2f07bb1db80740d75a5b3",
+    "nethermind": "8ba0b6d05ea0b036524658f5ba1b6d14afd8f20e"
+  },
+  "results": {
+    "besu": [
+      {
+        "rule_id": "EIP1559-ELASTICITY",
+        "eip": 1559,
+        "client": "besu",
+        "constant": "ELASTICITY_MULTIPLIER",
+        "status": "PASS",
+        "expected": 2,
+        "actual": 2,
+        "spec_line": 155,
+        "spec_raw": "2",
+        "code_file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "code_line": 33,
+        "code_excerpt": "static final long DEFAULT_SLACK_COEFFICIENT = 2L;",
+        "note": ""
+      },
+      {
+        "rule_id": "EIP1559-DENOMINATOR",
+        "eip": 1559,
+        "client": "besu",
+        "constant": "BASE_FEE_MAX_CHANGE_DENOMINATOR",
+        "status": "PASS",
+        "expected": 8,
+        "actual": 8,
+        "spec_line": 154,
+        "spec_raw": "8",
+        "code_file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "code_line": 32,
+        "code_excerpt": "static final long DEFAULT_BASEFEE_MAX_CHANGE_DENOMINATOR = 8L;",
+        "note": ""
+      },
+      {
+        "rule_id": "EIP1559-INITIAL-BASE-FEE",
+        "eip": 1559,
+        "client": "besu",
+        "constant": "INITIAL_BASE_FEE",
+        "status": "PASS",
+        "expected": 1000000000,
+        "actual": 1000000000,
+        "spec_line": 152,
+        "spec_raw": "1000000000",
+        "code_file": "config/src/main/java/org/hyperledger/besu/config/GenesisConfig.java",
+        "code_line": 40,
+        "code_excerpt": "public static final Wei BASEFEE_AT_GENESIS_DEFAULT_VALUE = Wei.of(1_000_000_000L);",
+        "note": ""
+      }
+    ],
+    "go-ethereum": [
+      {
+        "rule_id": "EIP1559-ELASTICITY",
+        "eip": 1559,
+        "client": "go-ethereum",
+        "constant": "ELASTICITY_MULTIPLIER",
+        "status": "PASS",
+        "expected": 2,
+        "actual": 2,
+        "spec_line": 155,
+        "spec_raw": "2",
+        "code_file": "params/protocol_params.go",
+        "code_line": 158,
+        "code_excerpt": "DefaultElasticityMultiplier     = 2          // Bounds the maximum gas limit an EIP-1559 block may have.",
+        "note": ""
+      },
+      {
+        "rule_id": "EIP1559-DENOMINATOR",
+        "eip": 1559,
+        "client": "go-ethereum",
+        "constant": "BASE_FEE_MAX_CHANGE_DENOMINATOR",
+        "status": "PASS",
+        "expected": 8,
+        "actual": 8,
+        "spec_line": 154,
+        "spec_raw": "8",
+        "code_file": "params/protocol_params.go",
+        "code_line": 157,
+        "code_excerpt": "DefaultBaseFeeChangeDenominator = 8          // Bounds the amount the base fee can change between blocks.",
+        "note": ""
+      },
+      {
+        "rule_id": "EIP1559-INITIAL-BASE-FEE",
+        "eip": 1559,
+        "client": "go-ethereum",
+        "constant": "INITIAL_BASE_FEE",
+        "status": "PASS",
+        "expected": 1000000000,
+        "actual": 1000000000,
+        "spec_line": 152,
+        "spec_raw": "1000000000",
+        "code_file": "params/protocol_params.go",
+        "code_line": 159,
+        "code_excerpt": "InitialBaseFee                  = 1000000000 // Initial base fee for EIP-1559 blocks.",
+        "note": ""
+      }
+    ],
+    "nethermind": [
+      {
+        "rule_id": "EIP1559-ELASTICITY",
+        "eip": 1559,
+        "client": "nethermind",
+        "constant": "ELASTICITY_MULTIPLIER",
+        "status": "PASS",
+        "expected": 2,
+        "actual": 2,
+        "spec_line": 155,
+        "spec_raw": "2",
+        "code_file": "src/Nethermind/Nethermind.Core/Eip1559Constants.cs",
+        "code_line": 16,
+        "code_excerpt": "public static readonly ulong DefaultElasticityMultiplier = 2;",
+        "note": ""
+      },
+      {
+        "rule_id": "EIP1559-DENOMINATOR",
+        "eip": 1559,
+        "client": "nethermind",
+        "constant": "BASE_FEE_MAX_CHANGE_DENOMINATOR",
+        "status": "PASS",
+        "expected": 8,
+        "actual": 8,
+        "spec_line": 154,
+        "spec_raw": "8",
+        "code_file": "src/Nethermind/Nethermind.Core/Eip1559Constants.cs",
+        "code_line": 14,
+        "code_excerpt": "public static readonly UInt256 DefaultBaseFeeMaxChangeDenominator = 8;",
+        "note": ""
+      },
+      {
+        "rule_id": "EIP1559-INITIAL-BASE-FEE",
+        "eip": 1559,
+        "client": "nethermind",
+        "constant": "INITIAL_BASE_FEE",
+        "status": "PASS",
+        "expected": 1000000000,
+        "actual": 1000000000,
+        "spec_line": 152,
+        "spec_raw": "1000000000",
+        "code_file": "src/Nethermind/Nethermind.Core/Eip1559Constants.cs",
+        "code_line": 12,
+        "code_excerpt": "public static UInt256 DefaultForkBaseFee => 1.GWei;",
+        "note": ""
+      }
+    ]
+  },
+  "summary": {
+    "besu": {
+      "PASS": 3,
+      "FAIL": 0,
+      "INCOMPLETE": 0,
+      "UNMAPPED": 0
+    },
+    "go-ethereum": {
+      "PASS": 3,
+      "FAIL": 0,
+      "INCOMPLETE": 0,
+      "UNMAPPED": 0
+    },
+    "nethermind": {
+      "PASS": 3,
+      "FAIL": 0,
+      "INCOMPLETE": 0,
+      "UNMAPPED": 0
+    }
+  }
+}

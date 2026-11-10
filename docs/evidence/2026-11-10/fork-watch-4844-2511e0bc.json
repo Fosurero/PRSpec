@@ -1,0 +1,55 @@
+{
+  "eip": 4844,
+  "from": "2511e0bc^",
+  "to": "2511e0bc",
+  "from_sha256": "c295779bb19c7ff71bd6cc9799011d0e1ab854a413172d05bb0a219c0276893a",
+  "to_sha256": "0024409f28476bf43023bd9b400afdb3e2f6cadc71b9193d37593dab80b9f5b7",
+  "changes": [
+    {
+      "kind": "changed",
+      "name": "MAX_DATA_GAS_PER_BLOCK",
+      "old": "2**19",
+      "new": "786432",
+      "new_name": null,
+      "rules": [
+        "EIP4844-MAX-BLOB-GAS"
+      ],
+      "impacted_files": {
+        "besu": "config/src/main/java/org/hyperledger/besu/config/BlobSchedule.java",
+        "go-ethereum": "params/config.go",
+        "nethermind": "src/Nethermind/Nethermind.Specs/Forks/17_Cancun.cs"
+      }
+    },
+    {
+      "kind": "changed",
+      "name": "TARGET_DATA_GAS_PER_BLOCK",
+      "old": "2**18",
+      "new": "393216",
+      "new_name": null,
+      "rules": [
+        "EIP4844-TARGET-BLOB-GAS"
+      ],
+      "impacted_files": {
+        "besu": "config/src/main/java/org/hyperledger/besu/config/BlobSchedule.java",
+        "go-ethereum": "params/config.go",
+        "nethermind": "src/Nethermind/Nethermind.Specs/Forks/17_Cancun.cs"
+      }
+    },
+    {
+      "kind": "changed",
+      "name": "DATA_GASPRICE_UPDATE_FRACTION",
+      "old": "2225652",
+      "new": "3338477",
+      "new_name": null,
+      "rules": [
+        "EIP4844-UPDATE-FRACTION"
+      ],
+      "impacted_files": {
+        "besu": "config/src/main/java/org/hyperledger/besu/config/BlobSchedule.java",
+        "go-ethereum": "params/config.go",
+        "nethermind": "src/Nethermind/Nethermind.Specs/Forks/17_Cancun.cs"
+      }
+    }
+  ],
+  "checks": {}
+}

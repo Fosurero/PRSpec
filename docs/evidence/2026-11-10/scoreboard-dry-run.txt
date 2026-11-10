@@ -1,0 +1,12 @@
+Deterministic witness (no LLM, no API key):
+  M1   caught          EIP1559-ELASTICITY: spec 2 vs code 3 (LondonFeeMarket.java:33)
+  M2   caught          EIP1559-DENOMINATOR: spec 8 vs code 9 (LondonFeeMarket.java:32)
+  M3   not-applicable  
+  M4   not-applicable  
+  M5   not-applicable  
+  M6   not-applicable  
+  M7   caught          EIP4844-MIN-BLOB-BASE-FEE: spec 1 vs code 2 (BlobFeeMarket.java:28)
+  M8   caught          EIP4844-GAS-PER-BLOB: spec 131072 vs code 65536 (CancunGasCalculator.java:50); EIP4844-TARGET-BLOB-GAS: spec 393216 vs code 196608 (BlobSchedule.java:24); EIP4844-MAX-BLOB-GAS: spec 786432 vs code 393216 (BlobSchedule.java:24)
+  M9   not-applicable  
+  M10  not-applicable  
+OK: 10 mutations apply exactly once at 8f01c7a3200780b00163ab76d544e0ef6646da41; all target registered files. Baseline = 12 files. Patches in docs/evidence/2026-11-10/scoreboard-dry-run/patches

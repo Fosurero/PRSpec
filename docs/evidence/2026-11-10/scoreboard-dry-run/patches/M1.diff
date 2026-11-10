@@ -1,0 +1,11 @@
+--- a/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
++++ b/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+@@ -30,7 +30,7 @@
+ 
+   static final Wei DEFAULT_BASEFEE_INITIAL_VALUE = GenesisConfig.BASEFEE_AT_GENESIS_DEFAULT_VALUE;
+   static final long DEFAULT_BASEFEE_MAX_CHANGE_DENOMINATOR = 8L;
+-  static final long DEFAULT_SLACK_COEFFICIENT = 2L;
++  static final long DEFAULT_SLACK_COEFFICIENT = 3L;
+ 
+   private static final Wei DEFAULT_BASEFEE_FLOOR = Wei.of(7L);
+ 

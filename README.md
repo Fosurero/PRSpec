@@ -1,581 +1,285 @@
 # PRSpec
 
-**Ethereum specification compliance checker:** Compares EIP specs against client source code using LLM analysis.
+**Spec-to-client evidence for Ethereum execution clients.** PRSpec checks Besu, go-ethereum,
+Nethermind and Reth source code against the EIP text they implement. It uses deterministic
+witnesses where a rule can be checked mechanically, and LLM analysis with adversarial
+verification where it cannot. Each result records the exact spec revision and client commit
+it was produced from.
 
-<div align="center">
+<p>
+<a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python 3.10+"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT"></a>
+<img src="https://img.shields.io/badge/version-2.0.0-informational.svg" alt="2.0.0">
+</p>
 
-<br>
-
-<a href="https://www.python.org/downloads/">
-  <img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python 3.9+">
-</a>
-
-<a href="LICENSE">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License MIT">
-</a>
-
-</div>
-
-
-
----
-
-## What's new in v1.7
-
-This release adds **Reth (Rust) support** and **Pectra EIP coverage** — PRSpec now spans all four major execution clients across all Pectra upgrade EIPs.
-
-- **Reth client support.** PRSpec now analyzes [paradigmxyz/reth](https://github.com/paradigmxyz/reth) in Rust alongside go-ethereum, Nethermind, and Besu.
-- **Rust parser.** A new `fn`, `impl`, `struct`, `trait` parser handles Rust source files end-to-end.
-- **Pectra EIPs.** Full file mappings for EIP-7702 (Set EOA Account Code), EIP-2935 (Historical Block Hashes), EIP-2537 (BLS12-381 precompiles), and EIP-6110 (Validator Deposits) across all four clients.
-- **149 passing tests.** Rust parser correctness, Reth registry validation, Pectra EIP file mappings, branch-aware fetching, and staking-EIP (7002/7251) request-processor mappings.
-
-See the [changelog](#changelog) for the full details.
+> **Status of 2.0.0 (2026-11-10).** Code is on the `evidence-pilot` branch, not yet merged or tagged.
+> Everything under [Verified results](#verified-results-2026-11-10) was produced by commands you can
+> rerun ([VERIFICATION.md](VERIFICATION.md)). The live Gemini experiment runs in
+> [`gemini-live.yml`](.github/workflows/gemini-live.yml); its results are published in
+> [`docs/evidence/`](docs/evidence/) only after the run has actually happened. See
+> [PROJECT_STATUS.md](PROJECT_STATUS.md) for what is done, partial, and planned.
 
 ---
 
-## What PRSpec Does
+## Why a client team would want this
 
-Most Ethereum security tooling (Slither, Mythril, Echidna) is designed to catch **bugs in smart contracts** through static analysis, symbolic execution, or fuzzing. They operate entirely within code, with no knowledge of the EIP specifications those clients are supposed to implement.
+- **Spec churn is real.** EIP text keeps changing after clients start implementing it. In June
+  2023 alone, [one EIP-4844 commit](https://github.com/ethereum/EIPs/commit/2511e0bc3eac7343ff306d246dee0f69d0862498)
+  changed three fee-market constants. More recently, Nethermind
+  [#14030](https://github.com/NethermindEth/nethermind/issues/14030) was an implementation that kept an
+  older EIP-8272 design after the spec moved on. A client can be correct against last month's spec
+  and wrong against today's.
+- **Client diversity multiplies the work.** Every spec change has to be found in four codebases in four
+  languages. PRSpec maps each rule to the file and line in each client, so the question "which of our
+  files does this spec PR touch?" has a reproducible answer.
+- **It complements, not replaces, existing testing.** EEST and hive test behaviour. PRSpec reads the
+  spec and the code *before* a test exists, shows reviewers where to look, and produces candidates
+  that a human can turn into tests.
+- **It can run without code leaving your machine.** The deterministic layer needs no model at all. The LLM
+  layer can use a local OpenAI-compatible server, and `--no-cloud` enforces that.
 
-**PRSpec solves a different and harder problem:** *Does the client implementation actually match what the spec says?*
+## What PRSpec does: three layers
 
-It fetches official EIP documents, execution specs, and consensus specs directly from the Ethereum repos, pulls the corresponding implementation files from multiple Ethereum clients, and sends both to a large-context LLM (Gemini 2.5 Pro, GPT-4, or a Claude deployment on Azure AI Foundry) to identify deviations, missing checks, and edge cases the spec requires but the code omits.
+| Layer | What it checks | Needs an LLM? | Status |
+| --- | --- | --- | --- |
+| **Witnesses** (`prspec witness`) | EIP constants and simple derived values (for example `TARGET_BLOB_GAS_PER_BLOCK = target_blobs × GAS_PER_BLOB`) against anchors in client code | No | **Implemented and verified** for EIP-1559 (3 rules) and EIP-4844 (9 rules) on Besu, go-ethereum and Nethermind |
+| **Fork Watch** (`prspec fork-watch`) | Parameter-level diff between two EIP revisions, mapped to rules and to the client files to review | No | **Implemented and verified** on real EIP-4844 history. Prose and algorithm changes are not detected yet |
+| **Semantic analysis** (`prspec analyze`, `prspec diff`) | Logic and missing checks that cannot be reduced to a constant. Spec and code go to an LLM, and every finding is re-examined adversarially and grounded in the quoted spec text | Yes (Gemini, OpenAI, local, Azure/Claude) | **Implemented.** Gemini 2.0 integration is covered by unit tests. The live run is in [`gemini-live.yml`](.github/workflows/gemini-live.yml) |
 
-**Related work.** PRSpec is not the only effort in this space, and we would rather build with these than compete:
-the EF Protocol Security [wishlist](https://security.ethereum.org/wishlist) lists "Differential LLMing" and "LLM Test Generation";
-EPF Cohort 6 has a [Differential LLMing](https://github.com/eth-protocol-fellows/cohort-six/blob/master/projects/differential-llming.md) project;
-[SpecTrum](https://arxiv.org/pdf/2608.17738) reports consensus-layer divergences across clients; and
-[LLM-driven differential testing](https://www.youtube.com/watch?v=btaJkpmFs4s) was presented at Black Hat Asia 2026.
-PRSpec aims to make spec-to-code checks easier to reproduce across execution clients. A client
-commit can be pinned, and incomplete analyses report a distinct exit code. The EIP text is
-currently fetched from a live branch and cached; it is not yet independently pinned by commit.
-
-### Besu evidence pilot (in preparation)
-
-The [Besu pilot kit](pilot/besu/README.md) contains a draft workflow and baseline config,
-plus a pre-registered [10-mutation experiment](pilot/besu/mutations.yaml). The kit has not
-yet been validated end-to-end in Besu, and the Gemini scoreboard has not been run. There are
-no detection-rate or cost results to report yet; LLM findings require human review.
-
----
-
-## Confirmed Findings From Protocol Teams
-
-These are not hypothetical results. PRSpec has produced findings that have been reviewed and confirmed by core developers at major Ethereum client organizations.
-
-> **Nethermind (C#):** PRSpec flagged `FeeCollector` as a deviation from EIP-1559's mandatory fee burn mechanism. A Nethermind core developer [confirmed the finding](https://github.com/NethermindEth/nethermind/issues/10522) and acknowledged it as a chain-specific extension that "could be refactored better."
-> Source: [Issue #10522](https://github.com/NethermindEth/nethermind/issues/10522)
-
-> **Ethereum Foundation execution-specs team:** The EF team [engaged directly with PRSpec's architecture](https://github.com/ethereum/execution-specs/issues/2212#issuecomment-3915461994), providing guidance on using fork-to-fork diffs for EIP boundary detection, a technique now integrated into PRSpec's spec extraction pipeline.
-> Source: [Issue #2212](https://github.com/ethereum/execution-specs/issues/2212)
-
-These are publicly verifiable interactions, linked above, with named engineers at the Nethermind and Ethereum Foundation organizations. They demonstrate that the tool is producing technically meaningful output that practitioners take seriously.
-
-> PRSpec is independent, open-source infrastructure for cross-client EIP compliance. It is built and maintained by one developer, and it welcomes sponsors. Organizations that depend on correct client implementations are invited to support the work and be recognized publicly as official backers. See [Support & Sponsorship](#support--sponsorship).
+Executable witnesses (EEST-format tests checked against the EELS reference before they touch a
+client) are **planned, not built**. See [ROADMAP.md](ROADMAP.md).
 
 ---
 
-## Staking-EIP cross-client coverage
+## Verified results (2026-11-10)
 
-PRSpec now covers the execution-layer EIPs that the staking lifecycle depends on: EIP-7002
-(triggerable withdrawals), EIP-7251 (consolidation), EIP-6110 (deposits), and EIP-4788
-(beacon block root). These are the code paths underneath validator entry and exit, where
-client-level protocol divergence matters most and where almost nothing monitors compliance
-continuously.
+All of the following are deterministic and key-free. Raw outputs are in
+[`docs/evidence/2026-11-10/`](docs/evidence/2026-11-10/).
 
-A past analysis across go-ethereum, Nethermind, and Besu surfaced a cross-client
-divergence in the request system-call path: the analyzed go-ethereum version did not invalidate a block when a
-*checked* request predeploy (EIP-7002 / 7251) has no code, where the execution-specs reference,
-Nethermind, and Besu all invalidate. Confirmed across two independent EIPs and re-verified by
-hand against client source and the reference. Write-up:
-[`findings/geth-eip7002-missing-code-invalidation.md`](findings/geth-eip7002-missing-code-invalidation.md).
+**1. Cross-client witness matrix.** Spec `ethereum/EIPs@542e62eb`. Clients: Besu `8f01c7a3`,
+go-ethereum `c863eecb`, Nethermind `8ba0b6d0`. There were **34 checks: 34 matched, 0 mismatched,
+0 incomplete**. Two rule/client pairs (`FIELD_ELEMENTS_PER_BLOB` for Besu and Nethermind) have no
+anchor yet and are shown as ⚪, not as passes.
+[EIP-1559](docs/evidence/2026-11-10/witness-1559.md) · [EIP-4844](docs/evidence/2026-11-10/witness-4844.md)
 
-This is a latent divergence, not a live mainnet split (the predeploys are deployed at fork
-activation). It is exactly the class of risk that should be watched continuously rather than
-audited once.
+**2. Historical spec-drift replay.** The three clients' current code was checked against the EIP-4844
+text *before* commit `2511e0bc`. Exactly the three constants that the commit changed fail in all three
+clients (`BLOB_BASE_FEE_UPDATE_FRACTION`, `TARGET_BLOB_GAS_PER_BLOCK` and `MAX_BLOB_GAS_PER_BLOCK`),
+and nothing else does. Fork Watch's impact card for that commit names the same three rules and the
+files to review in each client.
+[Replay](docs/evidence/2026-11-10/witness-4844-at-2511e0bc-parent.md) ·
+[Impact card](docs/evidence/2026-11-10/fork-watch-4844-2511e0bc.md)
 
-> **Status update (2026-11-09):** go-ethereum `master` now returns
-> `empty system contract: no code at …` from `processRequestsSystemCall`, added in
-> [`26d0b2171`](https://github.com/ethereum/go-ethereum/commit/26d0b2171) (#35514, 2026-08-18).
-> The behaviour is also exercised by the execution-spec-tests case
-> `test_contract_deployment[...deploy_after_fork-zero_balance]` for EIP-7002 and EIP-7251
-> (`fail_on_empty_code=True`). The divergence described above applies to go-ethereum
-> before that commit.
+This replay runs in one direction: current clients against an old spec. It shows that the mechanism
+pinpoints a spec change. It is **not** a claim that PRSpec would have caught a historical client bug.
 
----
+**3. Besu mutation scoreboard, deterministic column.** 10 realistic EIP-1559/4844 deviations were
+pre-registered in [`pilot/besu/mutations.yaml`](pilot/besu/mutations.yaml) and injected in memory into
+Besu `8f01c7a3`. Witnesses catch **4 of 10** (M1, M2, M7 and M8, all constant changes) with file and
+line. The other 6 are logic changes (a removed `max(1, …)`, rounding, an off-by-one in
+`fake_exponential`, a flipped sign, the fork-block base fee and the excess-blob-gas formula). No
+constant check can see those, so they are what the Gemini layer is measured on.
+[Output](docs/evidence/2026-11-10/scoreboard-dry-run.txt)
 
-## Technical Differentiators
+**4. Engineering checks.** There are 206 passing tests (2 skipped because they need a key) and ruff is
+clean. A clean install outside the checkout gives `prspec --version` → `2.0.0`. A real HTTP round trip
+to a local OpenAI-compatible server passes, and so do the `--no-cloud` guard and the Gemini fail-closed
+handling for truncated, blocked, empty and transient-error responses.
 
-| Capability | PRSpec | Slither / Mythril / Echidna |
-|---|---|---|
-| Checks against EIP specification text | ✅ | ❌ |
-| Understands natural-language spec requirements | ✅ (LLM) | ❌ |
-| Adversarial verification of each finding | ✅ | ❌ |
-| Grounds findings in exact spec text | ✅ | ❌ |
-| Cross-client differential analysis | ✅ (go-ethereum, Nethermind, Besu, Reth) | ❌ |
-| Multi-language support (Go, C#, Java, Rust) | ✅ | Limited |
-| Targets protocol-layer client code | ✅ | Smart contracts |
-| Detects spec deviations vs. code bugs | ✅ | ❌ |
-
-The core technical insight is that EIP compliance is a **semantic problem**, not a syntactic one. A base fee calculation can be syntactically correct Go and still deviate from the spec, because the spec is written in English and the deviation is in the logic, not in the syntax. LLMs with large context windows are well suited to help bridge this gap.
-
----
-
-## Verified findings, not raw guesses
-
-The hardest problem with any LLM-based analysis is false positives: a model that
-confidently invents a deviation that isn't real. A tool that floods client teams
-with plausible-but-wrong findings gets ignored. PRSpec's verification layer exists
-to make the opposite trade: fewer findings, each one defensible.
-
-Every candidate finding goes through two independent checks before it is reported:
-
-1. **Adversarial re-examination.** The finding is handed back to the model in a
-   fresh, skeptical pass that is told to *refute* it and to prefer "no issue" when
-   the evidence is ambiguous. Several independent rounds vote, and the finding is
-   graded `CONFIRMED`, `DISPUTED`, or `REFUTED`.
-2. **Spec grounding.** The exact text the finding quotes as its `spec_reference`
-   must actually appear in the fetched specification. A quote that cannot be
-   located in the spec is almost always hallucinated, so the finding can never be
-   `CONFIRMED`, no matter how the rounds voted.
-
-Only findings that survive both checks are counted toward the headline numbers.
-The grading is shown inline in every report, so a reviewer sees exactly what held
-up. Verification is on by default for `analyze`; turn it off with `--no-verify`.
-
-```bash
-python -m src.cli analyze --eip 1559 --client nethermind --verify --output html
-```
-
-PRSpec also feeds the analyzer the **fork-to-fork execution-spec diff** rather than
-the whole `fork.py`: it diffs the implementing fork against its predecessor (e.g.
-`london` against `berlin`) so the model sees the EIP's precise delta. This is the
-fork-to-fork technique the execution-specs maintainers recommend for EIP boundary
-detection, and it sharpens the analysis enough to cut noise-driven false positives
-on its own.
-
----
-
-## Screenshots
-
-### CLI Analysis
-<img src="docs/cli-analysis.svg" alt="PRSpec CLI running EIP-1559 analysis" width="100%">
-
-### Report Overview
-<img src="docs/report-overview.svg" alt="PRSpec compliance report overview" width="100%">
-
-### Detailed Findings
-<img src="docs/report-details.svg" alt="PRSpec detailed issue findings" width="100%">
-
-### Multi-Client Analysis (Phase 2)
-<img src="docs/multi-client-analysis.svg" alt="PRSpec multi-client analysis: Nethermind C# and Besu Java" width="100%">
-
----
-
-## Demo Video
-### Video ▶️ [Watch on Youtube](https://www.youtube.com/watch?v=v7UtBAxigKc)
-### Version 1.3 Terminal Video Demo ▶️ [Watch on ASCiinema](https://asciinema.org/a/FSqTk0tKOx8TFiQu)
-
----
-
-## Supported EIPs & Clients
-
-### Clients
-
-| Client | Language | EIPs supported | Repo |
-|--------|----------|---------------|------|
-| go-ethereum | Go | 1559, 4844, 4788, 2930, 7702, 2935, 2537, 6110, 7002, 7251 | [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) |
-| Nethermind | C# | 1559, 4844, 4788, 7702, 2935, 2537, 6110, 7002, 7251 | [NethermindEth/nethermind](https://github.com/NethermindEth/nethermind) |
-| Besu | Java | 1559, 4844, 4788, 7702, 2935, 2537, 6110, 7002, 7251 | [besu-eth/besu](https://github.com/besu-eth/besu) |
-| Reth | Rust | 1559, 4844, 7702, 2935, 2537, 7002, 7251 | [paradigmxyz/reth](https://github.com/paradigmxyz/reth) |
-
-### EIPs
-
-| EIP | Title | Specs fetched | Files per client | Key focus areas |
-|-----|-------|---------------|------------------|-----------------|
-| 1559 | Fee market change | EIP + execution | geth 5 · nethermind 6 · besu 5 · reth 4 | base fee, gas limit, fee cap, state transition |
-| 4844 | Shard Blob Transactions | EIP + execution + consensus | geth 5 · nethermind 5 · besu 5 · reth 4 | blob gas, KZG, max blobs, sidecar, tx pool |
-| 4788 | Beacon block root in EVM | EIP + execution | geth 2 · nethermind 1 · besu 2 | beacon root system call, missing-code handling (unchecked class) |
-| 2930 | Optional access lists | EIP + execution | geth 2 | access list validation |
-| **7002** | **Execution layer withdrawals** | EIP + execution | geth 2 · nethermind 2 · besu 3 | withdrawal request predeploy, missing-code invalidation (checked class) |
-| **7251** | **Increase MAX_EFFECTIVE_BALANCE** | EIP + execution + consensus | geth 2 · nethermind 2 · besu 3 · reth 2 | consolidation request, missing-code invalidation (checked class) |
-| **7702** | **Set EOA Account Code** | EIP + execution | geth 5 · nethermind 5 · besu 5 · reth 4 | authorization tuple, delegation designator, nonce, chain ID |
-| **2935** | **Historical Block Hashes** | EIP + execution | geth 3 · nethermind 3 · besu 2 · reth 2 | ring buffer, system contract, blockhash opcode |
-| **2537** | **BLS12-381 Precompiles** | EIP + execution | geth 3 · nethermind 3 · besu 3 · reth 2 | G1/G2 ops, gas costs, subgroup checks |
-| **6110** | **Validator Deposits on Chain** | EIP + execution | geth 3 · nethermind 2 · besu 2 | deposit log parsing, max deposits, block body |
-
-Run `python -m src.cli list-eips` to see the live registry.
+**Not verified yet:** the Gemini live numbers, which come from the
+[`gemini-live`](.github/workflows/gemini-live.yml) workflow; the Docker build, which no Docker daemon
+was available to test, so CI builds it; a run inside Besu's own CI; and inference against a real local
+model.
 
 ---
 
 ## Quick start
 
 ```bash
-# clone and set up
-git clone https://github.com/Fosurero/PRSpec.git
-cd PRSpec
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+git clone https://github.com/Fosurero/PRSpec && cd PRSpec
+python -m venv .venv && . .venv/bin/activate
+pip install .
 
-# add your API key
-cp .env.example .env
-# edit .env → GEMINI_API_KEY=your_key_here
+# Deterministic, no key: fetch pinned client sources and run the witness matrix
+scripts/fetch_clients.sh ../clients 8f01c7a3200780b00163ab76d544e0ef6646da41 "" "" 542e62eb129517130b7facc52bbb9a1f333c711e
+prspec witness --eip 4844 -t besu=../clients/besu -t go-ethereum=../clients/go-ethereum \
+  -t nethermind=../clients/nethermind --eips-dir ../clients/EIPs
 
-# run the demo
-python run_demo.py              # EIP-1559 by default
-python run_demo.py --eip 4844   # EIP-4844
-python run_demo.py --test       # quick API check
+# Impact card for a real EIP-4844 spec change
+prspec fork-watch --eip 4844 --from 2511e0bc^ --to 2511e0bc --eips-dir ../clients/EIPs \
+  --check besu=../clients/besu
+
+# Semantic analysis with Gemini (key from https://aistudio.google.com/apikey)
+export GEMINI_API_KEY=...            # never commit it
+prspec models --probe gemini-3.8-flash
+prspec analyze --eip 1559 --client besu --source-dir ../clients/besu --output html
 ```
 
-Get a Gemini key at https://aistudio.google.com/app/apikey
-
----
-
-## CLI usage
+### Docker
 
 ```bash
-# full analysis → produces JSON/Markdown/HTML reports
-python -m src.cli analyze --eip 1559 --client go-ethereum --output html
-
-# analyze Nethermind (C#) or Besu (Java) instead
-python -m src.cli analyze --eip 1559 --client nethermind --output html
-python -m src.cli analyze --eip 4844 --client besu --output html
-
-# verification is on by default; tune the rounds or turn it off
-python -m src.cli analyze --eip 1559 --client nethermind --verify-rounds 3
-python -m src.cli analyze --eip 1559 --client go-ethereum --no-verify
-
-# cross-client differential: compare how clients implement the same EIP
-python -m src.cli diff --eip 1559 --output html
-python -m src.cli diff --eip 4844 --clients go-ethereum,nethermind,besu --output html
-
-# other commands
-python -m src.cli fetch-spec --eip 4844
-python -m src.cli list-files --client go-ethereum --eip 4844
-python -m src.cli list-eips
-python -m src.cli check-config
+docker build -t prspec:2.0.0 .
+docker run --rm -v "$PWD/../clients:/src:ro" prspec:2.0.0 \
+  witness --eip 1559 -t besu=/src/besu --eips-dir /src/EIPs
+docker run --rm -e GEMINI_API_KEY -v "$PWD/../clients/besu:/src/besu:ro" prspec:2.0.0 \
+  analyze --eip 1559 --client besu --source-dir /src/besu
 ```
 
-### Cross-client differential analysis
+The image runs as a non-root user (uid 10001) and contains no secrets. The key is passed at run time.
 
-The `diff` command runs the standard analysis for each client, then builds a
-comparison matrix showing, per dimension (overall status, issue types, and
-each EIP focus area), where the implementations **agree** and where they
-**diverge**. With no `--clients` flag it compares every client that has file
-mappings for the EIP.
+### Fully local: no code leaves your machine
 
 ```bash
-python -m src.cli diff --eip 1559                       # all clients with 1559 mappings
-python -m src.cli diff --eip 4844 --llm-synthesis       # add an LLM divergence narrative
+ollama serve & ollama pull qwen3-coder:30b        # or vLLM / llama.cpp / LM Studio
+export PRSPEC_LOCAL_BASE_URL=http://127.0.0.1:11434/v1 PRSPEC_LOCAL_MODEL=qwen3-coder:30b
+prspec --no-cloud analyze --provider local --eip 1559 --client besu --source-dir ../clients/besu
 ```
 
-Reports land in `output/` as `prspec_diff_eip<N>_<timestamp>.{json,md,html}`.
+With `--no-cloud`, PRSpec refuses Gemini, OpenAI and Azure. It also refuses a "local" URL that is not a
+loopback or private address. Whether a given open-weights model is *good enough* has not been measured
+yet. The transport is tested; the quality is not.
 
 ---
 
-## Configuration
+## CLI
 
-### config.yaml
+| Command | Purpose | Exit codes |
+| --- | --- | --- |
+| `prspec witness --eip N -t CLIENT=DIR …` | Deterministic witness matrix | 0 match · 10 mismatch · 20 incomplete |
+| `prspec fork-watch --eip N --from A --to B [--check CLIENT=DIR]` | Spec-change impact card | 0 · 10 a checked client disagrees · 20 incomplete |
+| `prspec analyze --eip N --client C [--source-dir D \| --ref SHA]` | LLM analysis + verification, JSON/Markdown/HTML | 0 · 10 findings (`--fail-on findings`) · 20 incomplete · 1 tool error |
+| `prspec diff --eip N --clients a,b,c` | Cross-client comparison of LLM results | as `analyze` |
+| `prspec models [--probe MODEL]` | Models visible to `GEMINI_API_KEY`, with a one-request probe | |
+| `prspec --no-cloud …` | Privacy guard for any command | |
+| `prspec list-eips`, `list-files`, `fetch-spec`, `check-config`, `clear-cache` | Registry and config helpers | |
 
-```yaml
-llm:
-  provider: gemini
+An incomplete run always takes precedence over a findings or clean exit code: a partial analysis
+can never look clean.
 
-  gemini:
-    model: gemini-2.5-pro
-    max_output_tokens: 8192
-    temperature: 0.1
+### Configuration
 
-  openai:
-    model: gpt-4-turbo-preview
-    max_tokens: 4096
-    temperature: 0.1
+`config.yaml` (also shipped inside the package) selects the provider and model. The environment
+overrides it.
 
-eips:
-  1559:
-    focus_areas:
-      - base_fee_calculation
-      - gas_limit_validation
-      - fee_cap_check
-  4844:
-    focus_areas:
-      - blob_gas_price
-      - kzg_commitment
-      - max_blobs_per_block
-      - sidecar_validation
-```
+| Variable | Meaning |
+| --- | --- |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | Gemini key and model id (default `gemini-3.8-flash`) |
+| `OPENAI_API_KEY` / `OPENAI_BASE_URL` | OpenAI, or an OpenAI-compatible endpoint |
+| `PRSPEC_LOCAL_BASE_URL` / `PRSPEC_LOCAL_MODEL` / `PRSPEC_LOCAL_API_KEY` | Local provider |
+| `PRSPEC_NO_CLOUD=1` | Same as `--no-cloud` |
+| `AZURE_AI_API_KEY` / `AZURE_AI_ENDPOINT` / `AZURE_AI_DEPLOYMENT` | Claude via Azure AI Foundry |
+| `LLM_PROVIDER` | `gemini` · `openai` · `local` · `azure` |
+| `GITHUB_TOKEN` | Optional, for GitHub rate limits when fetching remote code |
 
-### Environment variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GEMINI_API_KEY` | Yes (Gemini) | Google AI Studio API key |
-| `OPENAI_API_KEY` | Yes (OpenAI) | OpenAI API key |
-| `AZURE_AI_API_KEY` | Yes (Azure) | Key for a model deployed in your Azure AI Foundry resource |
-| `AZURE_AI_ENDPOINT` | Yes (Azure) | Foundry Anthropic Messages URL (`.../anthropic/v1/messages`) |
-| `AZURE_AI_DEPLOYMENT` | Yes (Azure) | Deployment name (acts as the model id) |
-| `GITHUB_TOKEN` | No | Higher GitHub rate limits |
-| `LLM_PROVIDER` | No | Override default provider (`gemini`, `openai`, or `azure`) |
+**Gemini model choice.** On 2026-11-10, Google's [models page](https://ai.google.dev/gemini-api/docs/models)
+listed `gemini-3.8-flash` and `gemini-3.5-flash-lite` as the recommended models for new projects. It
+limited 2.5 to existing users and listed 2.0 Flash as shut down. PRSpec therefore defaults to
+`gemini-3.8-flash`. Run `prspec models` to see what *your* key can call. The free tier has quotas, and
+Google's pricing page says free-tier content may be used to improve its products. Do not send
+unreleased client code through the free tier; use the paid tier or `--provider local`.
 
 ---
 
-## Project layout
+## CI integration
 
-```
-src/
-  config.py            – YAML + env config loader
-  spec_fetcher.py      – EIP registry, spec fetching (EIP/execution/consensus)
-  code_fetcher.py      – Per-client per-EIP file registry, code fetching
-  parser.py            – Go/Python/C#/Java/Rust parsing, EIP keyword matching
-  analyzer.py          – Gemini / OpenAI / Azure AI analysis, JSON response parsing
-  verifier.py          – Adversarial finding verification + spec grounding
-  differential.py      – Cross-client differential engine + comparison matrix
-  report_generator.py  – JSON, Markdown, HTML report output (single + differential)
-  cli.py               – Click CLI
-  engine/              – Library API for programmatic scanning
-tests/
-  test_eip1559.py
-  test_eip4844.py
-  test_multi_client.py – All 4 client registries + C#/Java/Rust parser tests
-  test_differential.py – Cross-client differential engine tests
-  test_verifier.py     – Verification engine + spec grounding tests
-  test_spec_diff.py    – Fork-to-fork spec diff extraction tests
-  test_azure_analyzer.py – Azure AI Foundry provider tests
-config.yaml
-pyproject.toml         – Package metadata, dependencies, linter config
-run_demo.py
-CONTRIBUTING.md
-SECURITY.md
-LICENSE
-```
+- **This repository** ([`ci.yml`](.github/workflows/ci.yml)) runs lint, tests on Python 3.10, 3.12
+  and 3.13, an install outside the checkout, a Docker build and smoke test, and the key-free witness
+  matrix against Besu, go-ethereum and Nethermind at their default branches. If a client moves a
+  constant or changes a value, the job fails with the file and line.
+- **Besu pilot kit** ([`pilot/besu/`](pilot/besu/README.md)) is a read-only, non-blocking workflow pair
+  for a client repository. The PR job has no secrets; the LLM job runs from `workflow_run`. It also has a
+  baseline config pinned to model and commit, a policy-vs-consensus suppression list, and the mutation
+  scoreboard. It has not been run inside Besu's repository yet.
+- **Gemini live experiment** ([`gemini-live.yml`](.github/workflows/gemini-live.yml)) uses the repository
+  secret `GEMINI_API_KEY`. It is triggered by editing `pilot/live/REQUEST` on `evidence-pilot`, or by
+  manual dispatch once the file is on `main`.
 
----
+## Supported clients and limits
 
-## Example output
+| | go-ethereum | Nethermind | Besu | Reth |
+| --- | --- | --- | --- | --- |
+| LLM file registry (10 EIPs) | ✅ | ✅ | ✅ | ✅ (7 EIPs) |
+| Witness anchors EIP-1559 | 3/3 | 3/3 | 3/3 | — |
+| Witness anchors EIP-4844 | 9/9 | 8/9 | 8/9 | — |
 
-```json
-{
-  "status": "PARTIAL_MATCH",
-  "confidence": 85,
-  "issues": [
-    {
-      "type": "EDGE_CASE",
-      "severity": "MEDIUM",
-      "description": "Edge case when gas used equals target not explicitly handled",
-      "suggestion": "Add explicit equality check"
-    }
-  ],
-  "summary": "Implementation mostly compliant with minor edge case gaps."
-}
-```
+Limits, stated plainly:
 
-Reports are written to the `output/` directory in all three formats (JSON, Markdown, HTML).
+- Witnesses check constants, not behaviour. A ✅ does not prove compliance.
+- Anchors are regular expressions reviewed at the commits listed in each rulebook. When code moves, the
+  result becomes ⚠️ incomplete, never ✅.
+- EIP-4844 witnesses check **Cancun** values. Later forks change blob parameters (EIP-7691, BPO forks),
+  and those are not modelled yet.
+- LLM findings are candidates for human review. The verification score is an internal vote, not a
+  probability.
+- No detection rate, false-positive rate or cost has been published until the live run produces one.
 
 ---
 
-## Running tests
+## Public interactions with client teams
+
+These are links to public threads, with what the teams actually said:
+
+- **Nethermind** [#10522](https://github.com/NethermindEth/nethermind/issues/10522): PRSpec flagged
+  `FeeCollector` against EIP-1559's burn. The team explained it is an optional extension for other
+  chains, not a mainnet deviation. A contributor suggested focusing on type sizes, limits and
+  MUST/SHOULD/MAY semantics. That suggestion shaped the witness layer.
+- **Ethereum Foundation execution-specs** [#2212](https://github.com/ethereum/execution-specs/issues/2212):
+  maintainers advised using fork-to-fork diffs, which PRSpec now does.
+- **Besu** [#9850](https://github.com/besu-eth/besu/issues/9850): a maintainer asked for a minimal GitHub
+  Actions workflow and a reproducible baseline config. The [pilot kit](pilot/besu/README.md) answers that
+  request. Besu also clarified [#10714](https://github.com/besu-eth/besu/issues/10714) and
+  [#10715](https://github.com/besu-eth/besu/issues/10715) as pool policy or validation done in another
+  layer, and PRSpec's suppression list encodes that.
+- **go-ethereum** [#35263](https://github.com/ethereum/go-ethereum/issues/35263): a latent divergence for a
+  missing checked-request predeploy, with no mainnet impact because predeploys exist at activation.
+  It is fixed upstream in [`26d0b2171`](https://github.com/ethereum/go-ethereum/commit/26d0b2171), and EEST
+  covers it. [Write-up](findings/geth-eip7002-missing-code-invalidation.md).
+
+None of these is an endorsement or an adoption decision.
+
+## Related work
+
+The EF Protocol Security [wishlist](https://security.ethereum.org/wishlist) lists "Differential LLMing" and
+"LLM Test Generation". EPF Cohort 6 has a
+[Differential LLMing](https://github.com/eth-protocol-fellows/cohort-six/blob/master/projects/differential-llming.md)
+project. [SpecTrum](https://arxiv.org/pdf/2608.17738) reports consensus-layer divergences, and
+[LLM-driven differential testing](https://www.youtube.com/watch?v=btaJkpmFs4s) was presented at Black Hat
+Asia 2026. PRSpec's focus is narrower and complementary: pinned, reproducible spec-to-code evidence for
+execution clients, with a deterministic layer that does not depend on a model.
+
+## Reproducing the demo
+
+See [`demo/README.md`](demo/README.md). It contains the exact commands and the video storyboard, and
+explains how each frame maps to a raw artifact.
+
+## Roadmap and support
+
+[ROADMAP.md](ROADMAP.md) separates what is implemented, what is partial, and what is proposed and
+worth funding. The proposed work includes executable EEST witnesses verified against EELS, a spec-PR
+watcher that posts impact cards, fork-aware blob schedules, a policy atlas, and Reth anchors.
+
+PRSpec is MIT-licensed and maintained by one developer. The milestone-based
+[TheDAO Security Fund initiative](https://initiatives.thedao.fund/initiative/automated-eip-compliance-checks-for-ethereum-clients)
+and the [Giveth project](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
+fund the roadmap. A pledge is collected only under the fund's stated conditions, and backing is not
+an endorsement of results. Technical evaluation and any security disclosure stay independent of
+funding. Suspected live vulnerabilities go through each client's private disclosure channel
+([SECURITY.md](SECURITY.md)).
+
+The most useful contribution from a client team is technical: run the witness matrix or the pilot
+on one PR, and tell us whether it saved review time or added noise.
+
+## Development
 
 ```bash
-python -m pytest tests/ -v
-
-# with coverage
-python -m pytest tests/ --cov=src
+pip install -e ".[dev]"
+ruff check . && python -m pytest -q
 ```
 
-The test suite covers 149 cases including multi-client registry validation (all 4 clients), Go/C#/Java/Rust parser correctness, cross-client differential comparison, finding verification and spec grounding, fork-to-fork diff extraction, staking-EIP request-processor mappings, provider wiring, and live fetch integration.
-
----
-
-## API usage
-
-```python
-from src.config import Config
-from src.analyzer import GeminiAnalyzer
-from src.spec_fetcher import SpecFetcher
-from src.code_fetcher import CodeFetcher
-
-config = Config()
-analyzer = GeminiAnalyzer(api_key=config.gemini_api_key)
-
-spec_fetcher = SpecFetcher()
-code_fetcher = CodeFetcher()
-
-spec = spec_fetcher.fetch_eip_spec(4844)
-files = code_fetcher.fetch_eip_implementation("go-ethereum", 4844)
-
-result = analyzer.analyze_compliance(
-    spec_text=spec["eip_markdown"],
-    code_text=files["core/types/tx_blob.go"],
-    context={"eip_number": 4844, "language": "go"},
-)
-
-print(result.status, result.confidence)
-for issue in result.issues:
-    print(f"  [{issue['severity']}] {issue['description']}")
-```
-
----
-
-## Library API (Engine)
-
-PRSpec can also be used as a Python library for programmatic scanning. The engine module discovers source files and identifies EIP-relevant code blocks without requiring LLM API keys.
-
-```python
-from src.engine import scan_path
-
-result = scan_path("path/to/client/source", ruleset="ethereum")
-
-print(f"Scanned {result['summary']['files_scanned']} files")
-print(f"Found {len(result['findings'])} EIP-relevant code blocks")
-
-for finding in result["findings"]:
-    print(f"  [{finding['severity']}] {finding['title']}")
-    print(f"    {finding['file']}:{finding['line']}: {finding['message']}")
-```
-
-The returned dict has the structure:
-
-```json
-{
-  "tool": "PRSpec",
-  "tool_version": "1.5.0",
-  "ruleset": "ethereum",
-  "findings": [{"id", "severity", "title", "message", "file", "line", "hint"}],
-  "summary": {"high": 0, "med": 0, "low": 0, "info": 5, "files_scanned": 12}
-}
-```
-
-### Differential API
-
-Compare multiple clients programmatically and inspect the comparison matrix:
-
-```python
-from src.config import Config
-from src.differential import analyze_clients
-
-diff = analyze_clients(1559, ["go-ethereum", "nethermind", "besu"], Config())
-
-print(diff.narrative)
-print(f"{diff.divergence_count} diverging / {diff.agreement_count} agreeing dimensions")
-
-for row in diff.rows:
-    if row.verdict == "DIVERGE":
-        print(f"  {row.dimension}: {row.per_client}")
-```
-
----
-
-## Contributing
-
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
-- Adding new EIP file mappings
-- Adding new client support (Prysm, Lighthouse, etc.)
-- Parser improvements for additional languages
-- Report enhancements
-
----
-
-## Security
-
-PRSpec is a security research tool. See [SECURITY.md](SECURITY.md) for:
-- Vulnerability reporting process
-- API key handling
-- Data handling policies
-- LLM provider trust considerations
-
----
-
-## Changelog
-
-### v1.8.0 "Evidence Pilot" (unreleased)
-- **Fix**: the installed `prspec` command works (`No module named 'src'`, and `config.yaml not found` outside a checkout); CI now installs the package and runs it
-- **Fail-closed**: files that cannot be fetched are no longer sent to the LLM as error text; distinct exit codes `0` clean, `10` findings (`--fail-on findings`), `20` analysis incomplete, `1` tool error
-- **Reproducibility**: `--ref <sha>` pins the client commit (cache keyed by it); `--source-dir` analyses a local checkout
-- **Besu**: registry moved to `besu-eth/besu@main`; EIP-4844 now maps `BlobFeeMarket.java` and `CancunTargetingGasLimitCalculator.java`, where the core fee logic lives
-- **Besu pilot kit** (`pilot/besu/`) and a pre-registered **mutation scoreboard** (`scripts/mutation_scoreboard.py`, 10 mutations)
-
-### v1.7.1 (2026-06-30)
-- **Staking-EIP coverage**: EIP-7002 (triggerable withdrawals) and EIP-7251 (consolidation) file mappings across go-ethereum, Nethermind, Besu, and Reth; EIP-4788 mappings extended to Nethermind and Besu; geth EIP-4788/6110 mappings corrected to the real processing paths
-- **Finding**: confirmed cross-client divergence in the request system-call path (geth accepts a block with a missing checked-request predeploy where the reference, Nethermind, and Besu invalidate), corroborated across EIP-7002 and EIP-7251
-- **Fix**: updated execution-specs fetch paths for the upstream `src/ethereum/forks/<fork>/` restructure (fork-to-fork spec diffs were silently failing)
-- 4 new tests (149 passing total)
-
-### v1.7.0 (2026-06-26)
-- **Reth (Rust) client support**: PRSpec now analyzes [paradigmxyz/reth](https://github.com/paradigmxyz/reth) alongside go-ethereum, Nethermind, and Besu — Rust parser with `fn`, `impl`, `struct`, and `trait` extraction added to `CodeParser`
-- **Pectra EIP coverage**: full file mappings for EIP-7702 (Set EOA Account Code), EIP-2935 (Historical Block Hashes), EIP-2537 (BLS12-381 precompiles), and EIP-6110 (Validator Deposits) across all four clients
-- Focus areas for each Pectra EIP defined in `config.yaml` (authorization tuple validation, delegation designator prefix, ring buffer index, subgroup membership checks, etc.)
-- 20 new tests: Rust parser correctness, Reth registry validation, Pectra EIP file mapping coverage, branch-aware fetching for non-master repos
-- Registry now spans 10 EIPs × 4 clients (145 tests passing total)
-
-### v1.6.0 (2026-06-25)
-- **Verified findings**: every candidate finding is now adversarially re-examined (independent skeptic rounds vote `CONFIRMED`/`DISPUTED`/`REFUTED`) and grounded against the exact specification text, collapsing the false-positive rate. Verification is on by default for `analyze` (`--no-verify` to skip, `--verify-rounds` to tune)
-- `DifferentialEngine` and reports can restrict stats to confirmed-only findings
-- **Fork-to-fork spec diffs**: the analyzer is fed the execution-spec delta between the implementing fork and its predecessor (e.g. `london` vs `berlin`) instead of the whole `fork.py`, focusing the comparison on the EIP boundary
-- New `src.verifier` library API (`VerificationEngine`, `SpecGrounding`); `SpecFetcher.fetch_execution_spec_diff`
-- **Azure AI Foundry provider**: point PRSpec at a Claude (or any) deployment in your own Foundry resource via `LLM_PROVIDER=azure` and the `AZURE_AI_*` variables; useful when you want a stronger reasoning model for the verification passes
-- 31 new tests covering grounding, verdict tallying, diff extraction, and the Azure provider (125 passing total)
-
-### v1.5.0 (2026-06-08)
-- **Cross-client differential analysis (Phase 3)**: new `prspec diff` command compares how multiple clients implement the same EIP and produces an agree/diverge comparison matrix
-- `DifferentialEngine`: deterministic comparison across overall status, issue types, and EIP focus areas (no API key required)
-- Optional `--llm-synthesis` pass for a natural-language divergence narrative
-- Differential reports in JSON, Markdown, and HTML
-- New `src.differential` library API (`analyze_clients`, `DifferentialEngine`)
-- 18 new tests covering the differential engine
-
-### v1.4.0 (2026-02-14)
-- **Multi-client support**: Nethermind (C#) and Besu (Java) alongside go-ethereum (Go)
-- EIP-1559 and EIP-4844 file mappings for all three clients (5 files each)
-- C# and Java regex parsers with class + method extraction
-- 25 new tests covering registry, parsers, and fetch integration
-- Keyword matching verified language-agnostic (case-insensitive)
-
-### v1.3.0 (2026-02-06)
-- Parallel analysis: all files analyzed concurrently via thread pool, ~3x faster on multi-file EIPs
-- Expanded file coverage: EIP-1559 and EIP-4844 now analyze 5 files each (added `state_transition.go`, `protocol_params.go`, `legacypool.go`)
-- Beautified CLI: progress bar with file counter, styled config panel
-- Migrated to `google-genai` SDK (replaces deprecated `google-generativeai`)
-- Executive summary paragraph at the top of every report
-
-### v1.1.0 (2026-02-01)
-- Multi-EIP architecture: registry-based spec and code fetching
-- Added EIP-4844, EIP-4788, EIP-2930 support
-- HTML report with dark-nav professional layout
-- Comprehensive test suite (37 tests)
-
-### v1.0.0 (2026-01-22)
-- Initial release: EIP-1559 analysis against go-ethereum
-- Gemini and OpenAI support, JSON/Markdown/HTML output
-
----
-
-## Roadmap
-
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 1 | Multi-EIP architecture, EIP-4844 support | ✅ Done |
-| 2 | Multi-client analysis (Nethermind, Besu) | ✅ Done |
-| 3 | Cross-client differential analysis | ✅ Done |
-| 3.5 | Verified findings: adversarial verification + spec grounding + fork-to-fork diffs | ✅ Done |
-| 3.6 | Reth (Rust) client support + Pectra EIP coverage (7702, 2935, 2537, 6110) | ✅ Done |
-| 4 | GitHub Action CI integration, security dashboard | 🔄 In progress |
-| 5 | Spec quality analysis: flag underspecified EIPs | 🔍 Exploring |
-
----
-
-## Support & Sponsorship
-
-PRSpec is built entirely in the open and provided free under the MIT license. It is the work of one developer who believes cross-client spec compliance deserves serious, continuous tooling.
-
-**Sponsors are welcome.** If your protocol, client team, or organization depends on execution clients implementing the EIPs correctly, you have a direct stake in this work. Sponsorship funds staking-EIP coverage, monthly cross-client compliance reports, and priority alerts on protocol-path deviations. Everything stays open-source, and **official sponsors are recognized publicly here in the README and project page**. Tiered backing and scoped pilots are both fine.
-
-To sponsor or discuss support, reach out through the project page, or contribute directly:
-
-[![Support on Giveth](https://img.shields.io/badge/Support%20on-Giveth-purple.svg)](https://giveth.io/project/prspec-automated-eip-compliance-checker-for-ethereum)
-
-Every contribution goes directly toward LLM API costs, infrastructure, and continued full-time development.
-
----
+Layout: `src/` holds the CLI, analyzers, fetchers, witness engine and rulebooks (`src/rules/`).
+`scripts/` holds the scoreboard and client fetch scripts, `pilot/` the Besu kit and live request,
+`docs/evidence/` dated raw results, and `demo/` the video sources. The full history is in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

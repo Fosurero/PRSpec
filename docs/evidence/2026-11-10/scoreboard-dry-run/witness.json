@@ -1,0 +1,136 @@
+{
+  "M1": {
+    "outcome": "caught",
+    "rules": [
+      {
+        "rule_id": "EIP1559-ELASTICITY",
+        "eip": 1559,
+        "client": "besu",
+        "constant": "ELASTICITY_MULTIPLIER",
+        "status": "FAIL",
+        "expected": 2,
+        "actual": 3,
+        "spec_line": 155,
+        "spec_raw": "2",
+        "code_file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "code_line": 33,
+        "code_excerpt": "static final long DEFAULT_SLACK_COEFFICIENT = 3L;",
+        "note": ""
+      }
+    ]
+  },
+  "M2": {
+    "outcome": "caught",
+    "rules": [
+      {
+        "rule_id": "EIP1559-DENOMINATOR",
+        "eip": 1559,
+        "client": "besu",
+        "constant": "BASE_FEE_MAX_CHANGE_DENOMINATOR",
+        "status": "FAIL",
+        "expected": 8,
+        "actual": 9,
+        "spec_line": 154,
+        "spec_raw": "8",
+        "code_file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "code_line": 32,
+        "code_excerpt": "static final long DEFAULT_BASEFEE_MAX_CHANGE_DENOMINATOR = 9L;",
+        "note": ""
+      }
+    ]
+  },
+  "M3": {
+    "outcome": "not-applicable",
+    "note": "no constant rule covers this mutation; needs semantic (LLM) analysis"
+  },
+  "M4": {
+    "outcome": "not-applicable",
+    "note": "no constant rule covers this mutation; needs semantic (LLM) analysis"
+  },
+  "M5": {
+    "outcome": "not-applicable",
+    "note": "no constant rule covers this mutation; needs semantic (LLM) analysis"
+  },
+  "M6": {
+    "outcome": "not-applicable",
+    "note": "no constant rule covers this mutation; needs semantic (LLM) analysis"
+  },
+  "M7": {
+    "outcome": "caught",
+    "rules": [
+      {
+        "rule_id": "EIP4844-MIN-BLOB-BASE-FEE",
+        "eip": 4844,
+        "client": "besu",
+        "constant": "MIN_BASE_FEE_PER_BLOB_GAS",
+        "status": "FAIL",
+        "expected": 1,
+        "actual": 2,
+        "spec_line": 51,
+        "spec_raw": "1",
+        "code_file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java",
+        "code_line": 28,
+        "code_excerpt": "protected static final BigInteger BLOB_GAS_PRICE = BigInteger.TWO;",
+        "note": ""
+      }
+    ]
+  },
+  "M8": {
+    "outcome": "caught",
+    "rules": [
+      {
+        "rule_id": "EIP4844-GAS-PER-BLOB",
+        "eip": 4844,
+        "client": "besu",
+        "constant": "GAS_PER_BLOB",
+        "status": "FAIL",
+        "expected": 131072,
+        "actual": 65536,
+        "spec_line": 53,
+        "spec_raw": "2**17",
+        "code_file": "evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java",
+        "code_line": 50,
+        "code_excerpt": "private static final long BLOB_GAS_PER_BLOB = 1 << 16;",
+        "note": ""
+      },
+      {
+        "rule_id": "EIP4844-TARGET-BLOB-GAS",
+        "eip": 4844,
+        "client": "besu",
+        "constant": "TARGET_BLOB_GAS_PER_BLOCK",
+        "status": "FAIL",
+        "expected": 393216,
+        "actual": 196608,
+        "spec_line": 50,
+        "spec_raw": "393216",
+        "code_file": "config/src/main/java/org/hyperledger/besu/config/BlobSchedule.java",
+        "code_line": 24,
+        "code_excerpt": "public static final BlobSchedule CANCUN_DEFAULT = BlobSchedule.create(3, 6, 3338477);",
+        "note": "code value = 3 x GAS_PER_BLOB (65536)"
+      },
+      {
+        "rule_id": "EIP4844-MAX-BLOB-GAS",
+        "eip": 4844,
+        "client": "besu",
+        "constant": "MAX_BLOB_GAS_PER_BLOCK",
+        "status": "FAIL",
+        "expected": 786432,
+        "actual": 393216,
+        "spec_line": 49,
+        "spec_raw": "786432",
+        "code_file": "config/src/main/java/org/hyperledger/besu/config/BlobSchedule.java",
+        "code_line": 24,
+        "code_excerpt": "public static final BlobSchedule CANCUN_DEFAULT = BlobSchedule.create(3, 6, 3338477);",
+        "note": "code value = 6 x GAS_PER_BLOB (65536)"
+      }
+    ]
+  },
+  "M9": {
+    "outcome": "not-applicable",
+    "note": "no constant rule covers this mutation; needs semantic (LLM) analysis"
+  },
+  "M10": {
+    "outcome": "not-applicable",
+    "note": "no constant rule covers this mutation; needs semantic (LLM) analysis"
+  }
+}
