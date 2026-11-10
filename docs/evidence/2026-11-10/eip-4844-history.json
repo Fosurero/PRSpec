@@ -1,0 +1,130 @@
+{
+  "eip": 4844,
+  "commits_touching_text": 71,
+  "commits_changing_parameter_table": 20,
+  "first": "2022-03-02",
+  "last": "2024-03-29",
+  "parameter_commits": [
+    {
+      "commit": "65f6bd61432a26e321a7557e35f9a0b83aec4c95",
+      "date": "2024-03-30",
+      "subject": "Update EIP-4844: Update blob base fee to base fee per blob gas",
+      "param_lines": 2
+    },
+    {
+      "commit": "a67f8e1b464d15ae3530cbd3bdea92e8650646f5",
+      "date": "2024-02-09",
+      "subject": "Update EIP-4844: Rename gasPrice to baseFee",
+      "param_lines": 4
+    },
+    {
+      "commit": "14d6cf4da8f338fc9ea0ce83f6f43eaeab2946f1",
+      "date": "2023-11-30",
+      "subject": "Update EIP-4844: minor clean-up",
+      "param_lines": 1
+    },
+    {
+      "commit": "eb2e7a97aa70b1d7f39968c6be9ed3e731512f9d",
+      "date": "2023-08-21",
+      "subject": "Update EIP-4844: Remove unused constants",
+      "param_lines": 5
+    },
+    {
+      "commit": "82b1e6dc86faebd29a56cfa9b0bd646bc8c90bbc",
+      "date": "2023-07-31",
+      "subject": "Update EIP-4844: Align names and fix `KZGCommitment` description",
+      "param_lines": 3
+    },
+    {
+      "commit": "58e82a0addec750bc3799b05f771cd8ab3c7fae1",
+      "date": "2023-07-24",
+      "subject": "Update EIP-4844: Rename \"data gas\" to \"blob gas\"",
+      "param_lines": 10
+    },
+    {
+      "commit": "b9a5a117ab7e1dc18f937841d00598b527c306e7",
+      "date": "2023-06-22",
+      "subject": "Update EIP-4844: Update precompile address for 4844",
+      "param_lines": 2
+    },
+    {
+      "commit": "2511e0bc3eac7343ff306d246dee0f69d0862498",
+      "date": "2023-06-08",
+      "subject": "Update EIP-4844: Increase Blob Throughput",
+      "param_lines": 6
+    },
+    {
+      "commit": "84f61365d2de098ec6a1e954dbdc064026a192d4",
+      "date": "2023-05-15",
+      "subject": "Update EIP-4844: Decouple blobs",
+      "param_lines": 2
+    },
+    {
+      "commit": "a120da48cbbdfb78f86e72442e998381c0db69de",
+      "date": "2023-04-07",
+      "subject": "Update EIP-4844: change blob transaction type to 0x03",
+      "param_lines": 2
+    },
+    {
+      "commit": "2783d144a7f6300adc268c97981556957c746260",
+      "date": "2023-02-15",
+      "subject": "More sane limits on blobs per transactions (#6500)",
+      "param_lines": 4
+    },
+    {
+      "commit": "60d04c40861845d94681687d809fdff7e1156e77",
+      "date": "2022-11-23",
+      "subject": "Update EIP-4844: small clarification (#6035)",
+      "param_lines": 1
+    },
+    {
+      "commit": "89b85203974c14ccd31d354a4f84808b0d80155b",
+      "date": "2022-11-14",
+      "subject": "[EIP-4844] Reduce Throughput (#5863)",
+      "param_lines": 6
+    },
+    {
+      "commit": "7e8d2629508c4d571f0124e4fc67a9ac13ee8b9a",
+      "date": "2022-11-01",
+      "subject": "Update EIP-4844: Fee Market Update (#5707)",
+      "param_lines": 11
+    },
+    {
+      "commit": "ae32e77e0c429cc2cb7a1668c74ba63f76b13227",
+      "date": "2022-10-03",
+      "subject": "Synchronize EIP-4844 cryptography with consensus specs (#5649)",
+      "param_lines": 2
+    },
+    {
+      "commit": "2d983426b3290e6d9b7bb0192e0f0c42f10869c8",
+      "date": "2022-09-08",
+      "subject": "Update EIP-4844: Remove system contract concept (#5353)",
+      "param_lines": 2
+    },
+    {
+      "commit": "0cf9afe1f9e56bec8ec07d4f62e832c1adb6fec8",
+      "date": "2022-06-29",
+      "subject": "Optimizing EIP-4844 transaction validation for mempool (using KZG proofs) (#5088)",
+      "param_lines": 1
+    },
+    {
+      "commit": "f45bd0c101944dc703bd8a80c6b064b47e1f7390",
+      "date": "2022-06-07",
+      "subject": "EIP-4844: remove blob-verification precompile in favor of using the point-evaluation precompile everywhere (#5140)",
+      "param_lines": 2
+    },
+    {
+      "commit": "e248652ae68a1393ff4e4d0fabcec58122d03db1",
+      "date": "2022-05-06",
+      "subject": "Correct typo: BLSCommitment -> KZGCommitment (#4992)",
+      "param_lines": 2
+    },
+    {
+      "commit": "5868c8c578e42f34b3469c5634d47d913f74a062",
+      "date": "2022-03-02",
+      "subject": "EIP-4844: Shard Blob Transactions (#4844)",
+      "param_lines": 24
+    }
+  ],
+  "command": "git log -- EIPS/eip-4844.md; rows matching ^[-+]\\| `NAME` \\| in each diff"
+}
