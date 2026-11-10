@@ -1,0 +1,12 @@
+{
+  "model": "muse-wonder-1.0",
+  "spec_ref": "542e62eb129517130b7facc52bbb9a1f333c711e",
+  "besu_commit": "8f01c7a3200780b00163ab76d544e0ef6646da41",
+  "mutation": "M5",
+  "verification": false,
+  "score": {
+    "outcome": "inconclusive",
+    "matching_issues": 1,
+    "baseline_matching_issues": 1
+  }
+}

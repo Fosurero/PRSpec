@@ -1,0 +1,90 @@
+{
+  "status": "PARTIAL_MATCH",
+  "confidence": 82,
+  "issues": [
+    {
+      "code_location": "BlobFeeMarket constructor ~line 33 and getBaseFeeUpdateFraction ~line 75",
+      "description": "The update fraction is accepted as an arbitrary constructor-supplied long and is never validated against the consensus constant 3338477. BLOB_GAS_PRICE is hardcoded to 1, matching MIN_BASE_FEE_PER_BLOB_GAS, but the denominator that determines the fee curve is entirely configuration-dependent in this file.",
+      "potential_impact": "A misconfigured fraction produces a different blob base fee from other clients, causing invalid-block disagreement and possible consensus failure.",
+      "severity": "MEDIUM",
+      "spec_reference": "| `BLOB_BASE_FEE_UPDATE_FRACTION` | `3338477` |",
+      "suggestion": "Hardcode BLOB_BASE_FEE_UPDATE_FRACTION=3338477 for the Cancun fee market or assert the injected value equals it, and reject zero or negative values.",
+      "type": "DEVIATION"
+    },
+    {
+      "code_location": "Absent from BlobFeeMarket.java (entire file)",
+      "description": "No calc_excess_blob_gas logic exists. blobGasPricePerGas consumes an excessBlobGas input, but this file does not compute it from parent.excess_blob_gas and parent.blob_gas_used bounded at zero, nor handle the first post-fork block where both parent values are evaluated as 0.",
+      "potential_impact": "If not correctly implemented elsewhere, excess blob gas and therefore the blob base fee diverge between nodes, causing consensus failures.",
+      "severity": "HIGH",
+      "spec_reference": "def calc_excess_blob_gas(parent: Header) -> int:",
+      "suggestion": "Implement calc_excess_blob_gas exactly as specified, including the zero bound and first-post-fork-block treatment, with tests.",
+      "type": "MISSING_CHECK"
+    },
+    {
+      "code_location": "Absent from BlobFeeMarket.java (entire file)",
+      "description": "The file only computes price per blob gas. It contains no get_total_blob_gas/calc_blob_fee accounting, no MAX_BLOB_GAS_PER_BLOCK accumulation check, no header blob_gas_used equality check, and no deduction/burning of blob fee before execution.",
+      "potential_impact": "Blocks exceeding the blob limit, blocks whose header blob_gas_used mismatches actual usage, or transactions not charged the blob fee could be accepted if these checks are absent elsewhere.",
+      "severity": "HIGH",
+      "spec_reference": "assert blob_gas_used <= MAX_BLOB_GAS_PER_BLOCK",
+      "suggestion": "Add block validation accumulating GAS_PER_BLOB * len(blob_versioned_hashes), enforce MAX_BLOB_GAS_PER_BLOCK and header equality, and deduct/burn calc_blob_fee before execution without refund on failure.",
+      "type": "MISSING_CHECK"
+    },
+    {
+      "code_location": "Absent from BlobFeeMarket.java (entire file)",
+      "description": "No blob-transaction validation is present: non-nil to, at least one blob, versioned-hash prefix, max_fee_per_blob_gas >= current blob base fee, and the balance check including blob gas are all absent from the provided implementation.",
+      "potential_impact": "Create-style blob transactions, empty-blob transactions, wrong-version hashes, or underpriced blob transactions could be accepted if not validated elsewhere, violating block validity rules.",
+      "severity": "HIGH",
+      "spec_reference": "assert len(tx.blob_versioned_hashes) > 0",
+      "suggestion": "Implement all blob transaction validity checks, including to != nil, h[0] == VERSIONED_HASH_VERSION_KZG for every hash, max_fee_per_blob_gas >= get_base_fee_per_blob_gas(header), and balance >= gas*max_fee_per_gas + total_blob_gas*max_fee_per_blob_gas.",
+      "type": "MISSING_CHECK"
+    },
+    {
+      "code_location": "Absent from BlobFeeMarket.java (entire file)",
+      "description": "No KZG commitment/proof validation, kzg_to_versioned_hash, equal-count blob/commitment/proof checks, blob sidecar handling, or prohibition on automatic broadcast of blob transactions exists in the provided file.",
+      "potential_impact": "Invalid commitments, mismatched blobs/proofs, or sidecars inconsistent with transaction versioned hashes could propagate or be accepted if not validated elsewhere.",
+      "severity": "HIGH",
+      "spec_reference": "There are an equal number of `tx_payload_body.blob_versioned_hashes`, `blobs`, `commitments`, and `proofs`.",
+      "suggestion": "Implement pooled-transaction wrapper validation using kzg_to_versioned_hash and verify_blob_kzg_proof_batch, enforce equal counts, and only announce blob transactions via NewPooledTransactionHashes.",
+      "type": "MISSING_CHECK"
+    },
+    {
+      "code_location": "Absent from BlobFeeMarket.java (entire file)",
+      "description": "The point evaluation precompile at 0x0A is not implemented here: no 192-byte input check, versioned-hash/commitment match, verify_kzg_proof call, 50000 gas cost, canonical field-element rejection, or return of FIELD_ELEMENTS_PER_BLOB and BLS_MODULUS.",
+      "potential_impact": "Contracts relying on point evaluation could behave incorrectly, and non-canonical z/y values might be accepted if the precompile is absent or incorrect elsewhere.",
+      "severity": "HIGH",
+      "spec_reference": "The precompile MUST reject non-canonical field elements (i.e. provided field elements MUST be strictly less than `BLS_MODULUS`).",
+      "suggestion": "Implement the precompile exactly as specified, including len(input)==192, kzg_to_versioned_hash(commitment)==versioned_hash, verify_kzg_proof, strict < BLS_MODULUS checks for z and y, and the specified return data.",
+      "type": "MISSING_CHECK"
+    },
+    {
+      "code_location": "Absent from BlobFeeMarket.java (entire file)",
+      "description": "The BLOBHASH opcode (0x49, gas 3) returning tx.blob_versioned_hashes[index] or zero when out of bounds is not present in this file.",
+      "potential_impact": "EVM execution of blob-hash access would be incorrect or unavailable if not implemented elsewhere.",
+      "severity": "MEDIUM",
+      "spec_reference": "We add an instruction `BLOBHASH` (with opcode `HASH_OPCODE_BYTE`) which reads `index` from the top of the stack",
+      "suggestion": "Add the BLOBHASH opcode with HASH_OPCODE_GAS=3 and zero return for index >= len(tx.blob_versioned_hashes).",
+      "type": "MISSING_CHECK"
+    },
+    {
+      "code_location": "BlobFeeMarket constructor ~line 33 and fakeExponential ~line 62",
+      "description": "There is no validation that baseFeeUpdateFraction/denominator is positive. A zero denominator causes division by zero in fakeExponential, and a negative denominator can cause non-terminating or incorrect computation.",
+      "potential_impact": "Misconfiguration could crash fee calculation during block processing or validation instead of failing safely at startup.",
+      "severity": "LOW",
+      "spec_reference": "def fake_exponential(factor: int, numerator: int, denominator: int) -> int:",
+      "suggestion": "Require denominator > 0 in the constructor and document/enforce that excessBlobGas is non-negative.",
+      "type": "EDGE_CASE"
+    }
+  ],
+  "summary": "The provided BlobFeeMarket correctly implements fake_exponential and get_base_fee_per_blob_gas with factor 1, matching the specified Taylor-expansion formula. However, it only covers blob price calculation: excess-blob-gas computation, block/blob-transaction validation, KZG and sidecar checks, BLOBHASH, and the point-evaluation precompile are absent from the provided code, and BLOB_BASE_FEE_UPDATE_FRACTION is injected without validation against 3338477.",
+  "meta": {
+    "model": "muse-wonder-1.0",
+    "latency_s": 44.6,
+    "model_version": "muse-wonder-1.0",
+    "finish_reason": "stop",
+    "prompt_token_count": 7015,
+    "candidates_token_count": 4988
+  },
+  "file_name": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java",
+  "seconds": 44.6,
+  "code_sha256": "6d685a184ef72bec528b8addecfa41d41446468b4e1d0469379364c9892b275f"
+}

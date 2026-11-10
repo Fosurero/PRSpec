@@ -36,6 +36,10 @@ python scripts/mutation_scoreboard.py --besu-dir ../clients/besu --eips-dir ../c
 
 The first check compares three selected constants to the pinned spec; a match is not proof of behavioral compliance. The dry run validates the mutation inputs and runs deterministic checks; it does **not** perform model analysis. See the [pilot kit](README.md) for the draft GitHub Actions configuration. It currently uses Gemini, requires a repository secret, and has not been tested in Besu CI. Meta is supported by PRSpec, but that draft workflow is not a tested Meta workflow.
 
+## Additional focused Meta Wonder experiment
+
+A separate two-call experiment compared this exact file clean and with M5 using the stronger `muse-wonder-1.0`. It described the injected index error, but the original keyword scorer marked the comparison inconclusive because a different clean-file concern mentioned the same function. This was not independently verified and used a different specification input from the earlier Spark scoreboard. [Results and raw outputs](../../docs/evidence/2026-11-10/meta-wonder-case/README.md).
+
 ## Live Meta analysis (optional, billable)
 
 Set `MODEL_API_KEY` securely in your environment (do not commit it); source code and EIP text are sent to Meta. With the same pinned checkouts:
