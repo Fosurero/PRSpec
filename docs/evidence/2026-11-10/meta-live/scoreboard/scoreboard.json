@@ -1,0 +1,325 @@
+{
+  "manifest": {
+    "created_utc": "2026-11-10T07:13:45+00:00",
+    "prspec_commit": "f3c2f7a80e51f05aecd714a9a2e65dc0d7a6e806",
+    "besu_commit": "8f01c7a3200780b00163ab76d544e0ef6646da41",
+    "mutations_file_sha256": "0d4ed58018e5974c8d0df7aedb7495cc340650ddc53530a9f9038e9eacba2020",
+    "mutations": [
+      {
+        "id": "M1",
+        "eip": 1559,
+        "title": "ELASTICITY_MULTIPLIER 2 -> 3",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "spec_rule": "ELASTICITY_MULTIPLIER = 2; gas target = gas_limit // ELASTICITY_MULTIPLIER",
+        "keywords": [
+          "SLACK_COEFFICIENT",
+          "slack coefficient",
+          "ELASTICITY_MULTIPLIER",
+          "elasticity"
+        ]
+      },
+      {
+        "id": "M2",
+        "eip": 1559,
+        "title": "BASE_FEE_MAX_CHANGE_DENOMINATOR 8 -> 9",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "spec_rule": "BASE_FEE_MAX_CHANGE_DENOMINATOR = 8",
+        "keywords": [
+          "MAX_CHANGE_DENOMINATOR",
+          "change denominator",
+          "= 9"
+        ]
+      },
+      {
+        "id": "M3",
+        "eip": 1559,
+        "title": "drop max(..., 1) on base fee increase",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "spec_rule": "base_fee_per_gas_delta = max(parent_base_fee * gas_used_delta // target // DENOM, 1)",
+        "keywords": [
+          "max(",
+          "minimum increase",
+          "at least 1",
+          "Wei.ONE",
+          "UInt256s.max",
+          "minimum of 1",
+          "floor of 1"
+        ]
+      },
+      {
+        "id": "M4",
+        "eip": 1559,
+        "title": "gas target rounds up instead of floor division",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BaseFeeMarket.java",
+        "spec_rule": "parent_gas_target = parent_gas_limit // ELASTICITY_MULTIPLIER",
+        "keywords": [
+          "targetGasUsed",
+          "gas target",
+          "rounding",
+          "ceil",
+          "round up",
+          "floor division",
+          "integer division"
+        ]
+      },
+      {
+        "id": "M5",
+        "eip": 4844,
+        "title": "fake_exponential off-by-one in the Taylor series index",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java",
+        "spec_rule": "fake_exponential: i = 1; numerator_accum = (numerator_accum * numerator) // (denominator * i)",
+        "keywords": [
+          "fakeExponential",
+          "fake_exponential",
+          "i = 2",
+          "Taylor",
+          "series index",
+          "iteration counter"
+        ]
+      },
+      {
+        "id": "M6",
+        "eip": 4844,
+        "title": "excess_blob_gas computed against max instead of target",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CancunTargetingGasLimitCalculator.java",
+        "spec_rule": "excess = parent_excess + parent_used - TARGET_BLOB_GAS_PER_BLOCK (0 if below target)",
+        "keywords": [
+          "computeExcessBlobGas",
+          "excess blob gas",
+          "excess_blob_gas",
+          "maxBlobGasPerBlock",
+          "TARGET_BLOB_GAS"
+        ]
+      },
+      {
+        "id": "M7",
+        "eip": 4844,
+        "title": "MIN_BASE_FEE_PER_BLOB_GAS 1 -> 2",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java",
+        "spec_rule": "MIN_BASE_FEE_PER_BLOB_GAS = 1 (factor of fake_exponential)",
+        "keywords": [
+          "BLOB_GAS_PRICE",
+          "MIN_BASE_FEE_PER_BLOB_GAS",
+          "MIN_BLOB_GASPRICE",
+          "minimum blob",
+          "BigInteger.TWO"
+        ]
+      },
+      {
+        "id": "M8",
+        "eip": 4844,
+        "title": "GAS_PER_BLOB 2**17 -> 2**16",
+        "file": "evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java",
+        "spec_rule": "GAS_PER_BLOB = 2**17",
+        "keywords": [
+          "BLOB_GAS_PER_BLOB",
+          "GAS_PER_BLOB",
+          "1 << 16",
+          "2**16",
+          "65536",
+          "131072"
+        ]
+      },
+      {
+        "id": "M9",
+        "eip": 1559,
+        "title": "base fee rises when the parent block is below target",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "spec_rule": "if gas_used < target: base_fee = parent_base_fee - delta",
+        "keywords": [
+          "subtract",
+          "decrease",
+          "below target",
+          "less than target",
+          "sign",
+          "add(feeDelta)"
+        ]
+      },
+      {
+        "id": "M10",
+        "eip": 1559,
+        "title": "initial base fee applied one block after the fork block",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "spec_rule": "if block.number == FORK_BLOCK: base_fee = INITIAL_BASE_FEE",
+        "keywords": [
+          "londonForkBlockNumber",
+          "fork block",
+          "INITIAL_BASE_FEE",
+          "initial base fee",
+          "getInitialBasefee",
+          "off-by-one"
+        ]
+      }
+    ],
+    "baseline_files": {
+      "1559": [
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BaseFeeMarket.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/FeeMarket.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionValidator.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java"
+      ],
+      "4844": [
+        "evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/ExcessBlobGasCalculator.java",
+        "datatypes/src/main/java/org/hyperledger/besu/datatypes/BlobGas.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/headervalidationrules/BlobGasValidationRule.java",
+        "evm/src/main/java/org/hyperledger/besu/evm/precompile/KZGPointEvalPrecompiledContract.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CancunTargetingGasLimitCalculator.java"
+      ]
+    },
+    "runs": 1,
+    "verify": true,
+    "verify_rounds": 2,
+    "dry_run": false,
+    "witness": {
+      "M1": "caught",
+      "M2": "caught",
+      "M3": "not-applicable",
+      "M4": "not-applicable",
+      "M5": "not-applicable",
+      "M6": "not-applicable",
+      "M7": "caught",
+      "M8": "caught",
+      "M9": "not-applicable",
+      "M10": "not-applicable"
+    },
+    "provider": "meta",
+    "model": "muse-spark-1.3"
+  },
+  "rows": [
+    {
+      "run": 1,
+      "id": "M1",
+      "eip": 1559,
+      "title": "ELASTICITY_MULTIPLIER 2 -> 3",
+      "file": "LondonFeeMarket.java",
+      "outcome": "flagged",
+      "matching_issues": 2,
+      "baseline_matching_issues": 0,
+      "seconds": 98.5,
+      "witness": "caught"
+    },
+    {
+      "run": 1,
+      "id": "M2",
+      "eip": 1559,
+      "title": "BASE_FEE_MAX_CHANGE_DENOMINATOR 8 -> 9",
+      "file": "LondonFeeMarket.java",
+      "outcome": "confirmed",
+      "matching_issues": 2,
+      "baseline_matching_issues": 0,
+      "seconds": 187.8,
+      "witness": "caught"
+    },
+    {
+      "run": 1,
+      "id": "M3",
+      "eip": 1559,
+      "title": "drop max(..., 1) on base fee increase",
+      "file": "LondonFeeMarket.java",
+      "outcome": "confirmed",
+      "matching_issues": 1,
+      "baseline_matching_issues": 0,
+      "seconds": 126.3,
+      "witness": "not-applicable"
+    },
+    {
+      "run": 1,
+      "id": "M4",
+      "eip": 1559,
+      "title": "gas target rounds up instead of floor division",
+      "file": "BaseFeeMarket.java",
+      "outcome": "inconclusive",
+      "matching_issues": 2,
+      "baseline_matching_issues": 2,
+      "seconds": 76.4,
+      "witness": "not-applicable"
+    },
+    {
+      "run": 1,
+      "id": "M5",
+      "eip": 4844,
+      "title": "fake_exponential off-by-one in the Taylor series index",
+      "file": "BlobFeeMarket.java",
+      "outcome": "confirmed",
+      "matching_issues": 1,
+      "baseline_matching_issues": 0,
+      "seconds": 54.2,
+      "witness": "not-applicable"
+    },
+    {
+      "run": 1,
+      "id": "M6",
+      "eip": 4844,
+      "title": "excess_blob_gas computed against max instead of target",
+      "file": "CancunTargetingGasLimitCalculator.java",
+      "outcome": "confirmed",
+      "matching_issues": 1,
+      "baseline_matching_issues": 0,
+      "seconds": 34.5,
+      "witness": "not-applicable"
+    },
+    {
+      "run": 1,
+      "id": "M7",
+      "eip": 4844,
+      "title": "MIN_BASE_FEE_PER_BLOB_GAS 1 -> 2",
+      "file": "BlobFeeMarket.java",
+      "outcome": "confirmed",
+      "matching_issues": 1,
+      "baseline_matching_issues": 0,
+      "seconds": 52.2,
+      "witness": "caught"
+    },
+    {
+      "run": 1,
+      "id": "M8",
+      "eip": 4844,
+      "title": "GAS_PER_BLOB 2**17 -> 2**16",
+      "file": "CancunGasCalculator.java",
+      "outcome": "inconclusive",
+      "matching_issues": 1,
+      "baseline_matching_issues": 1,
+      "seconds": 33.2,
+      "witness": "caught"
+    },
+    {
+      "run": 1,
+      "id": "M9",
+      "eip": 1559,
+      "title": "base fee rises when the parent block is below target",
+      "file": "LondonFeeMarket.java",
+      "outcome": "confirmed",
+      "matching_issues": 1,
+      "baseline_matching_issues": 0,
+      "seconds": 52.2,
+      "witness": "not-applicable"
+    },
+    {
+      "run": 1,
+      "id": "M10",
+      "eip": 1559,
+      "title": "initial base fee applied one block after the fork block",
+      "file": "LondonFeeMarket.java",
+      "outcome": "inconclusive",
+      "matching_issues": 3,
+      "baseline_matching_issues": 2,
+      "seconds": 139.0,
+      "witness": "not-applicable"
+    }
+  ],
+  "counts": {
+    "flagged": 1,
+    "confirmed": 6,
+    "inconclusive": 3
+  },
+  "tokens_primary_pass": {
+    "prompt_token_count": 226847,
+    "candidates_token_count": 82430
+  },
+  "baseline_issue_candidates": [],
+  "incomplete": false,
+  "wall_seconds": 916.3
+}

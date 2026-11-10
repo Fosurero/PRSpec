@@ -1,0 +1,26 @@
+{
+  "status": "FULL_MATCH",
+  "confidence": 92,
+  "issues": [],
+  "summary": "Transaction.java correctly implements EIP-1559 transaction-level requirements: EIP-1559 signing preimage (0x02 || rlp chain_id, nonce, max_priority, max_fee, gas_limit, destination, amount, data, access_list), effective priority fee as min(max_priority, max_fee-base_fee), effective gas price as priority+base, and max upfront cost as gas_limit*max_fee+value. No deviation in fee handling, type handling, or signature recovery was found; block-level base-fee calculation, gas-limit validation and burn are delegated to other Besu components outside this file's scope.",
+  "meta": {
+    "model": "muse-spark-1.3",
+    "latency_s": 53.87,
+    "model_version": "muse-spark-1.3",
+    "finish_reason": "stop",
+    "prompt_token_count": 20462,
+    "candidates_token_count": 4935
+  },
+  "file_name": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java",
+  "verification": {
+    "confirmed": 0,
+    "disputed": 0,
+    "refuted": 0,
+    "total": 0
+  },
+  "seconds": 53.9,
+  "code_sha256": "bebfcfc90aca26d269606a8df07dab4b176f2d4c0fe4613251bd43b958c189dd",
+  "run": 1,
+  "kind": "baseline",
+  "eip": 1559
+}

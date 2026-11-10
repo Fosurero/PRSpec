@@ -1,0 +1,15 @@
+--- a/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CancunTargetingGasLimitCalculator.java
++++ b/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CancunTargetingGasLimitCalculator.java
+@@ -54,10 +54,10 @@
+       final long parentBlobGasUsed,
+       final long parentBaseFeePerGas) {
+     final long currentExcessBlobGas = parentExcessBlobGas + parentBlobGasUsed;
+-    if (currentExcessBlobGas < targetBlobGasPerBlock) {
++    if (currentExcessBlobGas < maxBlobGasPerBlock) {
+       return 0L;
+     }
+-    return currentExcessBlobGas - targetBlobGasPerBlock;
++    return currentExcessBlobGas - maxBlobGasPerBlock;
+   }
+ 
+   public long getBlobGasPerBlob() {

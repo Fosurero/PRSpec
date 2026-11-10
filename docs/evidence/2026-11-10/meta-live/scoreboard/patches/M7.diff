@@ -1,0 +1,11 @@
+--- a/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java
++++ b/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java
+@@ -25,7 +25,7 @@
+ 
+ public class BlobFeeMarket extends LondonFeeMarket {
+   private static final Logger LOG = LoggerFactory.getLogger(BlobFeeMarket.class);
+-  protected static final BigInteger BLOB_GAS_PRICE = BigInteger.ONE;
++  protected static final BigInteger BLOB_GAS_PRICE = BigInteger.TWO;
+   public static final Wei MIN_BLOB_GASPRICE = Wei.ONE;
+ 
+   private final BigInteger baseFeeUpdateFraction;

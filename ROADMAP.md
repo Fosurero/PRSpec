@@ -18,7 +18,8 @@ Nothing in column C exists today.
 
 | Capability | What exists | What is missing |
 | --- | --- | --- |
-| Gemini 2.0 live analysis | Upgraded integration (3.8 Flash default, JSON mode, retries, truncation handling, usage metadata), unit-tested; `gemini-live.yml` | Live run results; quality numbers on the scoreboard |
+| Gemini 2.0 live analysis | Upgraded integration (3.8 Flash default, JSON mode, retries, truncation handling, usage metadata), unit-tested; `gemini-live.yml` with a model preference list; one live mutation (M3, 3.6 Flash) | Full scoreboard (needs a paid-tier key or several days of free quota); repeated runs; token metering of verification calls |
+| LLM scoreboard, other providers | One full Meta Muse Spark run (6 confirmed / 1 flagged / 3 inconclusive, 0 baseline candidates) | Repeats (n > 1), cost per run including verification, same run on Gemini for comparison |
 | Besu Pilot Kit | Read-only workflow pair, pinned config, suppression list, scoreboard | Run inside a Besu fork/PR; replay of 3–5 historical Besu PRs; maintainer feedback |
 | Docker image | Non-root Dockerfile + lock file; CI build + smoke test | Image not built locally (no daemon); not published to a registry |
 | Fork Watch | Constant-level diff | Prose/algorithm-level change detection; automatic watching of merged spec PRs |

@@ -1,0 +1,11 @@
+--- a/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
++++ b/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+@@ -108,7 +108,7 @@
+       gasDelta = targetGasUsed - parentBlockGasUsed;
+       final long denominator = getBasefeeMaxChangeDenominator();
+       feeDelta = parentBaseFee.multiply(gasDelta).divide(targetGasUsed).divide(denominator);
+-      baseFee = parentBaseFee.subtract(feeDelta);
++      baseFee = parentBaseFee.add(feeDelta);
+     }
+     LOG.trace(
+         "block #{} parentBaseFee: {} parentGasUsed: {} parentGasTarget: {} baseFee: {}",

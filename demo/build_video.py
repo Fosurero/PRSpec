@@ -86,7 +86,7 @@ def frames(live: Path | None):
         '<div class="kicker">PRSpec 2.0 · Ethereum execution clients</div>'
         '<h1>Does the client code match the EIP text it implements?</h1>'
         '<p>Reproducible spec-to-code evidence for Besu, go-ethereum and Nethermind: '
-        'deterministic witnesses, Fork Watch, and Gemini-assisted semantic analysis.</p>',
+        'deterministic witnesses, Fork Watch, and LLM-assisted semantic analysis (Gemini by default).</p>',
         "Every table in this video is rendered from raw output files in docs/evidence/. Nothing is typed in by hand."), 6))
 
     out.append((page(
@@ -155,7 +155,7 @@ def frames(live: Path | None):
         f'<div class="card"><div class="big warn">{len(rest)}/10</div>'
         f'<div class="lbl">invisible to constant checks<br><span class="mono">{" ".join(rest)}</span>: removed max(1,…), rounding, '
         'off-by-one in fake_exponential, flipped sign, fork-block base fee</div></div></div>'
-        '<p>The second group is what the semantic layer is for, and what Gemini is measured on.</p>',
+        '<p>The second group is what the semantic layer is for, and what the LLM layer is measured on.</p>',
         "Criteria fixed in pilot/besu/mutations.yaml before any run · mutated in memory; the Besu checkout is never edited"), 10))
 
     out.append((live_frame(live), 12))
@@ -179,6 +179,9 @@ def frames(live: Path | None):
     return out
 
 
+PROVIDER_LABEL = {"gemini": "Gemini", "meta": "Meta Muse", "openai": "OpenAI", "local": "Local model"}
+
+
 def live_frame(live: Path | None) -> str:
     if not live or not (live / "scoreboard" / "scoreboard.json").exists():
         return page('<div class="kicker">Layer 3 · Gemini semantic analysis</div>'
@@ -194,6 +197,7 @@ def live_frame(live: Path | None) -> str:
         except (json.JSONDecodeError, IndexError):
             probe = {}
     m = sb["manifest"]
+    label = PROVIDER_LABEL.get(m.get("provider"), str(m.get("provider")))
     counts = sb.get("counts", {})
     rows = "".join(
         f'<tr><td class="mono">{esc(r["id"])}</td><td>{esc(r["title"])}</td>'
@@ -202,12 +206,16 @@ def live_frame(live: Path | None) -> str:
     tok = sb.get("tokens_primary_pass", {})
     warn = ('<p class="bad">INCOMPLETE RUN: at least one call failed. These numbers are partial.</p>'
             if sb.get("incomplete") else "")
+    if m.get("provider") != "gemini":
+        warn += (f'<p class="warn">Provider: {esc(label)}, not Gemini. The pre-registered Gemini run has not completed yet.</p>')
+    warn += ('<p class="small">Pre-registered rules: confirmed = matching issue upheld by verification; flagged = matching issue, '
+             'not upheld; inconclusive = the clean baseline already raised a matching issue, so the hit is not counted.</p>')
     return page(
-        '<div class="kicker">Layer 3 · Gemini semantic analysis · live run</div>'
+        f'<div class="kicker">Layer 3 · {esc(label)} semantic analysis · live run</div>'
         f'<h2>{esc(m.get("model"))}: ' + ", ".join(f"{esc(k)} {v}" for k, v in sorted(counts.items())) + '</h2>'
         + warn +
-        '<table><tr><th>ID</th><th>Mutation</th><th>Gemini outcome</th><th>Witness</th></tr>' + rows + '</table>',
-        f"model_version {esc(probe.get('model_version'))} · tokens {esc(tok.get('total_token_count', 'n/a'))} · "
+        f'<table class="dense"><tr><th>ID</th><th>Mutation</th><th>{esc(label)} outcome</th><th>Witness</th></tr>' + rows + '</table>',
+        f"model_version {esc(probe.get('model_version', m.get('model')))} · tokens (primary pass) in {esc(tok.get('prompt_token_count', 'n/a'))} / out {esc(tok.get('candidates_token_count', 'n/a'))} · "
         f"wall {esc(sb.get('wall_seconds'))} s · baseline candidates for triage: {len(sb.get('baseline_issue_candidates', []))} · "
         f"raw JSON in {esc(live.relative_to(ROOT) if live.is_relative_to(ROOT) else live)}")
 
@@ -234,7 +242,10 @@ def main():
             pg.set_content(doc, wait_until="load")
             pg.screenshot(path=str(fdir / f"{i:02d}.png"))
         b.close()
-    name = "prspec-2.0-demo.mp4" if final else "prspec-2.0-demo-preliminary.mp4"
+    provider = load(live / "scoreboard" / "scoreboard.json")["manifest"].get("provider") if final else None
+    # Only a Gemini scoreboard makes the final cut; any other provider is named after itself.
+    name = ("prspec-2.0-demo.mp4" if provider == "gemini" else f"prspec-2.0-demo-{provider}.mp4") if final \
+        else "prspec-2.0-demo-preliminary.mp4"
     dst = a.out / name
     inputs, filt, last = [], [], None
     offset = 0.0
@@ -253,7 +264,7 @@ def main():
            "-map", f"[{last}]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
            "-movflags", "+faststart", str(dst)]
     subprocess.run(cmd, check=True)
-    print(f"{dst} ({'final' if final else 'PRELIMINARY: no live Gemini results'})")
+    print(f"{dst} ({('final' if provider == 'gemini' else f'{provider} results, not the Gemini final cut') if final else 'PRELIMINARY: no live LLM results'})")
     return 0
 
 

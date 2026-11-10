@@ -1,0 +1,49 @@
+{
+  "status": "PARTIAL_MATCH",
+  "confidence": 99,
+  "issues": [
+    {
+      "code_location": "LondonFeeMarket.computeBaseFee(), else-branch for parentBlockGasUsed < targetGasUsed",
+      "description": "When parent block gas used is below target, the code computes feeDelta correctly but then adds it to the parent base fee (parentBaseFee.add(feeDelta)) instead of subtracting it. The decreasing case therefore increases the base fee identically to the congested case.",
+      "potential_impact": "Base fee can never decrease, only stay flat or increase. This causes consensus divergence from correct EIP-1559 clients, permanently inflated base fees, overcharging/burning, incorrect rejection of valid blocks and acceptance of invalid blocks, and chain split.",
+      "severity": "HIGH",
+      "spec_reference": "expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta",
+      "suggestion": "Change the else-branch to subtract: baseFee = parentBaseFee.subtract(feeDelta) (with underflow guard to zero), matching the reference implementation's decreasing case.",
+      "type": "INCORRECT_LOGIC",
+      "verification": {
+        "verdict": "CONFIRMED",
+        "verification_score": 100,
+        "grounded": true,
+        "grounding_score": 1.0,
+        "rounds": 2,
+        "votes": {
+          "confirm": 2,
+          "refute": 0,
+          "unsure": 0
+        },
+        "matched_excerpt": "expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta"
+      }
+    }
+  ],
+  "summary": "Base-fee increase logic matches EIP-1559 but the decrease logic is inverted to add instead of subtract. The base fee therefore never decreases, breaking the core elasticity mechanism and causing consensus failure versus compliant clients.",
+  "meta": {
+    "model": "muse-spark-1.3",
+    "latency_s": 23.39,
+    "model_version": "muse-spark-1.3",
+    "finish_reason": "stop",
+    "prompt_token_count": 9157,
+    "candidates_token_count": 2512
+  },
+  "file_name": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+  "verification": {
+    "confirmed": 1,
+    "disputed": 0,
+    "refuted": 0,
+    "total": 1
+  },
+  "seconds": 52.2,
+  "code_sha256": "5f626fd66790555656f7bbaf543a2d75f4027280ba98c274a59769766673a0e0",
+  "run": 1,
+  "kind": "M9",
+  "eip": 1559
+}

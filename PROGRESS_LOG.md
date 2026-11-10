@@ -52,3 +52,20 @@ Times are UTC. Newest last.
   source per frame); `demo/out/` ignored. Tests: 210 passed, 2 skipped (key-free); ruff clean.
   Note: with `GEMINI_API_KEY` exported, the 2 opt-in live tests run and hang on 3.8 Flash 503 retries;
   run the suite without keys.
+- 07:05 — **Pushed `evidence-pilot`** `ae66a3e..f3c2f7a` (fast-forward, no force; `main` untouched at `047dd15`).
+  CI run `42772789938` and Gemini live run `42772789877` started, and every job was refused before its first step:
+  "The job was not started because your account is locked due to a billing issue." This is a GitHub account billing problem; no
+  runner time or API calls were used.
+- 07:06–07:14 — Local run of the `gemini-live.yml` steps verbatim. Probe pass 1: 3.8 Flash 504, 3.6 Flash **429
+  free-tier daily quota (20 requests/model/day)**, 3.5 Flash OK. Stopped before the scoreboard because one
+  scoreboard needs about 22 primary calls plus verification calls, more than the free-tier day allows. Probe evidence in
+  `docs/evidence/2026-11-10/gemini-probe-local/`.
+- 07:10 — `ci.yml` witness job run locally against today's default branches (Besu `6d134c0e`): 34 ✅, 2 ⚪, exit 0.
+- 07:14–07:29 — **Meta Muse Spark full scoreboard** (labeled Meta, not Gemini): 10 mutations, verify 2 rounds → 6 confirmed,
+  1 flagged, 3 inconclusive, 0 missed, 0 errors; baseline 33 raw issues, all refuted → 0 candidates; 226,847 in /
+  82,430 out primary tokens (about 0.63 USD at published prices, verification calls not metered); 916 s.
+  Human check: each mutated file has a correct matching issue. Evidence `docs/evidence/2026-11-10/meta-live/`.
+- 07:35 — Video: live frame is provider-aware (kicker, column, "not Gemini" warning, outcome definitions, tokens). Built
+  `demo/out/prspec-2.0-demo-meta.mp4` (84 s, 1920×1080, no audio); sampled every 5 s from the encoded file, and all 9 frames
+  render correctly. The Gemini final cut is still pending.
+- 07:45 — README, PROJECT_STATUS, VERIFICATION, ROADMAP, NEXT_STEPS updated.

@@ -1,12 +1,16 @@
 # PRSpec project status
 
-_Last updated: 2026-11-10 (UTC) · branch `evidence-pilot` · version 2.0.0 (untagged)_
+_Last updated: 2026-11-10 07:45 UTC · branch `evidence-pilot` (pushed) · version 2.0.0 (untagged)_
 
 ## ملخص بالعربي
 
-- **اتعمل واتتحقق منه:** طبقة witness حتمية (من غير LLM) لـ EIP-1559 وEIP-4844 على Besu وGeth وNethermind: 34 فحص، 34 مطابق. Fork Watch على تاريخ EIP-4844 الحقيقي. عمود witness في الـ mutation scoreboard بيمسك 4 من 10 من غير API key. تحديث Gemini (الافتراضي `gemini-3.8-flash`). مزود محلي مع `--no-cloud`. Dockerfile. CI جديد. الإصدار 2.0.0. 210 اختبارات ناجحة، بالإضافة إلى تكامل Meta Muse واختبار حي على مثال اصطناعي واحد.
-- **ناقص:** تشغيل Gemini الحي والـ scoreboard: طلب التوليد رجّع 503 وقت الفحص. سر `GEMINI_API_KEY` موجود في GitHub Actions، لكن لم نتحقق من قيمته أو نشغّل الـ workflow. توكن GitHub الذي قدّمه المستخدم أثبت صلاحية الوصول والـ push، لكن الفرع لم يُرفع بعد. الفيديو النهائي مستني نتايج تشغيل Gemini.
-- **ممنوع ادعاؤه:** أي نسبة اكتشاف أو false positives أو تكلفة لـ Gemini، لحد ما التشغيل يتم فعلًا.
+_آخر تحديث 2026-11-10 07:45 UTC._
+
+- **اتعمل واتتحقق منه:** طبقة witness حتمية لـ EIP-1559 وEIP-4844 على Besu وGeth وNethermind: 34 مطابق و0 مختلف، و2 من غير anchor. نفس الفحص شغال كمان على الفروع الحالية للعملاء. Fork Watch على تاريخ EIP-4844 الحقيقي، وعمود witness بيمسك 4 من 10 من غير API key. الفرع `evidence-pilot` اترفع على GitHub. 210 اختبارات ناجحة.
+- **أول نتيجة LLM كاملة (Meta Muse، مش Gemini):** الـ 10 mutations على `muse-spark-1.3`: 6 confirmed و1 flagged و3 inconclusive و0 missed و0 errors. على كود Besu النظيف طلع 33 ملاحظة، والتحقق رفضها كلها، فمفيش أي false positive مؤكد. دي تجربة واحدة، مش نسبة اكتشاف.
+- **Gemini:** المفتاح شغال. `gemini-3.8-flash` كان بيرجع 503 طول اليوم. تجربة M3 على `gemini-3.6-flash` طلعت confirmed. التشغيل الكامل متوقف لأن المفتاح free tier وحده 20 طلب في اليوم لكل موديل.
+- **عوائق عند Safi:** GitHub Actions رافض يشغّل أي job بسبب قفل في الفوترة على الحساب، و`GEMINI_API_KEY` محتاج تفعيل الفوترة عشان التشغيل الكامل.
+- **ممنوع ادعاؤه:** أي نسبة اكتشاف أو تكلفة لـ Gemini، ونجاح CI أو Docker على GitHub.
 
 ## Initial audit (requested sections)
 
@@ -67,8 +71,16 @@ merge, tag `v2.0.0`, GitHub release with notes from `CHANGELOG.md`.
 
 ## Blockers
 
-1. **No `GEMINI_API_KEY` in this environment.** The secret exists in GitHub (per maintainer) and is only
-   usable from Actions. → `gemini-live.yml` runs it from `evidence-pilot`.
-2. **No push access from this environment** (no GitHub credentials; earlier sessions got 403). Work is
-   committed locally and exported as a git bundle + patch series (see `NEXT_STEPS.md`).
-3. **No Docker daemon** here; the Dockerfile is verified only by the CI job once pushed.
+_Updated 2026-11-10 07:25 UTC._
+
+1. **GitHub Actions cannot start any job: "your account is locked due to a billing issue".** The push of
+   `evidence-pilot` (`f3c2f7a`) triggered CI run `42772789938` and Gemini live run `42772789877`; every job
+   failed before its first step with that annotation. No runner time and no API calls were used. Fix is on
+   the account owner's side (GitHub → Settings → Billing and plans). Until then CI, the Docker job and the
+   repository-secret Gemini run cannot be verified on GitHub.
+2. **The Gemini key Safi shared is on the free tier: 20 `generate_content` requests per day per model**
+   (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, quotaValue 20). The pre-registered scoreboard needs
+   roughly 19 primary calls plus verification calls, so one model cannot complete it in a day on this key.
+   `gemini-3.8-flash` additionally returned 503 "high demand" on every probe. Options: enable billing on the
+   Google AI project (paid-tier cost not measured yet; the M3 smoke used about 92k tokens) or split the run across days.
+3. **No Docker daemon** on the agent machine; the Dockerfile is only verifiable by the CI job (blocked by 1).

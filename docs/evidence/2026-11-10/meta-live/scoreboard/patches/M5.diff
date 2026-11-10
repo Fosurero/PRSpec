@@ -1,0 +1,11 @@
+--- a/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java
++++ b/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java
+@@ -60,7 +60,7 @@
+ 
+   protected BigInteger fakeExponential(
+       final BigInteger factor, final BigInteger numerator, final BigInteger denominator) {
+-    int i = 1;
++    int i = 2;
+     BigInteger output = BigInteger.ZERO;
+     BigInteger numeratorAccumulator = factor.multiply(denominator);
+     while (numeratorAccumulator.signum() > 0) {

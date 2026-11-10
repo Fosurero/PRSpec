@@ -1,0 +1,27 @@
+# PRSpec x Besu mutation scoreboard
+
+- Besu commit: `8f01c7a3200780b00163ab76d544e0ef6646da41`
+- PRSpec commit: `f3c2f7a80e51f05aecd714a9a2e65dc0d7a6e806`
+- Model: `meta` / `muse-spark-1.3`; verify: True (2 rounds); runs: 1
+- mutations.yaml sha256: `0d4ed58018e5974c...` (criteria fixed before the run)
+
+| Run | ID | EIP | Mutation | File | LLM outcome | Matching issues | Witness (no LLM) | Seconds |
+|---|---|---|---|---|---|---|---|---|
+| 1 | M1 | 1559 | ELASTICITY_MULTIPLIER 2 -> 3 | `LondonFeeMarket.java` | **flagged** | 2 | caught | 98.5 |
+| 1 | M2 | 1559 | BASE_FEE_MAX_CHANGE_DENOMINATOR 8 -> 9 | `LondonFeeMarket.java` | **confirmed** | 2 | caught | 187.8 |
+| 1 | M3 | 1559 | drop max(..., 1) on base fee increase | `LondonFeeMarket.java` | **confirmed** | 1 | not-applicable | 126.3 |
+| 1 | M4 | 1559 | gas target rounds up instead of floor division | `BaseFeeMarket.java` | **inconclusive** | 2 | not-applicable | 76.4 |
+| 1 | M5 | 4844 | fake_exponential off-by-one in the Taylor series index | `BlobFeeMarket.java` | **confirmed** | 1 | not-applicable | 54.2 |
+| 1 | M6 | 4844 | excess_blob_gas computed against max instead of target | `CancunTargetingGasLimitCalculator.java` | **confirmed** | 1 | not-applicable | 34.5 |
+| 1 | M7 | 4844 | MIN_BASE_FEE_PER_BLOB_GAS 1 -> 2 | `BlobFeeMarket.java` | **confirmed** | 1 | caught | 52.2 |
+| 1 | M8 | 4844 | GAS_PER_BLOB 2**17 -> 2**16 | `CancunGasCalculator.java` | **inconclusive** | 1 | caught | 33.2 |
+| 1 | M9 | 1559 | base fee rises when the parent block is below target | `LondonFeeMarket.java` | **confirmed** | 1 | not-applicable | 52.2 |
+| 1 | M10 | 1559 | initial base fee applied one block after the fork block | `LondonFeeMarket.java` | **inconclusive** | 3 | not-applicable | 139.0 |
+
+Totals: confirmed = 6, flagged = 1, inconclusive = 3
+
+Baseline (clean HEAD) issue candidates for hand triage: 0
+
+Tokens (primary analysis calls, from API usage metadata): prompt_token_count = 226847, candidates_token_count = 82430
+
+Wall time: 916.3 s

@@ -25,7 +25,7 @@ scripts/fetch_clients.sh /tmp/clients 8f01c7a3200780b00163ab76d544e0ef6646da41 \
 | # | Command | Result | Artifact |
 | --- | --- | --- | --- |
 | 1 | `ruff check .` | All checks passed | — |
-| 2 | `python -m pytest -q` | 206 passed, 2 skipped (need a Gemini key) | — |
+| 2 | `python -m pytest -q` (no keys exported) | 210 passed, 2 skipped (need a Gemini key) | — |
 | 3 | clean venv, `pip install .`, `cd /tmp && prspec --version` | `PRSpec, version 2.0.0`; `prspec witness --eip 1559 --list` works (rulebooks shipped) | — |
 | 4 | `prspec witness --eip 1559 -t besu=… -t go-ethereum=… -t nethermind=… --eips-dir …` | 9 ✅, exit 0 | `docs/evidence/2026-11-10/witness-1559.{md,json}` |
 | 5 | same for `--eip 4844` | 25 ✅, 2 ⚪ (no anchor), exit 0 | `witness-4844.{md,json}` |
@@ -46,12 +46,38 @@ Usage reported: 536 prompt tokens and 1,116 completion tokens; 12.59 s. This sin
 not a benchmark or evidence of production accuracy. A separate connectivity test returned `OK`
 (12 prompt / 16 completion tokens). `pytest -q`: 210 passed, 2 skipped; `ruff check .` clean.
 
+## Live LLM runs, 2026-11-10 (continuation session)
+
+All runs used `scripts/mutation_scoreboard.py` at the pinned Besu `8f01c7a3` and EIPs `542e62eb`, with
+sources from `scripts/fetch_clients.sh` (after the sparse-path fix in `b978857`). Keys came from the
+environment only and were never written to the repository.
+
+| # | Command (summary) | Result | Artifact |
+| --- | --- | --- | --- |
+| 13 | `prspec models` + direct one-line probes | listing OK; `gemini-3.8-flash` 503 "high demand" (every attempt); `gemini-3.7-flash` 504; `gemini-3.6-flash` OK, later 429 free-tier daily quota (20 requests/model/day); `gemini-3.5-flash` OK (`model_version` `gemini-3.6-flash`) | `docs/evidence/2026-11-10/gemini-probe-local/` |
+| 14 | scoreboard `--only M3 --provider gemini`, `GEMINI_MODEL=gemini-3.6-flash`, verify 2 rounds | M3 confirmed; 2 baseline candidates, not triaged; 79,451 prompt / 1,511 output / 11,254 thinking tokens (primary pass); 211.5 s | `docs/evidence/2026-11-10/gemini-local-smoke-M3/` |
+| 15 | scoreboard, all 10, `--provider meta`, `META_MODEL=muse-spark-1.3`, verify 2 rounds, 1 run, 2 workers | confirmed 6, flagged 1, inconclusive 3, missed 0, errors 0; baseline 33 raw issues in 12 files, all REFUTED → 0 candidates; 226,847 in / 82,430 out (primary pass); 916 s | `docs/evidence/2026-11-10/meta-live/` |
+| 16 | `ci.yml` job `witness-live-clients`, run locally (`fetch_clients.sh` at default branches; Besu `6d134c0e`) | EIP-1559 9 ✅; EIP-4844 25 ✅, 2 ⚪; exit 0 | — |
+| 17 | `demo/build_video.py --live docs/evidence/2026-11-10/meta-live` | `prspec-2.0-demo-meta.mp4`, 84 s, 1920×1080 H.264, no audio; frames sampled every 5 s from the encoded file and checked | `demo/out/` (not in Git) |
+
+Human review of run 15 (not a tool result): in each of the 10 mutated files, a keyword-matching issue
+describes the injected deviation correctly; M1's was DISPUTED by verification. Cost of run 15 at the
+published Spark prices (1.25 USD/M in, 4.25 USD/M out) is about 0.63 USD for the primary pass. The roughly
+2 verification calls per raised issue are not metered by the script, so the real total is higher.
+
+## GitHub Actions, 2026-11-10
+
+Push `ae66a3e..f3c2f7a` to `evidence-pilot` triggered CI run `42772789938` and Gemini live run
+`42772789877`. Every job failed before its first step with the annotation "The job was not started because
+your account is locked due to a billing issue." No step ran, so the CI, Docker and repository-secret
+results are still unverified.
+
 ## Not verified here (and why)
 
 | Item | Why | Where it gets verified |
 | --- | --- | --- |
-| Gemini live analysis / scoreboard numbers | live generation returned HTTP 503; scoreboard not run | `.github/workflows/gemini-live.yml` → `docs/evidence/<date>/gemini-live/` |
-| Gemini model availability for the project key | listed by API, but generation returned HTTP 503 | `prspec models --probe` step in the same workflow |
-| Docker build | no daemon | `ci.yml` job `docker` |
-| Witness matrix on default branches | done locally at pinned commits only | `ci.yml` job `witness-live-clients` |
+| Gemini scoreboard numbers | 3.8 Flash 503; free-tier key allows 20 requests/model/day; Actions blocked by billing lock; only M3 run | `.github/workflows/gemini-live.yml` → `docs/evidence/<date>/gemini-live/` |
+| Repository-secret `GEMINI_API_KEY` | Actions jobs refused (billing lock) | `prspec models --probe` step in the same workflow |
+| Docker build | no daemon; Actions blocked | `ci.yml` job `docker` |
+| Witness matrix on default branches in Actions | job refused (billing lock); run locally instead (row 16) | `ci.yml` job `witness-live-clients` |
 | Inference quality of any local model | no GPU/model here | ROADMAP C8 |

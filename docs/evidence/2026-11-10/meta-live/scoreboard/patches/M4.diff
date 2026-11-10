@@ -1,0 +1,11 @@
+--- a/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BaseFeeMarket.java
++++ b/ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BaseFeeMarket.java
+@@ -44,7 +44,7 @@
+    * @return long target gas value.
+    */
+   default long targetGasUsed(final BlockHeader blockHeader) {
+-    return blockHeader.getGasLimit() / getSlackCoefficient();
++    return (blockHeader.getGasLimit() + getSlackCoefficient() - 1) / getSlackCoefficient();
+   }
+ 
+   Wei computeBaseFee(

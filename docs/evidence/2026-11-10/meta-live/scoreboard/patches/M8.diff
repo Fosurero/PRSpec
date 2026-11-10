@@ -1,0 +1,11 @@
+--- a/evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java
++++ b/evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java
+@@ -47,7 +47,7 @@
+    * The blob gas cost per blob. This is the gas cost for each blob of data that is added to the
+    * block. 1 << 17 = 131072 = 0x20000
+    */
+-  private static final long BLOB_GAS_PER_BLOB = 1 << 17;
++  private static final long BLOB_GAS_PER_BLOB = 1 << 16;
+ 
+   // EIP-1153
+   @Override

@@ -16,7 +16,9 @@ it was produced from.
 > Everything under [Verified results](#verified-results-2026-11-10) was produced by commands you can
 > rerun ([VERIFICATION.md](VERIFICATION.md)). The live Gemini experiment runs in
 > [`gemini-live.yml`](.github/workflows/gemini-live.yml); its results are published in
-> [`docs/evidence/`](docs/evidence/) only after the run has actually happened. See
+> [`docs/evidence/`](docs/evidence/) only after the run has actually happened. As of 2026-11-10 the
+> full scoreboard has run once on **Meta Muse Spark** (not Gemini); the Gemini scoreboard is still pending
+> (free-tier quota, and GitHub Actions is blocked by an account billing lock). See
 > [PROJECT_STATUS.md](PROJECT_STATUS.md) for what is done, partial, and planned.
 
 ---
@@ -81,15 +83,32 @@ line. The other 6 are logic changes (a removed `max(1, …)`, rounding, an off-b
 constant check can see those, so they are what the Gemini layer is measured on.
 [Output](docs/evidence/2026-11-10/scoreboard-dry-run.txt)
 
-**4. Engineering checks.** There are 206 passing tests (2 skipped because they need a key) and ruff is
+**4. Engineering checks.** There are 210 passing tests (2 skipped because they need a key) and ruff is
 clean. A clean install outside the checkout gives `prspec --version` → `2.0.0`. A real HTTP round trip
 to a local OpenAI-compatible server passes, and so do the `--no-cloud` guard and the Gemini fail-closed
 handling for truncated, blocked, empty and transient-error responses.
 
-**Not verified yet:** the Gemini live numbers, which come from the
-[`gemini-live`](.github/workflows/gemini-live.yml) workflow; the Docker build, which no Docker daemon
-was available to test, so CI builds it; a run inside Besu's own CI; and inference against a real local
-model.
+**5. Besu mutation scoreboard, LLM column, Meta Muse Spark (one run, not Gemini).** All 10 pre-registered
+mutations, `muse-spark-1.3`, verification 2 rounds, 1 run, executed on the maintainer's agent machine with
+the same script and pinned commits as the workflow. Pre-registered outcome: **6 confirmed, 1 flagged,
+3 inconclusive, 0 missed, 0 errors**. Inconclusive (M4, M8, M10) means the clean baseline already raised a
+keyword-matching issue, so the rule does not count the hit. On clean Besu the model raised 33 issues in
+12 files and verification refuted all 33, so there are 0 confirmed baseline false-positive candidates.
+Primary-pass tokens: 226,847 in / 82,430 out (verification calls are not metered by the script yet).
+Wall time 916 s. Human note, separate from the tool result: in each of the 10 mutated files, a matching
+issue describes the injected deviation correctly. n = 1 run on one commit, so this is not a detection rate.
+[Scoreboard](docs/evidence/2026-11-10/meta-live/scoreboard/scoreboard.md)
+
+**6. Gemini, so far.** The key works (`gemini-3.6-flash` and `gemini-3.5-flash` answer). `gemini-3.8-flash`
+returned 503 "high demand" on every probe on 2026-11-10. A one-mutation smoke run (M3, `gemini-3.6-flash`,
+verify 2 rounds) gave **confirmed**, with 2 baseline issue candidates that still need hand triage
+([evidence](docs/evidence/2026-11-10/gemini-local-smoke-M3/scoreboard.md)). The full run cannot finish on the
+current key: it is on the free tier, with 20 requests per day per model, and one scoreboard needs about
+22 primary calls plus about 2 verification calls per raised issue.
+
+**Not verified yet:** the Gemini scoreboard; CI on GitHub (every job of the 2026-11-10 push was refused
+before starting: "account is locked due to a billing issue"); the Docker build, which no Docker daemon was
+available to test; a run inside Besu's own CI; and inference against a real local model.
 
 ---
 
@@ -226,7 +245,8 @@ Limits, stated plainly:
   and those are not modelled yet.
 - LLM findings are candidates for human review. The verification score is an internal vote, not a
   probability.
-- No detection rate, false-positive rate or cost has been published until the live run produces one.
+- No detection rate, false-positive rate or cost is claimed. One Meta Muse run (n = 1) is published as
+  evidence, and the Gemini scoreboard has not run yet.
 
 ---
 

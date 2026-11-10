@@ -1,0 +1,3 @@
+gemini-3.5-flash
+gemini-3.5-flash-lite
+{"probe_model": "gemini-3.5-flash", "text": "{\"ok\": true}", "latency_s": 56.05, "model_version": "gemini-3.6-flash", "prompt_token_count": 11, "candidates_token_count": 5, "thoughts_token_count": 96, "total_token_count": 112, "finish_reason": "STOP"}
