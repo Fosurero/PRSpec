@@ -36,6 +36,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from src import witness as W  # noqa: E402
 from src.code_fetcher import CodeFetcher  # noqa: E402
 
 EXIT_INCOMPLETE = 20
@@ -179,6 +180,8 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--dry-run", action="store_true", help="validate only, no LLM calls")
     ap.add_argument("--allow-other-commit", action="store_true")
+    ap.add_argument("--eips-dir", type=Path, default=None,
+                    help="local ethereum/EIPs checkout for the witness spec text (else GitHub raw)")
     args = ap.parse_args()
 
     besu_dir = args.besu_dir.resolve()
@@ -207,7 +210,13 @@ def main() -> int:
         "runs": args.runs, "verify": not args.no_verify, "verify_rounds": args.verify_rounds,
         "dry_run": args.dry_run,
     }
+    # Deterministic witness column (no LLM): does a rulebook constant check
+    # catch the mutation? Runs in --dry-run too.
+    wit = witness_column(muts, besu_dir, args.eips_dir)
+    (out / "witness.json").write_text(json.dumps(wit, indent=2))
+    manifest["witness"] = {k: v["outcome"] for k, v in wit.items()}
     if args.dry_run:
+        print(render_witness_column(wit))
         (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
         print(f"OK: {len(muts)} mutations apply exactly once at {head}; "
               f"all target registered files. Baseline = "
@@ -240,7 +249,8 @@ def main() -> int:
             m = next(x for x in muts if x["id"] == kind)
             verdict = classify(res, base[f], m["keywords"], not args.no_verify)
             rows.append({"run": run, "id": kind, "eip": eip, "title": m["title"],
-                         "file": Path(f).name, **verdict, "seconds": res.get("seconds")})
+                         "file": Path(f).name, **verdict, "seconds": res.get("seconds"),
+                         "witness": wit.get(kind, {}).get("outcome")})
 
     # False-positive candidates: issues on clean code (CONFIRMED if verified)
     fp = [{"run": b["run"], "file": Path(b["file_name"]).name,
@@ -251,7 +261,14 @@ def main() -> int:
     counts = {}
     for r in rows:
         counts[r["outcome"]] = counts.get(r["outcome"], 0) + 1
-    score = {"manifest": manifest, "rows": rows, "counts": counts,
+    tokens = {}
+    for f in (out / "raw").glob("run*.json"):
+        meta = json.loads(f.read_text()).get("meta") or {}
+        for k in ("prompt_token_count", "candidates_token_count", "thoughts_token_count",
+                  "total_token_count"):
+            if isinstance(meta.get(k), int):
+                tokens[k] = tokens.get(k, 0) + meta[k]
+    score = {"manifest": manifest, "rows": rows, "counts": counts, "tokens_primary_pass": tokens,
              "baseline_issue_candidates": fp, "incomplete": incomplete,
              "wall_seconds": round(time.monotonic() - t_start, 1)}
     (out / "scoreboard.json").write_text(json.dumps(score, indent=2))
@@ -259,6 +276,45 @@ def main() -> int:
     (out / "scoreboard.md").write_text(render_md(score))
     print(render_md(score))
     return EXIT_INCOMPLETE if incomplete else 0
+
+
+def witness_column(muts, besu_dir: Path, eips_dir) -> dict:
+    """Per mutation: 'caught' if a witness rule passes on clean code and fails
+    on the mutated file; 'not-applicable' if no rule covers it; 'error' if the
+    rulebook could not be evaluated (never silently 'missed')."""
+    out, books, specs, base = {}, {}, {}, {}
+    for m in muts:
+        eip = m["eip"]
+        try:
+            if eip not in books:
+                books[eip] = W.load_rulebook(eip)
+                specs[eip] = W.load_spec_text(eip, books[eip]["spec"]["pinned_ref"],
+                                              eips_dir=eips_dir)
+                base[eip] = {r.rule_id: r.status for r in W.check_rules(
+                    books[eip], specs[eip], "besu", W.dir_reader(besu_dir))}
+            res = W.check_rules(books[eip], specs[eip], "besu",
+                                W.dir_reader(besu_dir, {m["file"]: m["mutated"]}))
+        except Exception as e:  # noqa: BLE001
+            out[m["id"]] = {"outcome": "error", "note": f"{type(e).__name__}: {e}"}
+            continue
+        caught = [r for r in res if r.status == W.FAIL and base[eip].get(r.rule_id) == W.PASS]
+        if caught:
+            out[m["id"]] = {"outcome": "caught", "rules": [r.to_dict() for r in caught]}
+        else:
+            out[m["id"]] = {"outcome": "not-applicable",
+                            "note": "no constant rule covers this mutation; needs semantic (LLM) analysis"}
+    return out
+
+
+def render_witness_column(wit: dict) -> str:
+    lines = ["Deterministic witness (no LLM, no API key):"]
+    for mid, w in wit.items():
+        extra = ""
+        if w["outcome"] == "caught":
+            extra = "; ".join(f"{r['rule_id']}: spec {r['expected']} vs code {r['actual']} "
+                              f"({Path(r['code_file']).name}:{r['code_line']})" for r in w["rules"])
+        lines.append(f"  {mid:4} {w['outcome']:15} {extra}")
+    return "\n".join(lines)
 
 
 def render_md(score: dict) -> str:
@@ -274,16 +330,20 @@ def render_md(score: dict) -> str:
     ]
     if score["incomplete"]:
         lines += ["> **INCOMPLETE RUN**: at least one analysis failed. Do not publish these numbers.", ""]
-    lines += ["| Run | ID | EIP | Mutation | File | Outcome | Matching issues | Seconds |",
-              "|---|---|---|---|---|---|---|---|"]
+    lines += ["| Run | ID | EIP | Mutation | File | LLM outcome | Matching issues | Witness (no LLM) | Seconds |",
+              "|---|---|---|---|---|---|---|---|---|"]
     for r in score["rows"]:
         lines.append(f"| {r['run']} | {r['id']} | {r['eip']} | {r['title']} | `{r['file']}` | "
-                     f"**{r['outcome']}** | {r.get('matching_issues', 0)} | {r.get('seconds')} |")
+                     f"**{r['outcome']}** | {r.get('matching_issues', 0)} | {r.get('witness')} | "
+                     f"{r.get('seconds')} |")
     lines += ["", "Totals: " + ", ".join(f"{k} = {v}" for k, v in sorted(score["counts"].items())),
               "", f"Baseline (clean HEAD) issue candidates for hand triage: "
               f"{len(score['baseline_issue_candidates'])}", ""]
     for c in score["baseline_issue_candidates"]:
         lines.append(f"- run {c['run']} `{c['file']}` ({c['verdict']}): {c['description']}")
+    if score.get("tokens_primary_pass"):
+        lines.append("Tokens (primary analysis calls, from API usage metadata): " + ", ".join(
+            f"{k} = {v}" for k, v in score["tokens_primary_pass"].items()))
     lines += ["", f"Wall time: {score['wall_seconds']} s", ""]
     return "\n".join(lines)
 

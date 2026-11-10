@@ -87,21 +87,43 @@ class Config:
 
     @property
     def gemini_config(self) -> Dict[str, Any]:
-        """Get Gemini-specific configuration"""
-        return self._config.get("llm", {}).get("gemini", {
-            "model": "gemini-2.5-pro",
-            "max_output_tokens": 8192,
-            "temperature": 0.1
-        })
+        """Gemini configuration; ``GEMINI_MODEL`` overrides the model id."""
+        conf = dict(self._config.get("llm", {}).get("gemini") or {})
+        conf.setdefault("model", "gemini-3.8-flash")
+        if os.getenv("GEMINI_MODEL"):
+            conf["model"] = os.environ["GEMINI_MODEL"]
+        return conf
+
+    @property
+    def local_config(self) -> Dict[str, Any]:
+        """OpenAI-compatible local server (Ollama, vLLM, llama.cpp ...).
+
+        ``PRSPEC_LOCAL_BASE_URL`` / ``PRSPEC_LOCAL_MODEL`` override the YAML."""
+        conf = dict(self._config.get("llm", {}).get("local") or {})
+        conf.setdefault("base_url", "http://localhost:11434/v1")
+        conf.setdefault("model", "qwen3-coder:30b")
+        if os.getenv("PRSPEC_LOCAL_BASE_URL"):
+            conf["base_url"] = os.environ["PRSPEC_LOCAL_BASE_URL"]
+        if os.getenv("PRSPEC_LOCAL_MODEL"):
+            conf["model"] = os.environ["PRSPEC_LOCAL_MODEL"]
+        return conf
+
+    @property
+    def no_cloud(self) -> bool:
+        """Privacy guard: refuse any provider that sends code off the machine."""
+        env = os.getenv("PRSPEC_NO_CLOUD", "")
+        if env:
+            return env.lower() in ("1", "true", "yes")
+        return bool(self._config.get("llm", {}).get("no_cloud", False))
 
     @property
     def openai_config(self) -> Dict[str, Any]:
         """Get OpenAI-specific configuration"""
-        return self._config.get("llm", {}).get("openai", {
-            "model": "gpt-4-turbo-preview",
-            "max_tokens": 4096,
-            "temperature": 0.1
-        })
+        conf = dict(self._config.get("llm", {}).get("openai") or {})
+        conf.setdefault("model", "gpt-6.1-sol")
+        if os.getenv("OPENAI_BASE_URL") and "base_url" not in conf:
+            conf["base_url"] = os.environ["OPENAI_BASE_URL"]
+        return conf
 
     @property
     def azure_config(self) -> Dict[str, Any]:

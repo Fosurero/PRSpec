@@ -11,7 +11,6 @@ def generate_cli_screenshot():
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
 
     console = Console(record=True, width=100)
 
@@ -177,7 +176,6 @@ def generate_multi_client_screenshot():
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
-    from rich.columns import Columns
 
     console = Console(record=True, width=110)
 

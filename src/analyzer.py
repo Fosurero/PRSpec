@@ -4,7 +4,7 @@ import json
 import re
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -18,14 +18,18 @@ class AnalysisResult:
     issues: List[Dict[str, Any]]
     summary: str
     raw_response: Optional[str] = None
+    meta: Dict[str, Any] = field(default_factory=dict)  # model version, tokens, latency
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        out = {
             "status": self.status,
             "confidence": self.confidence,
             "issues": self.issues,
             "summary": self.summary,
         }
+        if self.meta:
+            out["meta"] = self.meta
+        return out
 
     @property
     def has_issues(self) -> bool:
@@ -215,57 +219,142 @@ Flagged finding under review:
         }
 
 
-class GeminiAnalyzer(BaseAnalyzer):
-    """Gemini-backed analyzer. Uses the large context window to compare
-    full spec text against full source files in a single request."""
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+_RETRYABLE = ("429", "500", "502", "503", "504", "RESOURCE_EXHAUSTED", "UNAVAILABLE",
+              "DEADLINE_EXCEEDED", "INTERNAL")
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-pro",
-                 max_output_tokens: int = 8192, temperature: float = 0.1):
-        """Configure the Gemini model and generation params."""
+
+def _is_retryable(exc: Exception) -> bool:
+    text = f"{type(exc).__name__} {exc}"
+    code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+    return str(code) in _RETRYABLE or any(tok in text for tok in _RETRYABLE)
+
+
+class GeminiAnalyzer(BaseAnalyzer):
+    """Gemini-backed analyzer (google-genai SDK).
+
+    PRSpec 2.0 defaults to ``gemini-3.8-flash``: Google's model page lists it
+    (with 3.5 Flash-Lite) as the recommended choice for new projects, limits
+    2.5 to existing users and lists 2.0 Flash as shut down. The model id is
+    only a default; ``prspec models`` lists what the configured key can use.
+
+    Fail-closed behaviour: a truncated (MAX_TOKENS), blocked or unparseable
+    response is returned as status ERROR, never as a clean result.
+    """
+
+    def __init__(self, api_key: str, model: str = DEFAULT_GEMINI_MODEL,
+                 max_output_tokens: int = 32768, temperature: Optional[float] = None,
+                 thinking_level: Optional[str] = None, json_mode: bool = True,
+                 max_retries: int = 4, timeout_s: int = 300, client: Any = None):
+        """Configure the Gemini client. ``temperature=None`` keeps the model
+        default (Google recommends 1.0 for Gemini 3+; low values can cause
+        loops). ``client`` lets tests inject a fake SDK client."""
         try:
-            from google import genai  # type: ignore[import-untyped]
             from google.genai import types as genai_types  # type: ignore[import-untyped]
         except ImportError:
             raise ImportError("google-genai not installed. Run: pip install google-genai")
-
         self._genai_types = genai_types
-        self.client = genai.Client(api_key=api_key)
+        if client is None:
+            from google import genai  # type: ignore[import-untyped]
+            client = genai.Client(api_key=api_key,
+                                  http_options=genai_types.HttpOptions(timeout=timeout_s * 1000))
+        self.client = client
         self.model_name = model
         self.max_output_tokens = max_output_tokens
         self.temperature = temperature
+        self.thinking_level = thinking_level
+        self.json_mode = json_mode
+        self.max_retries = max_retries
+
+    def _config(self):
+        kwargs: Dict[str, Any] = {"max_output_tokens": self.max_output_tokens}
+        if self.temperature is not None:
+            kwargs["temperature"] = self.temperature
+        if self.json_mode:
+            kwargs["response_mime_type"] = "application/json"
+        if self.thinking_level:
+            kwargs["thinking_config"] = self._genai_types.ThinkingConfig(
+                thinking_level=self.thinking_level)
+        return self._genai_types.GenerateContentConfig(**kwargs)
+
+    def generate(self, prompt: str):
+        """One generate_content call with bounded exponential backoff."""
+        delay = 2.0
+        for attempt in range(self.max_retries + 1):
+            try:
+                return self.client.models.generate_content(
+                    model=self.model_name, contents=prompt, config=self._config())
+            except Exception as e:  # noqa: BLE001 - SDK raises several types
+                if attempt >= self.max_retries or not _is_retryable(e):
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 60)
+
+    @staticmethod
+    def _response_meta(response, started: float) -> Dict[str, Any]:
+        """Primitive-only metadata (safe to json.dump) from an SDK response."""
+        def prim(v):
+            return v if isinstance(v, (str, int, float)) else None
+        meta: Dict[str, Any] = {"latency_s": round(time.time() - started, 2)}
+        meta["model_version"] = prim(getattr(response, "model_version", None))
+        usage = getattr(response, "usage_metadata", None)
+        for k in ("prompt_token_count", "candidates_token_count",
+                  "thoughts_token_count", "total_token_count"):
+            v = prim(getattr(usage, k, None)) if usage is not None else None
+            if v is not None:
+                meta[k] = v
+        try:
+            cands = list(getattr(response, "candidates", None) or [])
+        except TypeError:
+            cands = []
+        if cands:
+            fr = getattr(cands[0], "finish_reason", None)
+            name = prim(getattr(fr, "name", None)) or prim(fr)
+            if name:
+                meta["finish_reason"] = str(name)
+        return meta
 
     def analyze_compliance(self, spec_text: str, code_text: str,
                           context: dict) -> AnalysisResult:
         """Send spec + code to Gemini and parse the structured JSON response."""
         prompt = self._build_analysis_prompt(spec_text, code_text, context)
-
+        started = time.time()
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                config=self._genai_types.GenerateContentConfig(
-                    temperature=self.temperature,
-                    max_output_tokens=self.max_output_tokens,
-                ),
-            )
+            response = self.generate(prompt)
+        except Exception as e:  # noqa: BLE001
+            return AnalysisResult(status="ERROR", confidence=0, issues=[],
+                                  summary=f"Gemini analysis failed: {type(e).__name__}: {e}",
+                                  meta={"model": self.model_name})
+        meta = self._response_meta(response, started)
+        meta["model"] = self.model_name
+        text = getattr(response, "text", None) or ""
+        finish = (meta.get("finish_reason") or "").upper()
+        if finish and finish not in ("STOP", "FINISHREASON.STOP", "FINISH_REASON_UNSPECIFIED"):
+            return AnalysisResult(status="ERROR", confidence=0, issues=[],
+                                  summary=f"Gemini response not usable (finish_reason={finish}); "
+                                          "treated as incomplete, not as a clean result.",
+                                  raw_response=text, meta=meta)
+        if not text.strip():
+            return AnalysisResult(status="ERROR", confidence=0, issues=[],
+                                  summary="Gemini returned an empty response.", meta=meta)
+        result = self._parse_json_response(text)
+        return AnalysisResult(
+            status=result.get("status", "UNCERTAIN"),
+            confidence=result.get("confidence", 0),
+            issues=result.get("issues", []) or [],
+            summary=result.get("summary", ""),
+            raw_response=text,
+            meta=meta,
+        )
 
-            result = self._parse_json_response(response.text)
-
-            return AnalysisResult(
-                status=result.get("status", "UNCERTAIN"),
-                confidence=result.get("confidence", 0),
-                issues=result.get("issues", []),
-                summary=result.get("summary", ""),
-                raw_response=response.text
-            )
-
-        except Exception as e:
-            return AnalysisResult(
-                status="ERROR",
-                confidence=0,
-                issues=[],
-                summary=f"Gemini analysis failed: {str(e)}"
-            )
+    def list_models(self) -> List[str]:
+        """Model ids visible to this key that support generateContent."""
+        out = []
+        for m in self.client.models.list():
+            actions = getattr(m, "supported_actions", None) or []
+            if not actions or "generateContent" in actions:
+                out.append((getattr(m, "name", "") or "").replace("models/", ""))
+        return sorted(x for x in out if x)
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model"""
@@ -277,71 +366,111 @@ class GeminiAnalyzer(BaseAnalyzer):
         }
 
 
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "host.docker.internal", "0.0.0.0"}
+
+
+def is_local_url(url: str) -> bool:
+    """True if ``url`` points at this machine or a private network address."""
+    import ipaddress
+    from urllib.parse import urlparse
+    host = (urlparse(url).hostname or "").lower()
+    if host in LOCAL_HOSTS or host.endswith(".local") or host.endswith(".internal"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+        return ip.is_private or ip.is_loopback
+    except ValueError:
+        return False
+
+
 class OpenAIAnalyzer(BaseAnalyzer):
-    """GPT-4 backed analyzer, alternative to Gemini."""
+    """OpenAI Chat Completions analyzer. With ``base_url`` it talks to any
+    OpenAI-compatible server (Ollama, vLLM, llama.cpp, LM Studio), which is how
+    the ``local`` provider keeps source code on the user's machine."""
 
-    def __init__(self, api_key: str, model: str = "gpt-4-turbo-preview",
-                 max_tokens: int = 4096, temperature: float = 0.1):
-        """Configure the OpenAI client."""
-        try:
-            from openai import OpenAI
-            self.client = OpenAI(api_key=api_key)
-        except ImportError:
-            raise ImportError("openai not installed. Run: pip install openai")
-
+    def __init__(self, api_key: str, model: str = "gpt-6.1-sol",
+                 max_tokens: int = 8192, temperature: Optional[float] = None,
+                 base_url: Optional[str] = None, provider_name: str = "openai",
+                 json_mode: bool = True, timeout_s: int = 600, client: Any = None):
+        """Configure the OpenAI(-compatible) client."""
+        if client is None:
+            try:
+                from openai import OpenAI
+            except ImportError:
+                raise ImportError("openai not installed. Run: pip install openai")
+            kwargs: Dict[str, Any] = {"api_key": api_key, "timeout": timeout_s}
+            if base_url:
+                kwargs["base_url"] = base_url
+            client = OpenAI(**kwargs)
+        self.client = client
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.base_url = base_url
+        self.provider_name = provider_name
+        self.json_mode = json_mode
 
     def analyze_compliance(self, spec_text: str, code_text: str,
                           context: dict) -> AnalysisResult:
-        """Send spec + code to OpenAI and parse the JSON response."""
+        """Send spec + code and parse the JSON response."""
         prompt = self._build_analysis_prompt(spec_text, code_text, context)
-
+        body: Dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": "You are an expert Ethereum protocol "
+                 "security researcher. Respond only with valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+        }
+        # Local servers accept max_tokens; OpenAI's current models use
+        # max_completion_tokens and may reject a non-default temperature.
+        if self.provider_name == "local":
+            body["max_tokens"] = self.max_tokens
+        else:
+            body["max_completion_tokens"] = self.max_tokens
+        if self.temperature is not None:
+            body["temperature"] = self.temperature
+        if self.json_mode:
+            body["response_format"] = {"type": "json_object"}
+        started = time.time()
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert Ethereum protocol security researcher. Respond only with valid JSON."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
-
-            response_text = response.choices[0].message.content
-            result = self._parse_json_response(response_text)
-
-            return AnalysisResult(
-                status=result.get("status", "UNCERTAIN"),
-                confidence=result.get("confidence", 0),
-                issues=result.get("issues", []),
-                summary=result.get("summary", ""),
-                raw_response=response_text
-            )
-
-        except Exception as e:
-            return AnalysisResult(
-                status="ERROR",
-                confidence=0,
-                issues=[],
-                summary=f"OpenAI analysis failed: {str(e)}"
-            )
+            response = self.client.chat.completions.create(**body)
+        except Exception as e:  # noqa: BLE001
+            return AnalysisResult(status="ERROR", confidence=0, issues=[],
+                                  summary=f"{self.provider_name} analysis failed: "
+                                          f"{type(e).__name__}: {e}",
+                                  meta={"model": self.model})
+        choice = response.choices[0]
+        text = choice.message.content or ""
+        meta: Dict[str, Any] = {"model": self.model, "latency_s": round(time.time() - started, 2),
+                                "model_version": getattr(response, "model", None),
+                                "finish_reason": getattr(choice, "finish_reason", None)}
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            meta["prompt_token_count"] = getattr(usage, "prompt_tokens", None)
+            meta["candidates_token_count"] = getattr(usage, "completion_tokens", None)
+        if meta["finish_reason"] not in (None, "stop"):
+            return AnalysisResult(status="ERROR", confidence=0, issues=[],
+                                  summary=f"response not usable (finish_reason="
+                                          f"{meta['finish_reason']}); treated as incomplete.",
+                                  raw_response=text, meta=meta)
+        result = self._parse_json_response(text)
+        return AnalysisResult(
+            status=result.get("status", "UNCERTAIN"),
+            confidence=result.get("confidence", 0),
+            issues=result.get("issues", []) or [],
+            summary=result.get("summary", ""),
+            raw_response=text,
+            meta=meta,
+        )
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about the current model"""
-        return {
-            "provider": "openai",
-            "model": self.model,
-            "max_tokens": self.max_tokens,
-            "temperature": self.temperature,
-        }
+        info = {"provider": self.provider_name, "model": self.model,
+                "max_tokens": self.max_tokens, "temperature": self.temperature}
+        if self.base_url:
+            info["base_url"] = self.base_url
+        return info
 
 
 class AzureAIAnalyzer(BaseAnalyzer):
@@ -497,6 +626,13 @@ def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
                 raise ValueError(f"Missing required parameter: {key}")
         return OpenAIAnalyzer(**kwargs)
 
+    elif provider == "local":
+        kwargs.setdefault("api_key", "local")
+        kwargs.setdefault("provider_name", "local")
+        if "base_url" not in kwargs:
+            raise ValueError("Missing required parameter: base_url")
+        return OpenAIAnalyzer(**kwargs)
+
     elif provider == "azure":
         required = ["api_key", "endpoint", "model"]
         for key in required:
@@ -506,5 +642,5 @@ def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
 
     else:
         raise ValueError(
-            f"Unknown provider: {provider}. Use 'gemini', 'openai', or 'azure'."
+            f"Unknown provider: {provider}. Use 'gemini', 'openai', 'local', or 'azure'."
         )

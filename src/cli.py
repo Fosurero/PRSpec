@@ -1,5 +1,6 @@
 """Command-line interface for PRSpec."""
 
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Optional
@@ -37,8 +38,12 @@ BANNER = """[cyan]
 
 @click.group()
 @click.version_option(version=__version__, prog_name="PRSpec")
-def cli():
+@click.option('--no-cloud', is_flag=True, default=False,
+              help='Privacy guard: refuse any provider except a local/private model server.')
+def cli(no_cloud: bool):
     """PRSpec — check Ethereum client code against EIP specifications."""
+    if no_cloud:
+        os.environ["PRSPEC_NO_CLOUD"] = "1"
     pass
 
 
@@ -50,13 +55,39 @@ def _analyze_one_file(analyzer, spec_text, file_path, code_content, context):
     return result_dict
 
 
+class PrivacyGuardError(click.ClickException):
+    """Raised when --no-cloud forbids the selected provider."""
+
+
+def _enforce_no_cloud(llm_provider, cfg):
+    from .analyzer import is_local_url
+    if not cfg.no_cloud:
+        return
+    if llm_provider != "local":
+        raise PrivacyGuardError(
+            f"--no-cloud is set: provider '{llm_provider}' would send code to a remote API. "
+            "Use --provider local with a server on this machine or private network.")
+    url = cfg.local_config["base_url"]
+    if not is_local_url(url):
+        raise PrivacyGuardError(f"--no-cloud is set but the local base_url {url} is not a "
+                                "loopback or private address.")
+
+
 def _build_analyzer(llm_provider, cfg):
     """Construct the analyzer for the active provider."""
+    _enforce_no_cloud(llm_provider, cfg)
+    if llm_provider == "local":
+        lc = dict(cfg.local_config)
+        return OpenAIAnalyzer(api_key=os.getenv("PRSPEC_LOCAL_API_KEY", "local"),
+                              provider_name="local", **lc)
     if llm_provider == "gemini":
         return GeminiAnalyzer(api_key=cfg.gemini_api_key, **cfg.gemini_config)
     if llm_provider == "azure":
         return AzureAIAnalyzer(api_key=cfg.azure_api_key, **cfg.azure_config)
-    return OpenAIAnalyzer(api_key=cfg.openai_api_key, **cfg.openai_config)
+    if llm_provider == "openai":
+        return OpenAIAnalyzer(api_key=cfg.openai_api_key, **cfg.openai_config)
+    raise click.ClickException(f"unknown provider '{llm_provider}' "
+                               "(gemini | openai | local | azure)")
 
 
 def _build_verify_analyzer(llm_provider, cfg, primary):
@@ -229,7 +260,7 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
 @cli.command()
 @click.option('--eip', '-e', default=1559, help='EIP number to check (default: 1559)')
 @click.option('--client', '-c', default='go-ethereum', help='Client to analyze (default: go-ethereum)')
-@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, or azure')
+@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, local, or azure')
 @click.option('--output', '-o', default='json', help='Output format: json, markdown, html')
 @click.option('--config', '-f', default=None, help='Path to config.yaml')
 @click.option('--verify/--no-verify', default=True,
@@ -359,7 +390,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
 @click.option('--eip', '-e', default=1559, help='EIP number to check (default: 1559)')
 @click.option('--clients', '-c', default=None,
               help='Comma-separated clients (default: all with mappings for the EIP)')
-@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, or azure')
+@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, local, or azure')
 @click.option('--output', '-o', default='html', help='Output format: json, markdown, html')
 @click.option('--config', '-f', default=None, help='Path to config.yaml')
 @click.option('--llm-synthesis/--no-llm-synthesis', default=False,
@@ -664,6 +695,9 @@ def check_config():
 
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
+
+
+from . import cli_v2  # noqa: E402,F401  (registers witness, fork-watch, models)
 
 
 def main():

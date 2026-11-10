@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prspec"
-version = "1.7.1"
+version = "2.0.0"
 description = "Ethereum specification compliance checker — compares EIP specs against client source code using LLM analysis"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     {name = "Safi El-Hassanine"},
 ]
@@ -18,16 +18,16 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Security",
     "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = [
-    "google-genai>=1.0.0",
-    "openai>=1.0.0",
+    "google-genai>=1.51.0",
+    "openai>=1.40.0",
     "requests",
     "tree-sitter",
     "tree-sitter-python",
@@ -64,13 +64,13 @@ include = ["src", "src.*"]
 # Ship the default config so an installed "prspec" works outside a checkout.
 # src/default_config.yaml must stay identical to ./config.yaml (tested).
 [tool.setuptools.package-data]
-src = ["default_config.yaml"]
+src = ["default_config.yaml", "rules/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 120
 
 [tool.ruff.lint]

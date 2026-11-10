@@ -72,7 +72,8 @@ class TestAnalyzer(unittest.TestCase):
         """Test GeminiAnalyzer initialization"""
         analyzer = GeminiAnalyzer(api_key="test_key", model="gemini-1.5-pro-latest")
 
-        mock_client_cls.assert_called_once_with(api_key="test_key")
+        mock_client_cls.assert_called_once()
+        self.assertEqual(mock_client_cls.call_args.kwargs["api_key"], "test_key")
         self.assertEqual(analyzer.model_name, "gemini-1.5-pro-latest")
 
     @patch('google.genai.Client')

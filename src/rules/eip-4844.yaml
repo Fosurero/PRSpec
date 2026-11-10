@@ -1,0 +1,135 @@
+# Witness rulebook for EIP-4844 (fork: Cancun). Values for later forks
+# (EIP-7691 Prague, BPO forks) are fork-specific and are NOT checked here.
+eip: 4844
+fork: cancun
+spec:
+  repo: ethereum/EIPs
+  path: EIPS/eip-4844.md
+  pinned_ref: 542e62eb129517130b7facc52bbb9a1f333c711e
+clients:
+  besu: {repo: https://github.com/besu-eth/besu, reviewed_at: 8f01c7a3200780b00163ab76d544e0ef6646da41}
+  go-ethereum: {repo: https://github.com/ethereum/go-ethereum, reviewed_at: c863eecbddb2c9db2cd2f07bb1db80740d75a5b3}
+  nethermind: {repo: https://github.com/NethermindEth/nethermind, reviewed_at: 8ba0b6d05ea0b036524658f5ba1b6d14afd8f20e}
+rules:
+  - id: EIP4844-GAS-PER-BLOB
+    constant: GAS_PER_BLOB
+    aliases: [DATA_GAS_PER_BLOB]   # historical names in earlier EIP revisions
+    rule: "blob gas used = GAS_PER_BLOB * number of blobs"
+    anchors:
+      besu:
+        file: evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java
+        pattern: 'BLOB_GAS_PER_BLOB\s*=\s*([^;]+);'
+      go-ethereum:
+        file: params/protocol_params.go
+        pattern: 'BlobTxBlobGasPerBlob\s*=\s*([^/\n]+?)\s*(?://|$)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Core/Eip4844Constants.cs
+        pattern: '\bGasPerBlob\s*=\s*([^;]+);'
+  - id: EIP4844-MIN-BLOB-BASE-FEE
+    constant: MIN_BASE_FEE_PER_BLOB_GAS
+    aliases: [MIN_BLOB_BASE_FEE, MIN_BLOB_GASPRICE, MIN_DATA_GASPRICE]   # historical names in earlier EIP revisions
+    rule: "base_fee_per_blob_gas = fake_exponential(MIN_BASE_FEE_PER_BLOB_GAS, excess, fraction)"
+    anchors:
+      besu:
+        file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BlobFeeMarket.java
+        pattern: 'BLOB_GAS_PRICE\s*=\s*([^;]+);'
+      go-ethereum:
+        file: params/protocol_params.go
+        pattern: 'BlobTxMinBlobGasprice\s*=\s*([^/\n]+?)\s*(?://|$)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Core/Eip4844Constants.cs
+        pattern: 'MinBlobGasPrice\s*\{[^}]*\}\s*=\s*([^;]+);'
+  - id: EIP4844-UPDATE-FRACTION
+    constant: BLOB_BASE_FEE_UPDATE_FRACTION
+    aliases: [BLOB_GASPRICE_UPDATE_FRACTION, DATA_GASPRICE_UPDATE_FRACTION]   # historical names in earlier EIP revisions
+    rule: "denominator of fake_exponential for the blob base fee (Cancun value)"
+    anchors:
+      besu:
+        file: config/src/main/java/org/hyperledger/besu/config/BlobSchedule.java
+        pattern: 'CANCUN_DEFAULT\s*=\s*BlobSchedule\.create\(\s*\d+\s*,\s*\d+\s*,\s*(\d+)\s*\)'
+      go-ethereum:
+        file: params/config.go
+        pattern: 'DefaultCancunBlobConfig\s*=\s*&BlobConfig\{[^}]*?UpdateFraction:\s*(\d+)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Specs/Forks/17_Cancun.cs
+        pattern: 'BlobBaseFeeUpdateFraction\s*=\s*([^;]+);'
+  - id: EIP4844-TARGET-BLOB-GAS
+    constant: TARGET_BLOB_GAS_PER_BLOCK
+    aliases: [TARGET_DATA_GAS_PER_BLOCK]   # historical names in earlier EIP revisions
+    rule: "excess_blob_gas accumulates usage above TARGET_BLOB_GAS_PER_BLOCK"
+    anchors:
+      besu:
+        file: config/src/main/java/org/hyperledger/besu/config/BlobSchedule.java
+        pattern: 'CANCUN_DEFAULT\s*=\s*BlobSchedule\.create\(\s*(\d+)'
+        multiply_by: GAS_PER_BLOB
+      go-ethereum:
+        file: params/config.go
+        pattern: 'DefaultCancunBlobConfig\s*=\s*&BlobConfig\{[^}]*?Target:\s*(\d+)'
+        multiply_by: GAS_PER_BLOB
+      nethermind:
+        file: src/Nethermind/Nethermind.Specs/Forks/17_Cancun.cs
+        pattern: 'TargetBlobCount\s*=\s*(\d+);'
+        multiply_by: GAS_PER_BLOB
+  - id: EIP4844-MAX-BLOB-GAS
+    constant: MAX_BLOB_GAS_PER_BLOCK
+    aliases: [MAX_DATA_GAS_PER_BLOCK]   # historical names in earlier EIP revisions
+    rule: "a block is invalid if blob_gas_used > MAX_BLOB_GAS_PER_BLOCK"
+    anchors:
+      besu:
+        file: config/src/main/java/org/hyperledger/besu/config/BlobSchedule.java
+        pattern: 'CANCUN_DEFAULT\s*=\s*BlobSchedule\.create\(\s*\d+\s*,\s*(\d+)'
+        multiply_by: GAS_PER_BLOB
+      go-ethereum:
+        file: params/config.go
+        pattern: 'DefaultCancunBlobConfig\s*=\s*&BlobConfig\{[^}]*?Max:\s*(\d+)'
+        multiply_by: GAS_PER_BLOB
+      nethermind:
+        file: src/Nethermind/Nethermind.Specs/Forks/17_Cancun.cs
+        pattern: 'MaxBlobCount\s*=\s*(\d+);'
+        multiply_by: GAS_PER_BLOB
+  - id: EIP4844-TX-TYPE
+    constant: BLOB_TX_TYPE
+    rule: "blob transactions use EIP-2718 type BLOB_TX_TYPE"
+    anchors:
+      besu:
+        file: datatypes/src/main/java/org/hyperledger/besu/datatypes/TransactionType.java
+        pattern: '\bBLOB\((0x[0-9a-fA-F]+)\)'
+      go-ethereum:
+        file: core/types/transaction.go
+        pattern: '\bBlobTxType\s*=\s*([^/\n]+?)\s*(?://|$)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Core/TxType.cs
+        pattern: '\bBlob\s*=\s*([^,\n]+)'
+  - id: EIP4844-POINT-EVAL-GAS
+    constant: POINT_EVALUATION_PRECOMPILE_GAS
+    rule: "point evaluation precompile costs POINT_EVALUATION_PRECOMPILE_GAS"
+    anchors:
+      besu:
+        file: evm/src/main/java/org/hyperledger/besu/evm/precompile/KZGPointEvalPrecompiledContract.java
+        pattern: 'gasRequirement\([^)]*\)\s*\{(?:\s*//[^\n]*)*\s*return\s+([^;]+);'
+      go-ethereum:
+        file: params/protocol_params.go
+        pattern: 'BlobTxPointEvaluationPrecompileGas\s*=\s*([^/\n]+?)\s*(?://|$)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Evm.Precompiles/KzgPointEvaluationPrecompile.cs
+        pattern: 'BaseGasCost\([^)]*\)\s*=>\s*([^;]+);'
+  - id: EIP4844-BLOBHASH-OPCODE
+    constant: HASH_OPCODE_BYTE
+    rule: "BLOBHASH opcode byte"
+    anchors:
+      besu:
+        file: evm/src/main/java/org/hyperledger/besu/evm/operation/BlobHashOperation.java
+        pattern: '\bOPCODE\s*=\s*([^;]+);'
+      go-ethereum:
+        file: core/vm/opcodes.go
+        pattern: '\bBLOBHASH\s+OpCode\s*=\s*(0x[0-9a-fA-F]+)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Evm/Instruction.cs
+        pattern: '\bBLOBHASH\s*=\s*(0x[0-9a-fA-F]+)'
+  - id: EIP4844-FIELD-ELEMENTS
+    constant: FIELD_ELEMENTS_PER_BLOB
+    rule: "a blob is FIELD_ELEMENTS_PER_BLOB field elements"
+    anchors:
+      go-ethereum:
+        file: params/protocol_params.go
+        pattern: 'BlobTxFieldElementsPerBlob\s*=\s*([^/\n]+?)\s*(?://|$)'

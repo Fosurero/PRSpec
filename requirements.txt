@@ -1,5 +1,5 @@
-google-genai>=1.0.0
-openai>=1.0.0
+google-genai>=1.51.0
+openai>=1.40.0
 requests
 tree-sitter
 tree-sitter-python

@@ -1,0 +1,54 @@
+# Witness rulebook for EIP-1559 (fork: London).
+# Each rule names a spec constant; anchors locate the same value in client code.
+# Patterns are regular expressions with ONE capture group around the value.
+# Pins are the revisions the anchors were last reviewed against.
+eip: 1559
+fork: london
+spec:
+  repo: ethereum/EIPs
+  path: EIPS/eip-1559.md
+  pinned_ref: 542e62eb129517130b7facc52bbb9a1f333c711e
+clients:
+  besu: {repo: https://github.com/besu-eth/besu, reviewed_at: 8f01c7a3200780b00163ab76d544e0ef6646da41}
+  go-ethereum: {repo: https://github.com/ethereum/go-ethereum, reviewed_at: c863eecbddb2c9db2cd2f07bb1db80740d75a5b3}
+  nethermind: {repo: https://github.com/NethermindEth/nethermind, reviewed_at: 8ba0b6d05ea0b036524658f5ba1b6d14afd8f20e}
+rules:
+  - id: EIP1559-ELASTICITY
+    constant: ELASTICITY_MULTIPLIER
+    rule: "parent_gas_target = parent_gas_limit // ELASTICITY_MULTIPLIER"
+    anchors:
+      besu:
+        file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+        pattern: 'DEFAULT_SLACK_COEFFICIENT\s*=\s*([^;]+);'
+      go-ethereum:
+        file: params/protocol_params.go
+        pattern: 'DefaultElasticityMultiplier\s*=\s*([^/\n]+?)\s*(?://|$)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Core/Eip1559Constants.cs
+        pattern: 'DefaultElasticityMultiplier\s*=\s*([^;]+);'
+  - id: EIP1559-DENOMINATOR
+    constant: BASE_FEE_MAX_CHANGE_DENOMINATOR
+    rule: "base fee changes by at most 1/BASE_FEE_MAX_CHANGE_DENOMINATOR per block"
+    anchors:
+      besu:
+        file: ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java
+        pattern: 'DEFAULT_BASEFEE_MAX_CHANGE_DENOMINATOR\s*=\s*([^;]+);'
+      go-ethereum:
+        file: params/protocol_params.go
+        pattern: 'DefaultBaseFeeChangeDenominator\s*=\s*([^/\n]+?)\s*(?://|$)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Core/Eip1559Constants.cs
+        pattern: 'DefaultBaseFeeMaxChangeDenominator\s*=\s*([^;]+);'
+  - id: EIP1559-INITIAL-BASE-FEE
+    constant: INITIAL_BASE_FEE
+    rule: "base fee of the fork block = INITIAL_BASE_FEE"
+    anchors:
+      besu:
+        file: config/src/main/java/org/hyperledger/besu/config/GenesisConfig.java
+        pattern: 'BASEFEE_AT_GENESIS_DEFAULT_VALUE\s*=\s*([^;]+);'
+      go-ethereum:
+        file: params/protocol_params.go
+        pattern: '\bInitialBaseFee\s*=\s*([^/\n]+?)\s*(?://|$)'
+      nethermind:
+        file: src/Nethermind/Nethermind.Core/Eip1559Constants.cs
+        pattern: 'DefaultForkBaseFee\s*=>\s*([^;]+);'

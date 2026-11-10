@@ -1,18 +1,35 @@
 llm:
-  # Provider: "gemini", "openai", or "azure"
+  # Provider: "gemini", "openai", "local" (OpenAI-compatible server on your
+  # machine: Ollama, vLLM, llama.cpp, LM Studio) or "azure" (Claude deployment).
   provider: gemini
-  
-  # Gemini settings
+
+  # Privacy guard. true (or PRSPEC_NO_CLOUD=1, or `prspec --no-cloud ...`)
+  # refuses every provider except "local" on a loopback/private address.
+  no_cloud: false
+
+  # Gemini (PRSpec 2.0 default). Model ids verified against
+  # https://ai.google.dev/gemini-api/docs/models on 2026-11-10: 3.8 Flash and
+  # 3.5 Flash-Lite are recommended for new projects; 2.5 is limited to
+  # existing users; 2.0 Flash is shut down. Run `prspec models` to see what
+  # your key can actually use. GEMINI_MODEL overrides the model id.
   gemini:
-    model: gemini-2.5-pro
-    max_output_tokens: 8192
-    temperature: 0.1
-  
-  # OpenAI settings (alternative)
+    model: gemini-3.8-flash
+    max_output_tokens: 32768
+    # temperature: omitted on purpose. Google recommends the default (1.0)
+    # for Gemini 3+; low values can cause loops on reasoning tasks.
+    # thinking_level: low   # optional: low | medium | high
+
+  # OpenAI (alternative cloud provider)
   openai:
-    model: gpt-4-turbo-preview
-    max_tokens: 4096
-    temperature: 0.1
+    model: gpt-6.1-sol
+    max_tokens: 8192
+
+  # Local / self-hosted (no code leaves your machine). PRSPEC_LOCAL_BASE_URL
+  # and PRSPEC_LOCAL_MODEL override these values.
+  local:
+    base_url: http://localhost:11434/v1
+    model: qwen3-coder:30b
+    max_tokens: 8192
 
   # Azure AI Foundry settings (a Claude deployment in your own resource).
   # The Anthropic Messages endpoint, deployment name, and key come from the
