@@ -27,3 +27,28 @@ Times are UTC. Newest last.
   environment-only key, and no-cloud guard. Live synthetic spec/code analysis through PRSpec returned
   PARTIAL_MATCH and detected the deliberately wrong nonce boundary (536 input / 1,116 output tokens).
   Test suite: 210 passed, 2 skipped; ruff clean. This is a smoke test, not a benchmark.
+
+- 2026-11-10 06:50 — Continuation session (new model). Machine state intact: branch `evidence-pilot` at
+  `216fc47`, 4 commits ahead of remote `ae66a3e`; remote `main` still `047dd15`. GitHub token: API shows
+  admin/push on the repo.
+- 06:52 — Gemini diagnosis with the key Safi shared (outside the repo, never printed): model listing OK;
+  `gemini-3.8-flash` → **503 "high demand"** on every attempt (capacity, not a key error);
+  `gemini-3.7-flash` → 504; `gemini-3.6-flash` and `gemini-3.5-flash` answered (3.5 reports
+  `model_version` `gemini-3.6-flash`). The key works.
+- 06:55 — Found a real CI bug before pushing: `scripts/fetch_clients.sh` sparse-checked only
+  `ethereum/core/.../mainnet/**`, but the scoreboard baseline reads `ethereum/core/.../core/Transaction.java`
+  → `FileNotFoundError`. `gemini-live.yml` would have failed after fetching. Fixed: `ethereum/core/src/main/java/**`
+  (same as `besu-mutation-scoreboard.yml`).
+- 07:00 — **First live Gemini scoreboard row (local, 1 mutation):** `--only M3`, `gemini-3.6-flash`,
+  verify 2 rounds → M3 **confirmed** (1 matching issue); 2 baseline issue candidates on clean Besu for hand
+  triage (not triaged yet); primary-pass tokens 79,451 prompt / 1,511 output / 11,254 thinking; wall 211.5 s.
+  Evidence: `docs/evidence/2026-11-10/gemini-local-smoke-M3/`. One mutation only; not the scoreboard result.
+- 07:02 — `gemini-live.yml`: `model=` is now a preference list; the first model that is visible and passes the
+  probe is used by all later steps (up to 3 passes, 90 s apart); attempts are saved in the artifact. Local
+  test of the step: loop works; at that moment both 3.8 and 3.6 returned 503, so `gemini-3.5-flash` added as
+  a third fallback. `pilot/live/REQUEST` requests all 10 mutations, 1 run.
+- 07:05 — Demo: witness frame said "34 match, 0 mismatch, 0 incomplete" and clipped the last row; now also
+  states the 2 checks without an anchor and uses a denser table. `demo/README.md` (commands, storyboard,
+  source per frame); `demo/out/` ignored. Tests: 210 passed, 2 skipped (key-free); ruff clean.
+  Note: with `GEMINI_API_KEY` exported, the 2 opt-in live tests run and hang on 3.8 Flash 503 retries;
+  run the suite without keys.

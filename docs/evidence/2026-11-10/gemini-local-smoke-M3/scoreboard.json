@@ -1,0 +1,83 @@
+{
+  "manifest": {
+    "created_utc": "2026-11-10T06:51:07+00:00",
+    "prspec_commit": "216fc47059ae2e331941aa489ad44c83ccdd8a39-dirty",
+    "besu_commit": "8f01c7a3200780b00163ab76d544e0ef6646da41",
+    "mutations_file_sha256": "0d4ed58018e5974c8d0df7aedb7495cc340650ddc53530a9f9038e9eacba2020",
+    "mutations": [
+      {
+        "id": "M3",
+        "eip": 1559,
+        "title": "drop max(..., 1) on base fee increase",
+        "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "spec_rule": "base_fee_per_gas_delta = max(parent_base_fee * gas_used_delta // target // DENOM, 1)",
+        "keywords": [
+          "max(",
+          "minimum increase",
+          "at least 1",
+          "Wei.ONE",
+          "UInt256s.max",
+          "minimum of 1",
+          "floor of 1"
+        ]
+      }
+    ],
+    "baseline_files": {
+      "1559": [
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BaseFeeMarket.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/FeeMarket.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionValidator.java",
+        "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java"
+      ]
+    },
+    "runs": 1,
+    "verify": true,
+    "verify_rounds": 2,
+    "dry_run": false,
+    "witness": {
+      "M3": "not-applicable"
+    },
+    "provider": "gemini",
+    "model": "gemini-3.6-flash"
+  },
+  "rows": [
+    {
+      "run": 1,
+      "id": "M3",
+      "eip": 1559,
+      "title": "drop max(..., 1) on base fee increase",
+      "file": "LondonFeeMarket.java",
+      "outcome": "confirmed",
+      "matching_issues": 1,
+      "baseline_matching_issues": 0,
+      "seconds": 76.7,
+      "witness": "not-applicable"
+    }
+  ],
+  "counts": {
+    "confirmed": 1
+  },
+  "tokens_primary_pass": {
+    "prompt_token_count": 79451,
+    "candidates_token_count": 1511,
+    "thoughts_token_count": 11254,
+    "total_token_count": 92216
+  },
+  "baseline_issue_candidates": [
+    {
+      "run": 1,
+      "file": "LondonFeeMarket.java",
+      "description": "The implementation introduces a hardcoded DEFAULT_BASEFEE_FLOOR of 7 Wei (Wei.of(7L)) and enforces it in satisfiesFloorTxFee. EIP-1559 does not define any minimum transaction fee floor or base fee floor of 7 Wei, requiring only that transaction max_fee_per_gas >= block.base_fee_per_gas.",
+      "verdict": "CONFIRMED"
+    },
+    {
+      "run": 1,
+      "file": "MainnetTransactionValidator.java",
+      "description": "The check verifying that maxPriorityFeePerGas does not exceed maxFeePerGas is nested inside 'if (maybeBaseFee.isPresent())'. When validate() is called without a baseFee (i.e. maybeBaseFee is Optional.empty(), such as during stateless transaction pool validation or certain dry-run validations), this ",
+      "verdict": "CONFIRMED"
+    }
+  ],
+  "incomplete": false,
+  "wall_seconds": 211.5
+}

@@ -1,0 +1,6 @@
+{
+  "M3": {
+    "outcome": "not-applicable",
+    "note": "no constant rule covers this mutation; needs semantic (LLM) analysis"
+  }
+}

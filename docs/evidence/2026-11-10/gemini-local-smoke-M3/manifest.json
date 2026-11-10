@@ -1,0 +1,42 @@
+{
+  "created_utc": "2026-11-10T06:51:07+00:00",
+  "prspec_commit": "216fc47059ae2e331941aa489ad44c83ccdd8a39-dirty",
+  "besu_commit": "8f01c7a3200780b00163ab76d544e0ef6646da41",
+  "mutations_file_sha256": "0d4ed58018e5974c8d0df7aedb7495cc340650ddc53530a9f9038e9eacba2020",
+  "mutations": [
+    {
+      "id": "M3",
+      "eip": 1559,
+      "title": "drop max(..., 1) on base fee increase",
+      "file": "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+      "spec_rule": "base_fee_per_gas_delta = max(parent_base_fee * gas_used_delta // target // DENOM, 1)",
+      "keywords": [
+        "max(",
+        "minimum increase",
+        "at least 1",
+        "Wei.ONE",
+        "UInt256s.max",
+        "minimum of 1",
+        "floor of 1"
+      ]
+    }
+  ],
+  "baseline_files": {
+    "1559": [
+      "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/LondonFeeMarket.java",
+      "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/BaseFeeMarket.java",
+      "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/FeeMarket.java",
+      "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionValidator.java",
+      "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java"
+    ]
+  },
+  "runs": 1,
+  "verify": true,
+  "verify_rounds": 2,
+  "dry_run": false,
+  "witness": {
+    "M3": "not-applicable"
+  },
+  "provider": "gemini",
+  "model": "gemini-3.6-flash"
+}

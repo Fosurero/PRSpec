@@ -1,0 +1,20 @@
+# PRSpec x Besu mutation scoreboard
+
+- Besu commit: `8f01c7a3200780b00163ab76d544e0ef6646da41`
+- PRSpec commit: `216fc47059ae2e331941aa489ad44c83ccdd8a39-dirty`
+- Model: `gemini` / `gemini-3.6-flash`; verify: True (2 rounds); runs: 1
+- mutations.yaml sha256: `0d4ed58018e5974c...` (criteria fixed before the run)
+
+| Run | ID | EIP | Mutation | File | LLM outcome | Matching issues | Witness (no LLM) | Seconds |
+|---|---|---|---|---|---|---|---|---|
+| 1 | M3 | 1559 | drop max(..., 1) on base fee increase | `LondonFeeMarket.java` | **confirmed** | 1 | not-applicable | 76.7 |
+
+Totals: confirmed = 1
+
+Baseline (clean HEAD) issue candidates for hand triage: 2
+
+- run 1 `LondonFeeMarket.java` (CONFIRMED): The implementation introduces a hardcoded DEFAULT_BASEFEE_FLOOR of 7 Wei (Wei.of(7L)) and enforces it in satisfiesFloorTxFee. EIP-1559 does not define any minimum transaction fee floor or base fee floor of 7 Wei, requiring only that transaction max_fee_per_gas >= block.base_fee_per_gas.
+- run 1 `MainnetTransactionValidator.java` (CONFIRMED): The check verifying that maxPriorityFeePerGas does not exceed maxFeePerGas is nested inside 'if (maybeBaseFee.isPresent())'. When validate() is called without a baseFee (i.e. maybeBaseFee is Optional.empty(), such as during stateless transaction pool validation or certain dry-run validations), this 
+Tokens (primary analysis calls, from API usage metadata): prompt_token_count = 79451, candidates_token_count = 1511, thoughts_token_count = 11254, total_token_count = 92216
+
+Wall time: 211.5 s
