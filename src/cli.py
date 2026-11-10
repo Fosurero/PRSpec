@@ -86,8 +86,10 @@ def _build_analyzer(llm_provider, cfg):
         return AzureAIAnalyzer(api_key=cfg.azure_api_key, **cfg.azure_config)
     if llm_provider == "openai":
         return OpenAIAnalyzer(api_key=cfg.openai_api_key, **cfg.openai_config)
+    if llm_provider == "meta":
+        return OpenAIAnalyzer(api_key=cfg.meta_api_key, provider_name="meta", **cfg.meta_config)
     raise click.ClickException(f"unknown provider '{llm_provider}' "
-                               "(gemini | openai | local | azure)")
+                               "(gemini | openai | meta | local | azure)")
 
 
 def _build_verify_analyzer(llm_provider, cfg, primary):
@@ -260,7 +262,7 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
 @cli.command()
 @click.option('--eip', '-e', default=1559, help='EIP number to check (default: 1559)')
 @click.option('--client', '-c', default='go-ethereum', help='Client to analyze (default: go-ethereum)')
-@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, local, or azure')
+@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, meta, local, or azure')
 @click.option('--output', '-o', default='json', help='Output format: json, markdown, html')
 @click.option('--config', '-f', default=None, help='Path to config.yaml')
 @click.option('--verify/--no-verify', default=True,
@@ -390,7 +392,7 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
 @click.option('--eip', '-e', default=1559, help='EIP number to check (default: 1559)')
 @click.option('--clients', '-c', default=None,
               help='Comma-separated clients (default: all with mappings for the EIP)')
-@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, local, or azure')
+@click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, meta, local, or azure')
 @click.option('--output', '-o', default='html', help='Output format: json, markdown, html')
 @click.option('--config', '-f', default=None, help='Path to config.yaml')
 @click.option('--llm-synthesis/--no-llm-synthesis', default=False,

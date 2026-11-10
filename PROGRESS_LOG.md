@@ -22,3 +22,8 @@ Times are UTC. Newest last.
 - 02:52 — Commits `f0a2d23` (feature) and `240e412` (CI). `gemini-live.yml` added.
 - 02:55 — Evidence generated in `docs/evidence/2026-11-10/`. README rewritten; CHANGELOG, ROADMAP,
   PROJECT_STATUS, VERIFICATION, NEXT_STEPS written.
+
+- 2026-11-10 — Added optional Meta Model API provider (`muse-spark-1.3`) with JSON Schema,
+  environment-only key, and no-cloud guard. Live synthetic spec/code analysis through PRSpec returned
+  PARTIAL_MATCH and detected the deliberately wrong nonce boundary (536 input / 1,116 output tokens).
+  Test suite: 210 passed, 2 skipped; ruff clean. This is a smoke test, not a benchmark.

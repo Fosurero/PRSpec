@@ -37,12 +37,21 @@ scripts/fetch_clients.sh /tmp/clients 8f01c7a3200780b00163ab76d544e0ef6646da41 \
 | 11 | `tests/test_v2_providers.py::test_no_cloud_guard` | Gemini refused; non-private local URL refused; 127.0.0.1 allowed | — |
 | 12 | Action pins in workflows | resolved with `git ls-remote` against `actions/*` tags (checkout v7.0.1, setup-python v7.1.0, upload-artifact v7.0.2) | — |
 
+## Meta Muse live smoke test (2026-11-10)
+
+A real PRSpec `meta` analyzer call sent only a synthetic rule and a synthetic Python snippet to
+`muse-spark-1.3`. The rule required rejecting nonces above 3; the code incorrectly accepted 4.
+The structured response returned `PARTIAL_MATCH` with one issue and identified the off-by-one error.
+Usage reported: 536 prompt tokens and 1,116 completion tokens; 12.59 s. This single example is
+not a benchmark or evidence of production accuracy. A separate connectivity test returned `OK`
+(12 prompt / 16 completion tokens). `pytest -q`: 210 passed, 2 skipped; `ruff check .` clean.
+
 ## Not verified here (and why)
 
 | Item | Why | Where it gets verified |
 | --- | --- | --- |
-| Gemini live analysis / scoreboard numbers | no key in this environment | `.github/workflows/gemini-live.yml` → `docs/evidence/<date>/gemini-live/` |
-| Gemini model availability for the project key | needs the key | `prspec models --probe` step in the same workflow |
+| Gemini live analysis / scoreboard numbers | live generation returned HTTP 503; scoreboard not run | `.github/workflows/gemini-live.yml` → `docs/evidence/<date>/gemini-live/` |
+| Gemini model availability for the project key | listed by API, but generation returned HTTP 503 | `prspec models --probe` step in the same workflow |
 | Docker build | no daemon | `ci.yml` job `docker` |
 | Witness matrix on default branches | done locally at pinned commits only | `ci.yml` job `witness-live-clients` |
 | Inference quality of any local model | no GPU/model here | ROADMAP C8 |

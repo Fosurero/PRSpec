@@ -220,6 +220,32 @@ Flagged finding under review:
 
 
 DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+META_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "prspec_analysis",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "enum": [
+                    "FULL_MATCH", "PARTIAL_MATCH", "MISSING", "UNCERTAIN"]},
+                "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
+                "issues": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {
+                        key: {"type": "string"} for key in (
+                            "type", "severity", "spec_reference", "code_location",
+                            "description", "potential_impact", "suggestion")
+                    },
+                    "required": ["type", "severity", "spec_reference", "code_location",
+                                 "description", "potential_impact", "suggestion"],
+                }},
+                "summary": {"type": "string"},
+            },
+            "required": ["status", "confidence", "issues", "summary"],
+        },
+    },
+}
 _RETRYABLE = ("429", "500", "502", "503", "504", "RESOURCE_EXHAUSTED", "UNAVAILABLE",
               "DEADLINE_EXCEEDED", "INTERNAL")
 
@@ -424,13 +450,15 @@ class OpenAIAnalyzer(BaseAnalyzer):
         }
         # Local servers accept max_tokens; OpenAI's current models use
         # max_completion_tokens and may reject a non-default temperature.
-        if self.provider_name == "local":
+        if self.provider_name in ("local", "meta"):
             body["max_tokens"] = self.max_tokens
         else:
             body["max_completion_tokens"] = self.max_tokens
         if self.temperature is not None:
             body["temperature"] = self.temperature
-        if self.json_mode:
+        if self.provider_name == "meta" and self.json_mode:
+            body["response_format"] = META_RESPONSE_FORMAT
+        elif self.json_mode:
             body["response_format"] = {"type": "json_object"}
         started = time.time()
         try:
@@ -455,6 +483,15 @@ class OpenAIAnalyzer(BaseAnalyzer):
                                           f"{meta['finish_reason']}); treated as incomplete.",
                                   raw_response=text, meta=meta)
         result = self._parse_json_response(text)
+        if self.provider_name == "meta" and (
+            result.get("status") not in ("FULL_MATCH", "PARTIAL_MATCH", "MISSING", "UNCERTAIN")
+            or not isinstance(result.get("confidence"), int)
+            or not isinstance(result.get("issues"), list)
+            or not isinstance(result.get("summary"), str)
+        ):
+            return AnalysisResult(status="ERROR", confidence=0, issues=[],
+                                  summary="Meta returned an invalid analysis response.",
+                                  raw_response=text, meta=meta)
         return AnalysisResult(
             status=result.get("status", "UNCERTAIN"),
             confidence=result.get("confidence", 0),
@@ -633,6 +670,14 @@ def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
             raise ValueError("Missing required parameter: base_url")
         return OpenAIAnalyzer(**kwargs)
 
+    elif provider == "meta":
+        if not kwargs.get("api_key"):
+            raise ValueError("Missing required parameter: api_key")
+        kwargs.setdefault("model", "muse-spark-1.3")
+        kwargs.setdefault("base_url", "https://api.meta.ai/v1")
+        kwargs.setdefault("provider_name", "meta")
+        return OpenAIAnalyzer(**kwargs)
+
     elif provider == "azure":
         required = ["api_key", "endpoint", "model"]
         for key in required:
@@ -642,5 +687,5 @@ def get_analyzer(provider: str = "gemini", **kwargs) -> BaseAnalyzer:
 
     else:
         raise ValueError(
-            f"Unknown provider: {provider}. Use 'gemini', 'openai', 'local', or 'azure'."
+            f"Unknown provider: {provider}. Use 'gemini', 'openai', 'meta', 'local', or 'azure'."
         )

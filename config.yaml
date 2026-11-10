@@ -19,6 +19,12 @@ llm:
     # for Gemini 3+; low values can cause loops on reasoning tasks.
     # thinking_level: low   # optional: low | medium | high
 
+  # Meta Model API (cloud; MODEL_API_KEY required, META_MODEL overrides model)
+  meta:
+    model: muse-spark-1.3
+    base_url: https://api.meta.ai/v1
+    max_tokens: 8192
+
   # OpenAI (alternative cloud provider)
   openai:
     model: gpt-6.1-sol

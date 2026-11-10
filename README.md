@@ -44,7 +44,7 @@ it was produced from.
 | --- | --- | --- | --- |
 | **Witnesses** (`prspec witness`) | EIP constants and simple derived values (for example `TARGET_BLOB_GAS_PER_BLOCK = target_blobs × GAS_PER_BLOB`) against anchors in client code | No | **Implemented and verified** for EIP-1559 (3 rules) and EIP-4844 (9 rules) on Besu, go-ethereum and Nethermind |
 | **Fork Watch** (`prspec fork-watch`) | Parameter-level diff between two EIP revisions, mapped to rules and to the client files to review | No | **Implemented and verified** on real EIP-4844 history. Prose and algorithm changes are not detected yet |
-| **Semantic analysis** (`prspec analyze`, `prspec diff`) | Logic and missing checks that cannot be reduced to a constant. Spec and code go to an LLM, and every finding is re-examined adversarially and grounded in the quoted spec text | Yes (Gemini, OpenAI, local, Azure/Claude) | **Implemented.** Gemini 2.0 integration is covered by unit tests. The live run is in [`gemini-live.yml`](.github/workflows/gemini-live.yml) |
+| **Semantic analysis** (`prspec analyze`, `prspec diff`) | Logic and missing checks that cannot be reduced to a constant. Spec and code go to an LLM, and every finding is re-examined adversarially and grounded in the quoted spec text | Yes (Gemini, OpenAI, Meta Muse, local, Azure/Claude) | **Implemented.** Gemini 2.0 integration is covered by unit tests. The live run is in [`gemini-live.yml`](.github/workflows/gemini-live.yml) |
 
 Executable witnesses (EEST-format tests checked against the EELS reference before they touch a
 client) are **planned, not built**. See [ROADMAP.md](ROADMAP.md).
@@ -127,6 +127,20 @@ docker run --rm -e GEMINI_API_KEY -v "$PWD/../clients/besu:/src/besu:ro" prspec:
 
 The image runs as a non-root user (uid 10001) and contains no secrets. The key is passed at run time.
 
+### Meta Muse (optional cloud provider)
+
+Set `MODEL_API_KEY` securely in your environment and run:
+
+```bash
+prspec analyze --provider meta --eip 1559 --client besu --source-dir ../clients/besu
+```
+
+The default model is `muse-spark-1.3`; override it using `META_MODEL` or the
+`meta` section of `config.yaml`. Spec and source code are sent to Meta and
+usage may be billed. Never commit API keys. `--no-cloud` blocks this provider.
+Meta supports the OpenAI-compatible Chat Completions endpoint and JSON Schema
+responses: https://dev.meta.ai/docs/structured-output.
+
 ### Fully local: no code leaves your machine
 
 ```bash
@@ -135,7 +149,7 @@ export PRSPEC_LOCAL_BASE_URL=http://127.0.0.1:11434/v1 PRSPEC_LOCAL_MODEL=qwen3-
 prspec --no-cloud analyze --provider local --eip 1559 --client besu --source-dir ../clients/besu
 ```
 
-With `--no-cloud`, PRSpec refuses Gemini, OpenAI and Azure. It also refuses a "local" URL that is not a
+With `--no-cloud`, PRSpec refuses Gemini, OpenAI, Meta and Azure. It also refuses a "local" URL that is not a
 loopback or private address. Whether a given open-weights model is *good enough* has not been measured
 yet. The transport is tested; the quality is not.
 
@@ -168,7 +182,8 @@ overrides it.
 | `PRSPEC_LOCAL_BASE_URL` / `PRSPEC_LOCAL_MODEL` / `PRSPEC_LOCAL_API_KEY` | Local provider |
 | `PRSPEC_NO_CLOUD=1` | Same as `--no-cloud` |
 | `AZURE_AI_API_KEY` / `AZURE_AI_ENDPOINT` / `AZURE_AI_DEPLOYMENT` | Claude via Azure AI Foundry |
-| `LLM_PROVIDER` | `gemini` · `openai` · `local` · `azure` |
+| `MODEL_API_KEY` / `META_MODEL` | Meta Model API key and model id (default `muse-spark-1.3`) |
+| `LLM_PROVIDER` | `gemini` · `openai` · `meta` · `local` · `azure` |
 | `GITHUB_TOKEN` | Optional, for GitHub rate limits when fetching remote code |
 
 **Gemini model choice.** On 2026-11-10, Google's [models page](https://ai.google.dev/gemini-api/docs/models)

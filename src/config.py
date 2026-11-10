@@ -49,7 +49,7 @@ class Config:
 
     @property
     def llm_provider(self) -> str:
-        """Get the active LLM provider (gemini or openai)"""
+        """Get the active LLM provider."""
         # Environment variable takes precedence
         env_provider = os.getenv("LLM_PROVIDER")
         if env_provider:
@@ -71,6 +71,24 @@ class Config:
         if not key:
             raise ValueError("OPENAI_API_KEY not set in environment")
         return key
+
+    @property
+    def meta_api_key(self) -> str:
+        """Get the Meta Model API key from the environment."""
+        key = os.getenv("MODEL_API_KEY")
+        if not key:
+            raise ValueError("MODEL_API_KEY not set in environment")
+        return key
+
+    @property
+    def meta_config(self) -> Dict[str, Any]:
+        """Meta Model API configuration; META_MODEL overrides the model id."""
+        conf = dict(self._config.get("llm", {}).get("meta") or {})
+        conf.setdefault("model", "muse-spark-1.3")
+        conf.setdefault("base_url", "https://api.meta.ai/v1")
+        if os.getenv("META_MODEL"):
+            conf["model"] = os.environ["META_MODEL"]
+        return conf
 
     @property
     def azure_api_key(self) -> str:

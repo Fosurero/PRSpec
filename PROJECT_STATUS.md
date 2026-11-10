@@ -4,8 +4,8 @@ _Last updated: 2026-11-10 (UTC) · branch `evidence-pilot` · version 2.0.0 (unt
 
 ## ملخص بالعربي
 
-- **اتعمل واتتحقق منه:** طبقة witness حتمية (من غير LLM) لـ EIP-1559 وEIP-4844 على Besu وGeth وNethermind: 34 فحص، 34 مطابق. Fork Watch على تاريخ EIP-4844 الحقيقي. عمود witness في الـ mutation scoreboard بيمسك 4 من 10 من غير API key. تحديث Gemini (الافتراضي `gemini-3.8-flash`). مزود محلي مع `--no-cloud`. Dockerfile. CI جديد. الإصدار 2.0.0. 206 اختبار ناجح.
-- **ناقص:** تشغيل Gemini الحي بيحتاج الـ secret اللي في GitHub. الجهاز اللي اشتغلت عليه ما فيهوش `GEMINI_API_KEY` ولا صلاحية push، فالتشغيل الحي لازم يتعمل من workflow `gemini-live.yml` بعد رفع الفرع. والفيديو النهائي مستني نتايج التشغيل ده.
+- **اتعمل واتتحقق منه:** طبقة witness حتمية (من غير LLM) لـ EIP-1559 وEIP-4844 على Besu وGeth وNethermind: 34 فحص، 34 مطابق. Fork Watch على تاريخ EIP-4844 الحقيقي. عمود witness في الـ mutation scoreboard بيمسك 4 من 10 من غير API key. تحديث Gemini (الافتراضي `gemini-3.8-flash`). مزود محلي مع `--no-cloud`. Dockerfile. CI جديد. الإصدار 2.0.0. 210 اختبارات ناجحة، بالإضافة إلى تكامل Meta Muse واختبار حي على مثال اصطناعي واحد.
+- **ناقص:** تشغيل Gemini الحي والـ scoreboard: طلب التوليد رجّع 503 وقت الفحص. سر `GEMINI_API_KEY` موجود في GitHub Actions، لكن لم نتحقق من قيمته أو نشغّل الـ workflow. توكن GitHub الذي قدّمه المستخدم أثبت صلاحية الوصول والـ push، لكن الفرع لم يُرفع بعد. الفيديو النهائي مستني نتايج تشغيل Gemini.
 - **ممنوع ادعاؤه:** أي نسبة اكتشاف أو false positives أو تكلفة لـ Gemini، لحد ما التشغيل يتم فعلًا.
 
 ## Initial audit (requested sections)
