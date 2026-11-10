@@ -1,0 +1,16 @@
+{
+  "provider": "meta",
+  "model": "muse-wonder-1.0",
+  "spec_ref": "eb2e7a97aa70b1d7f39968c6be9ed3e731512f9d",
+  "refs": {
+    "before": "19c989a6d96bb412f3815d14687da8cc334f1286",
+    "after": "7605351c1ae86c955b28df90f66ede9c9c5f1386"
+  },
+  "files": [
+    "ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java",
+    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/ExcessBlobGasCalculator.java",
+    "evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java"
+  ],
+  "verification": false,
+  "method": "Existing PRSpec Runner.analyze_file, concatenated 3 real source files; no PR description, diff, or expected finding supplied; full pinned EIP."
+}

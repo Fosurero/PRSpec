@@ -1,0 +1,24 @@
+{
+  "status": "ERROR",
+  "confidence": 0,
+  "issues": [],
+  "summary": "response not usable (finish_reason=length); treated as incomplete.",
+  "meta": {
+    "model": "muse-wonder-1.0",
+    "latency_s": 80.07,
+    "model_version": "muse-wonder-1.0",
+    "finish_reason": "length",
+    "prompt_token_count": 11565,
+    "candidates_token_count": 8192
+  },
+  "file_name": "ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java",
+  "seconds": 80.1,
+  "code_sha256": "ca1efdd2b04fce7429dcb267a5aaca60d671e24716b9b87e06de870aa3b4b677",
+  "besu_commit": "19c989a6d96bb412f3815d14687da8cc334f1286",
+  "spec_commit": "eb2e7a97aa70b1d7f39968c6be9ed3e731512f9d",
+  "source_files": [
+    "ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java",
+    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/ExcessBlobGasCalculator.java",
+    "evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java"
+  ]
+}

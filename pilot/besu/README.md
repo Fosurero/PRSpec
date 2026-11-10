@@ -15,18 +15,17 @@ It never blocks a PR, and you can remove it by deleting two files.
    - checks out the PR's Java files **as text** (nothing from the PR is built or executed),
    - installs PRSpec from a pinned commit (not from the PR),
    - analyses only the EIPs whose files changed, with adversarial verification on,
-   - writes the report to the job summary and a `prspec-report` artifact,
-   - posts **at most one** collapsed comment per PR, edited in place
-     (`POST_COMMENT: "false"` turns comments off).
+   - writes JSON, Markdown and HTML reports to the `prspec-report` artifact and a summary,
+   - does not comment on or modify the PR.
 
 The job has `continue-on-error: true` and is not a required check.
 
 ## Data path
 
 Only the mapped source files (listed in `src/code_fetcher.py`, Besu section) and the
-EIP text go to the configured LLM provider (default: Google Gemini, model pinned in
-`prspec.besu.yaml`). Nothing is sent anywhere else, and nothing is stored outside
-the workflow run.
+EIP text are sent to Meta; the configured model and API endpoint are written in the
+workflow and `prspec.besu.yaml`. API calls may be billable. Standard GitHub Actions,
+package installation and source retrieval also use network services.
 
 ## Exit codes (fail-closed)
 
@@ -40,8 +39,8 @@ the workflow run.
 ## Install (maintainers)
 
 1. Copy `workflows/prspec-pilot-trigger.yml` and `workflows/prspec-pilot.yml` to `.github/workflows/`.
-2. Set `PRSPEC_COMMIT` in `prspec-pilot.yml` to a reviewed PRSpec commit.
-3. Add a repository secret `PRSPEC_GEMINI_API_KEY`.
+2. Review the pinned `PRSPEC_COMMIT` and the model configuration in the workflow.
+3. Add your own Meta API key as a repository secret `PRSPEC_META_API_KEY`.
 
 Opt-out: delete the two files, or disable the workflow in the Actions tab.
 
@@ -55,7 +54,7 @@ are written in the YAML **before** any run, and the raw outputs are published:
 git clone --filter=blob:none https://github.com/besu-eth/besu.git ../besu
 git -C ../besu checkout 8f01c7a3200780b00163ab76d544e0ef6646da41
 python scripts/mutation_scoreboard.py --besu-dir ../besu --dry-run   # no API key needed
-python scripts/mutation_scoreboard.py --besu-dir ../besu --runs 2    # needs GEMINI_API_KEY
+python scripts/mutation_scoreboard.py --besu-dir ../besu --provider meta --runs 2  # needs MODEL_API_KEY; billable
 ```
 
 Recorded Meta Muse Spark run: [scoreboard](../../docs/evidence/2026-11-10/meta-live/scoreboard/scoreboard.md),
@@ -64,7 +63,7 @@ Six mutations were confirmed by automated verification, one flagged, and three i
 The clean baseline produced 33 raw issues; none survived automated verification. These results
 are a single experiment, not an independently measured false-positive rate or proof of a real bug.
 
-For a reproducible key-free walkthrough, see [Besu demo guide](DEMO.md).
+For the real historical Besu PR replay and its limits, see [Besu demo guide](DEMO.md).
 
 ## Known limitations (read before trusting a result)
 
@@ -76,3 +75,7 @@ For a reproducible key-free walkthrough, see [Besu demo guide](DEMO.md).
 - Policy vs consensus: txpool / RPC policy choices (e.g. #10714, #10715) are not spec
   deviations. Please tell us when a finding falls in that bucket so we can suppress the class.
 - Cost and latency per PR are reported by the scoreboard run; we will not quote numbers before then.
+
+## Important status
+
+The workflow is a draft, not yet tested in Besu CI. The historical PR #5786 experiment used a targeted multi-file context; the generic workflow analyzes registered files individually and is not proven to detect that case. HTML/JSON/Markdown reports and workflow behavior must be validated by a maintainer before trial. The HTML confidence field is a model-reported value, **not** a calibrated probability.

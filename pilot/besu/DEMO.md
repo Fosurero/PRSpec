@@ -1,51 +1,37 @@
-# Besu pilot: reproducible walkthrough
+# Besu pilot: real historical PR replay
 
-This is a limited, advisory demonstration; it is not a completed deployment in Besu CI.
-No source code is sent to an LLM in the key-free steps below.
+**A real, published Besu fix—not an injected bug and not a new discovery.** Besu [PR #5786](https://github.com/besu-eth/besu/pull/5786) corrected how a block producer calculates excess blob gas. PRSpec was run on the actual code before and after the fix, against the relevant historical EIP-4844 paragraph.
 
-## Recorded results (no setup)
+- **Before:** Meta Muse Wonder returned one candidate identifying the use of current-block blob usage instead of the parent's blob gas used.
+- **After:** zero candidates for the selected requirement; the model labelled the supplied context `FULL_MATCH`.
+- **Scope:** one retrospective case, three supplied files, one selected rule. No model verification rounds, execution of Besu, EELS test, independent assessment, or CI run. A model match does not prove compliance. The case is public and may have appeared in model training.
+- [Complete methodology, failed broader attempt and raw outputs](../../docs/evidence/2026-11-10/besu-pr5786/README.md) · [actual Besu change](../../docs/evidence/2026-11-10/besu-pr5786/real-change.diff).
 
-- [Meta Muse Spark scoreboard](../../docs/evidence/2026-11-10/meta-live/scoreboard/scoreboard.md): 10 intentionally injected deviations; 6 confirmed by automated review, 1 flagged, 3 inconclusive. These are not newly discovered Besu bugs.
-- [EIP-1559 witness matrix](../../docs/evidence/2026-11-10/witness-1559.md): mechanically compared constants against pinned client files.
-- [Mutation definitions](mutations.yaml) and [raw results](../../docs/evidence/2026-11-10/meta-live/scoreboard/scoreboard.json).
+## Replay the recorded demo — no API key
 
-## The main demonstration: a code change and a reviewable finding
-
-Case M5 intentionally changes `int i = 1` to `int i = 2` in Besu's `BlobFeeMarket.fakeExponential`. PRSpec's recorded Meta Muse run points to the EIP-4844 rule, explains the discrepancy and suggests the one-line fix. The finding passed two automated review rounds; this is **not** human-confirmed and is **not** a discovered defect in Besu. This semantic example is a replay of a recorded API result, not a live call. A separate M2 constant check runs fresh and locally.
-
-After the setup below, run the walkthrough:
+From a cloned PRSpec repository root:
 
 ```bash
-python pilot/besu/demo.py --besu-dir ../clients/besu --eips-dir ../clients/EIPs
+python3 pilot/besu/replay_pr5786.py
 ```
 
-It validates the fresh M5 patch against the recorded one, shows the diff and recorded finding, and runs a fresh M2 witness. Outputs go into `output/besu-case-demo/`. No API key or cloud call is required.
+The command prints the real patch and the recorded before/after PRSpec outputs. It does **not** make a model call. The case HTML report is `docs/evidence/2026-11-10/besu-pr5786/report.html`; open it in a browser. Both the report and raw JSON are generated from the actual results, not from a fabricated run.
 
-## Setup and key-free checks
+## Repeat the analysis live — Meta key required
 
-From the root of a PRSpec checkout (Python 3.10+ and Git required):
+This opt-in performs two paid calls and sends the three public source files and the selected public EIP text to Meta. Responses may differ. The Git checkouts must contain the pinned commits in the [manifest](../../docs/evidence/2026-11-10/besu-pr5786/manifest-focused.json); a shallow clone may not. From the PRSpec root:
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
+python -m venv .venv && . .venv/bin/activate
 pip install .
-scripts/fetch_clients.sh ../clients 8f01c7a3200780b00163ab76d544e0ef6646da41 c863eecbddb2c9db2cd2f07bb1db80740d75a5b3 8ba0b6d05ea0b036524658f5ba1b6d14afd8f20e 542e62eb129517130b7facc52bbb9a1f333c711e
-prspec witness --eip 1559 -t besu=../clients/besu --eips-dir ../clients/EIPs --markdown besu-witness.md
-python scripts/mutation_scoreboard.py --besu-dir ../clients/besu --eips-dir ../clients/EIPs --dry-run --out output/besu-demo
+git clone --filter=blob:none https://github.com/besu-eth/besu.git ../besu
+git clone --filter=blob:none https://github.com/ethereum/EIPs.git ../EIPs
+# Set MODEL_API_KEY securely in your environment, never in a file committed to Git.
+META_MODEL=muse-wonder-1.0 python pilot/besu/replay_pr5786.py --live --besu-dir ../besu --eips-dir ../EIPs
 ```
 
-The first check compares three selected constants to the pinned spec; a match is not proof of behavioral compliance. The dry run validates the mutation inputs and runs deterministic checks; it does **not** perform model analysis. See the [pilot kit](README.md) for the draft GitHub Actions configuration. It currently uses Gemini, requires a repository secret, and has not been tested in Besu CI. Meta is supported by PRSpec, but that draft workflow is not a tested Meta workflow.
+Outputs go to `output/besu-pr5786-rerun/`. This targeted harness supplies the related files as context; the generic PR workflow currently analyzes registry files separately and is **not shown to detect this cross-file case**.
 
-## Additional focused Meta Wonder experiment
+## What Besu requested
 
-A separate two-call experiment compared this exact file clean and with M5 using the stronger `muse-wonder-1.0`. It described the injected index error, but the original keyword scorer marked the comparison inconclusive because a different clean-file concern mentioned the same function. This was not independently verified and used a different specification input from the earlier Spark scoreboard. [Results and raw outputs](../../docs/evidence/2026-11-10/meta-wonder-case/README.md).
-
-## Live Meta analysis (optional, billable)
-
-Set `MODEL_API_KEY` securely in your environment (do not commit it); source code and EIP text are sent to Meta. With the same pinned checkouts:
-
-```bash
-prspec analyze --provider meta --eip 1559 --client besu --source-dir ../clients/besu --output markdown
-```
-
-This is a fresh cloud analysis, not a replay of the recorded scoreboard. Review its outputs; provider failures or missing files are not a clean result. Model can be configured using `META_MODEL`.
+The [pilot kit](README.md) includes a draft minimal GitHub Actions pair and baseline config for a non-blocking run with an artifact report. It has not been run in Besu CI or independently reviewed. Real PR trials, human false-positive review, EELS/runtime validation, and client-team integration are future work that funding can support; funding does not itself validate this retrospective result.

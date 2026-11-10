@@ -1,0 +1,18 @@
+{
+  "provider": "meta",
+  "model": "muse-wonder-1.0",
+  "spec_ref": "eb2e7a97aa70b1d7f39968c6be9ed3e731512f9d",
+  "refs": {
+    "before": "19c989a6d96bb412f3815d14687da8cc334f1286",
+    "after": "7605351c1ae86c955b28df90f66ede9c9c5f1386"
+  },
+  "files": [
+    "ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java",
+    "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/ExcessBlobGasCalculator.java",
+    "evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java"
+  ],
+  "verification": false,
+  "max_output_tokens": 16384,
+  "method": "Existing PRSpec Runner.analyze_file; three concatenated real Besu source files per version; focused exact EIP excerpt; no PR description, diff or expected finding supplied.",
+  "spec_excerpt": "The value of `excess_blob_gas` can be calculated using the parent header.\n\n```python\ndef calc_excess_blob_gas(parent: Header) -> int:\n    if parent.excess_blob_gas + parent.blob_gas_used < TARGET_BLOB_GAS_PER_BLOCK:\n        return 0\n    else:\n        return parent.excess_blob_gas + parent.blob_gas_used - TARGET_BLOB_GAS_PER_BLOCK\n```\n\nFor the first post-fork block, both `parent.blob_gas_used` and `parent.excess_blob_gas` are evaluated as `0`."
+}

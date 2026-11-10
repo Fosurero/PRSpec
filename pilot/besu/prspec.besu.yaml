@@ -1,10 +1,11 @@
 # PRSpec configuration for the Besu pilot. The pilot workflow writes this
 # exact content at run time (it is never read from the PR under review).
 llm:
-  provider: gemini
-  gemini:
-    model: gemini-3.8-flash      # pinned model id; record changes in the changelog
-    max_output_tokens: 32768
+  provider: meta
+  meta:
+    model: muse-wonder-1.0
+    base_url: https://api.meta.ai/v1
+    max_tokens: 16384
 
 eips:
   1559:

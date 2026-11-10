@@ -5,8 +5,7 @@
 #     secret; the PR's code is checked out as plain text and never executed
 #   * PRSpec itself is installed from a pinned commit, not from the PR
 #   * never fails the PR; results go to the job summary and an artifact
-#   * posts at most one comment per PR, edited in place (set POST_COMMENT=false
-#     to disable comments entirely)
+#   * never comments on or modifies the PR
 # Opt-out: delete both files, or disable the workflow in the Actions tab.
 name: PRSpec pilot
 
@@ -18,12 +17,11 @@ on:
 permissions:
   contents: read
   actions: read          # download the artifact from part 1
-  pull-requests: write   # the single optional comment
+  pull-requests: read    # verify PR metadata; no comments or modifications
 
 env:
   PRSPEC_REPO: https://github.com/Fosurero/PRSpec
-  PRSPEC_COMMIT: REPLACE_WITH_RELEASE_SHA   # pin to a reviewed PRSpec commit
-  POST_COMMENT: "true"
+  PRSPEC_COMMIT: 2efdb3362735086dba9f5de97b20c1650bbb5b64  # review and pin deliberately
 
 jobs:
   analyze:
@@ -42,10 +40,14 @@ jobs:
 
       - name: Validate PR info
         id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           number=$(cat pr/number); sha=$(cat pr/head_sha)
           [[ "$number" =~ ^[0-9]+$ ]] || { echo "bad PR number"; exit 1; }
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "bad head sha"; exit 1; }
+          actual=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${number}" --jq .head.sha)
+          [[ "$sha" == "$actual" ]] || { echo "PR head changed or artifact mismatch"; exit 1; }
           echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
@@ -74,11 +76,11 @@ jobs:
           # PRSpec configuration for the Besu pilot. The pilot workflow writes this
           # exact content at run time (it is never read from the PR under review).
           llm:
-            provider: gemini
-            gemini:
-              model: gemini-2.5-pro        # pinned model id; record changes in the changelog
-              max_output_tokens: 8192
-              temperature: 0.1
+            provider: meta
+            meta:
+              model: muse-wonder-1.0
+              base_url: https://api.meta.ai/v1
+              max_tokens: 16384
 
           eips:
             1559:
@@ -132,7 +134,7 @@ jobs:
       - name: Run PRSpec (verify on, never blocks)
         if: steps.eips.outputs.list != ''
         env:
-          GEMINI_API_KEY: ${{ secrets.PRSPEC_GEMINI_API_KEY }}
+          MODEL_API_KEY: ${{ secrets.PRSPEC_META_API_KEY }}
           EIPS: ${{ steps.eips.outputs.list }}
           SHA: ${{ steps.pr.outputs.sha }}
         run: |
@@ -140,9 +142,23 @@ jobs:
           status=0
           for eip in $EIPS; do
             prspec analyze --eip "$eip" --client besu --source-dir pr-src \
-              --ref "$SHA" --output markdown --fail-on incomplete || status=$?
+              --ref "$SHA" --output json --fail-on incomplete || status=$?
           done
           echo "exit_status=$status" >> "$GITHUB_ENV"
+          # Render the exact same results as Markdown and HTML without another model call.
+          python - <<'PYCODE'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from src.report_generator import ReportGenerator, ReportMetadata
+          generator = ReportGenerator('output')
+          for path in Path('output').glob('prspec_eip*.json'):
+              data = json.loads(path.read_text())
+              metadata = data['metadata']
+              metadata['timestamp'] = datetime.fromisoformat(metadata['timestamp'])
+              for fmt in ('markdown', 'html'):
+                  generator.generate_report(data['results'], ReportMetadata(**metadata), fmt)
+          PYCODE
 
       - name: Job summary
         if: always()
@@ -150,8 +166,8 @@ jobs:
           {
             echo "## PRSpec pilot (advisory, non-blocking)"
             echo "PR head: \`${{ steps.pr.outputs.sha }}\` · EIPs: ${{ steps.eips.outputs.list || 'none touched' }}"
-            if [ "${exit_status:-0}" = "20" ]; then
-              echo "> ⚠️ Analysis incomplete: some files were not analysed. Treat as no signal."
+            if [ "${exit_status:-not-run}" != "0" ]; then
+              echo "> ⚠️ Analysis incomplete or failed (exit: ${exit_status:-not-run}). Treat as no signal."
             fi
             cat output/*.md 2>/dev/null || echo "No report produced."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -162,25 +178,3 @@ jobs:
           name: prspec-report
           path: output
           if-no-files-found: ignore
-
-      - name: One collapsed comment (edited in place)
-        if: env.POST_COMMENT == 'true' && steps.eips.outputs.list != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ steps.pr.outputs.number }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          marker="<!-- prspec-pilot -->"
-          body="$marker
-          <details><summary>PRSpec pilot: advisory EIP compliance check (click to expand)</summary>
-
-          Results are in the [job summary]($RUN_URL). This check never blocks the PR.
-          Findings are LLM output that went through adversarial verification; please treat them as review hints, not verdicts.
-          </details>"
-          id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
-                 --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
-          if [ -n "$id" ]; then
-            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/$id" -f body="$body" >/dev/null
-          else
-            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -f body="$body" >/dev/null
-          fi

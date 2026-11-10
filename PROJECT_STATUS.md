@@ -1,3 +1,5 @@
+> **Latest:** Targeted retrospective test on real Besu PR #5786: one relevant candidate before the fix, none after for the selected EIP-4844 requirement, using Meta Wonder. Three files were combined; no verifier or Besu runtime was used. This is not a newly found bug or a demonstrated CI workflow. See [case evidence](docs/evidence/2026-11-10/besu-pr5786/README.md).
+
 > **Update:** The primary Besu case walkthrough is [`pilot/besu/DEMO.md`](pilot/besu/DEMO.md). It reproduces M5, replays the recorded Meta review, and runs a fresh M2 deterministic check. Gemini is optional and is not a prerequisite for the Meta demo. GitHub Actions billing remains a separate issue. The older status entries below preserve the original timeline.
 
 # PRSpec project status

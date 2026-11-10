@@ -23,6 +23,12 @@ it was produced from.
 
 ---
 
+## Besu: real historical PR replay
+
+[Run the focused demo](pilot/besu/DEMO.md): PRSpec analyzed the real Besu PR [#5786](https://github.com/besu-eth/besu/pull/5786) before and after its published fix. The targeted Meta run flagged the known parent-vs-current blob gas issue before the fix and returned no findings on the selected requirement after it. This is one retrospective case, not a new discovery, a proven CI capability, or evidence of overall accuracy. [Method and raw outputs](docs/evidence/2026-11-10/besu-pr5786/README.md).
+
+---
+
 ## Why a client team would want this
 
 - **Spec churn is real.** EIP text keeps changing after clients start implementing it. In June
