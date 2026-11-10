@@ -46,8 +46,16 @@ the EF Protocol Security [wishlist](https://security.ethereum.org/wishlist) list
 EPF Cohort 6 has a [Differential LLMing](https://github.com/eth-protocol-fellows/cohort-six/blob/master/projects/differential-llming.md) project;
 [SpecTrum](https://arxiv.org/pdf/2608.17738) reports consensus-layer divergences across clients; and
 [LLM-driven differential testing](https://www.youtube.com/watch?v=btaJkpmFs4s) was presented at Black Hat Asia 2026.
-PRSpec's focus is continuous, reproducible spec-to-code checks across execution clients, with every result tied to
-a pinned spec and client commit and an honest "incomplete" when it could not check something.
+PRSpec aims to make spec-to-code checks easier to reproduce across execution clients. A client
+commit can be pinned, and incomplete analyses report a distinct exit code. The EIP text is
+currently fetched from a live branch and cached; it is not yet independently pinned by commit.
+
+### Besu evidence pilot (in preparation)
+
+The [Besu pilot kit](pilot/besu/README.md) contains a draft workflow and baseline config,
+plus a pre-registered [10-mutation experiment](pilot/besu/mutations.yaml). The kit has not
+yet been validated end-to-end in Besu, and the Gemini scoreboard has not been run. There are
+no detection-rate or cost results to report yet; LLM findings require human review.
 
 ---
 
@@ -75,8 +83,8 @@ PRSpec now covers the execution-layer EIPs that the staking lifecycle depends on
 client-level protocol divergence matters most and where almost nothing monitors compliance
 continuously.
 
-Running the analysis across go-ethereum, Nethermind, and Besu surfaced a cross-client
-divergence in the request system-call path: go-ethereum does not invalidate a block when a
+A past analysis across go-ethereum, Nethermind, and Besu surfaced a cross-client
+divergence in the request system-call path: the analyzed go-ethereum version did not invalidate a block when a
 *checked* request predeploy (EIP-7002 / 7251) has no code, where the execution-specs reference,
 Nethermind, and Besu all invalidate. Confirmed across two independent EIPs and re-verified by
 hand against client source and the reference. Write-up:
@@ -178,7 +186,7 @@ on its own.
 |--------|----------|---------------|------|
 | go-ethereum | Go | 1559, 4844, 4788, 2930, 7702, 2935, 2537, 6110, 7002, 7251 | [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) |
 | Nethermind | C# | 1559, 4844, 4788, 7702, 2935, 2537, 6110, 7002, 7251 | [NethermindEth/nethermind](https://github.com/NethermindEth/nethermind) |
-| Besu | Java | 1559, 4844, 4788, 7702, 2935, 2537, 6110, 7002, 7251 | [hyperledger/besu](https://github.com/hyperledger/besu) |
+| Besu | Java | 1559, 4844, 4788, 7702, 2935, 2537, 6110, 7002, 7251 | [besu-eth/besu](https://github.com/besu-eth/besu) |
 | Reth | Rust | 1559, 4844, 7702, 2935, 2537, 7002, 7251 | [paradigmxyz/reth](https://github.com/paradigmxyz/reth) |
 
 ### EIPs

@@ -36,6 +36,14 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install PRSpec
+        run: pip install .
+
       - name: Read pinned Besu commit
         id: pin
         run: |
@@ -54,14 +62,6 @@ jobs:
             ethereum/core/src/main/java
             evm/src/main/java
             datatypes/src/main/java
-
-      - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-
-      - name: Install PRSpec
-        run: pip install .
 
       - name: Validate the experiment (no LLM calls)
         run: python scripts/mutation_scoreboard.py --besu-dir besu --dry-run
