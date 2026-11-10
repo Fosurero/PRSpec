@@ -16,7 +16,7 @@ clone() { # name url ref paths...
   echo "$name $(git -C "$DEST/$name" rev-parse HEAD)"
 }
 clone besu https://github.com/besu-eth/besu.git "$BESU_REF" \
-  'ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/**' \
+  'ethereum/core/src/main/java/**' \
   'evm/src/main/java/**' 'datatypes/src/main/java/**' 'config/src/main/java/**'
 clone go-ethereum https://github.com/ethereum/go-ethereum.git "$GETH_REF" \
   'params/*.go' 'consensus/misc/eip1559/*.go' 'consensus/misc/eip4844/*.go' \
