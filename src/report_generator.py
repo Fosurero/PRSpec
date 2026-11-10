@@ -115,7 +115,7 @@ class ReportGenerator:
 | Metric | Value |
 |--------|-------|
 | Status | {summary['overall_status']} |
-| Confidence | {summary['average_confidence']}% |
+| Model-reported confidence (not a calibrated probability) | {summary['average_confidence']}% |
 | Files analysed | {summary['files_analyzed']} |
 | Issues | {summary['total_issues']} (H:{summary['high_severity']} M:{summary['medium_severity']} L:{summary['low_severity']}) |
 {verified_row}
@@ -148,7 +148,10 @@ class ReportGenerator:
 
 """
             else:
-                md_content += "No issues found in this file.\n\n"
+                if result.get("status") == "ERROR":
+                    md_content += "Analysis incomplete; no clean conclusion.\n\n"
+                else:
+                    md_content += "No candidate findings in this file; this is not proof of compliance.\n\n"
 
             md_content += "---\n\n"
 
@@ -199,7 +202,7 @@ against the official EIP-{metadata.eip_number} specification.
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{metadata.title}</title>
+    <title>{html.escape(metadata.title)}</title>
     <style>
         *, *::before, *::after {{ box-sizing: border-box; }}
         body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f0f2f5; color: #1a1a2e; line-height: 1.6; }}
@@ -233,13 +236,13 @@ against the official EIP-{metadata.eip_number} specification.
 <body>
 <div class="page">
     <header>
-        <h1>{metadata.title}</h1>
-        <div class="meta">{metadata.timestamp.strftime('%Y-%m-%d %H:%M')} &middot; {metadata.analyzer} &middot; v{metadata.version}</div>
+        <h1>{html.escape(metadata.title)}</h1>
+        <div class="meta">{metadata.timestamp.strftime('%Y-%m-%d %H:%M')} &middot; {html.escape(metadata.analyzer)} &middot; v{html.escape(metadata.version)}</div>
     </header>
     <div class="body">
         <div class="kpi-row">
             <div class="kpi"><div class="num">{summary['overall_status']}</div><div class="lbl">Status</div></div>
-            <div class="kpi"><div class="num">{summary['average_confidence']}%</div><div class="lbl">Confidence</div></div>
+            <div class="kpi"><div class="num">{summary['average_confidence']}%</div><div class="lbl">Model-reported confidence (not probability)</div></div>
             <div class="kpi"><div class="num">{summary['files_analyzed']}</div><div class="lbl">Files</div></div>
             <div class="kpi"><div class="num" style="color:#e03e3e">{summary['high_severity']}</div><div class="lbl">High</div></div>
             <div class="kpi"><div class="num" style="color:#d4a017">{summary['medium_severity']}</div><div class="lbl">Medium</div></div>
@@ -247,7 +250,7 @@ against the official EIP-{metadata.eip_number} specification.
             {verified_kpi}
         </div>
 
-        <div style="background:#f8f9fb;border:1px solid #e8eaed;border-radius:8px;padding:18px 22px;margin-bottom:28px;font-size:0.93em;line-height:1.7;white-space:pre-line;">{self._build_narrative(results, metadata)}</div>
+        <div style="background:#f8f9fb;border:1px solid #e8eaed;border-radius:8px;padding:18px 22px;margin-bottom:28px;font-size:0.93em;line-height:1.7;white-space:pre-line;">{html.escape(self._build_narrative(results, metadata))}</div>
 
         <h2>Findings</h2>
 """
@@ -259,11 +262,11 @@ against the official EIP-{metadata.eip_number} specification.
             html_content += f"""
         <div class="file-card">
             <div class="head">
-                <span class="path">{result.get('file_name', 'Unknown File')}</span>
-                <span class="badge" style="background:{status_color}">{status}</span>
+                <span class="path">{html.escape(str(result.get('file_name', 'Unknown File')))}</span>
+                <span class="badge" style="background:{status_color}">{html.escape(str(status))}</span>
             </div>
             <div class="content">
-                <p><strong>Confidence:</strong> {result.get('confidence', 0)}%</p>
+                <p><strong>Model-reported confidence (not probability):</strong> {html.escape(str(result.get('confidence', 0)))}%</p>
                 <p>{html.escape(result.get('summary', 'No summary available.'))}</p>
 """
 
@@ -284,7 +287,9 @@ against the official EIP-{metadata.eip_number} specification.
                 </div>
 """
             else:
-                html_content += "                <p>No issues found.</p>"
+                html_content += ("                <p>Analysis incomplete; no clean conclusion.</p>"
+                                 if status == "ERROR" else
+                                 "                <p>No candidate findings reported for this input.</p>")
 
             html_content += """
             </div>
@@ -293,7 +298,7 @@ against the official EIP-{metadata.eip_number} specification.
 
         html_content += f"""
         <div class="footer">
-            PRSpec v{metadata.version} &middot; {metadata.analyzer} &middot; EIP-{metadata.eip_number} &middot; {metadata.client} &middot; {metadata.timestamp.strftime('%Y-%m-%d %H:%M')}
+            PRSpec v{html.escape(metadata.version)} &middot; {html.escape(metadata.analyzer)} &middot; EIP-{metadata.eip_number} &middot; {html.escape(metadata.client)} &middot; {metadata.timestamp.strftime('%Y-%m-%d %H:%M')}
         </div>
     </div>
 </div>
@@ -325,8 +330,8 @@ against the official EIP-{metadata.eip_number} specification.
 
         # Verdict
         parts.append(
-            f"Overall verdict: {s['overall_status']} "
-            f"at {s['average_confidence']}% average confidence."
+            f"Overall status: {s['overall_status']}. "
+            f"Average model-reported confidence: {s['average_confidence']}% (not a calibrated probability)."
         )
 
         # Issue breakdown (only when there are issues)
@@ -342,8 +347,10 @@ against the official EIP-{metadata.eip_number} specification.
                 f"{total} issue{'s' if total != 1 else ''} detected "
                 f"({', '.join(severity_bits)})."
             )
+        elif s["overall_status"] == "INCOMPLETE":
+            parts.append("Analysis incomplete; no clean conclusion can be drawn.")
         else:
-            parts.append("No compliance issues were detected.")
+            parts.append("No candidate findings were reported for the analysed material; this is not proof of compliance.")
 
         # Per-file one-liners
         for r in results:
@@ -417,12 +424,14 @@ against the official EIP-{metadata.eip_number} specification.
             statuses.append(result.get('status', 'UNKNOWN'))
 
         # Determine overall status
-        if 'MISSING' in statuses or high_severity > 0:
+        if not statuses or 'ERROR' in statuses:
+            overall_status = 'INCOMPLETE'
+        elif 'MISSING' in statuses or high_severity > 0:
             overall_status = "ISSUES FOUND"
         elif 'PARTIAL_MATCH' in statuses or medium_severity > 0:
             overall_status = "PARTIAL"
         elif all(s == 'FULL_MATCH' for s in statuses):
-            overall_status = "COMPLIANT"
+            overall_status = "NO FINDINGS"
         else:
             overall_status = "UNCERTAIN"
 
