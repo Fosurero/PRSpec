@@ -1,11 +1,15 @@
 # PRSpec pilot, part 2 of 2 (copy to besu/.github/workflows/).
 #
-# Read-only and non-blocking:
-#   * runs in the base-repo context after part 1, so fork PRs never see the
-#     secret; the PR's code is checked out as plain text and never executed
-#   * PRSpec itself is installed from a pinned commit, not from the PR
-#   * never fails the PR; results go to the job summary and an artifact
-#   * never comments on or modifies the PR
+# Advisory, read-only and non-blocking:
+#   * runs in the base-repo context after part 1; this draft rejects fork PRs.
+#     PR files are checked out as plain text and never built or executed
+#   * PRSpec itself is installed from a pinned commit, never from the PR
+#   * the job never fails the PR; results go to the job summary and an artifact
+#   * it never comments on, labels or modifies the PR
+#   * models in PRSPEC_MODELS are tried in order; the first complete analysis
+#     is reported and every attempt is recorded in attempts.tsv
+# Secrets (repository settings, never in the PR): GEMINI_API_KEY and/or
+# PRSPEC_META_API_KEY. A missing secret only skips that model.
 # Opt-out: delete both files, or disable the workflow in the Actions tab.
 name: PRSpec pilot
 
@@ -21,11 +25,14 @@ permissions:
 
 env:
   PRSPEC_REPO: https://github.com/Fosurero/PRSpec
-  PRSPEC_COMMIT: 2efdb3362735086dba9f5de97b20c1650bbb5b64  # review and pin deliberately
+  PRSPEC_COMMIT: b8fb6e0c11f314d0723594525635b8541dbd35bd  # publish, review and pin deliberately
+  PRSPEC_MODELS: "gemini:gemini-3.8-flash gemini:gemini-3.6-flash meta:muse-wonder-1.0"
 
 jobs:
   analyze:
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
@@ -42,11 +49,17 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           number=$(cat pr/number); sha=$(cat pr/head_sha)
           [[ "$number" =~ ^[0-9]+$ ]] || { echo "bad PR number"; exit 1; }
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "bad head sha"; exit 1; }
-          actual=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${number}" --jq .head.sha)
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" \
+            --jq '.pull_requests[].number' | grep -Fxq "$number" || { echo "run not associated with PR"; exit 1; }
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${number}" > pr/metadata.json
+          actual=$(jq -r .head.sha pr/metadata.json)
+          owner=$(jq -r .head.repo.full_name pr/metadata.json)
+          [[ "$owner" == "$GITHUB_REPOSITORY" ]] || { echo "fork PRs are not supported in this draft"; exit 1; }
           [[ "$sha" == "$actual" ]] || { echo "PR head changed or artifact mismatch"; exit 1; }
           echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
@@ -59,9 +72,19 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
           sparse-checkout: |
+            ethereum/blockcreation/src/main/java
             ethereum/core/src/main/java
             evm/src/main/java
             datatypes/src/main/java
+
+      - name: Check out pinned EIP specifications
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ethereum/EIPs
+          ref: eb2e7a97aa70b1d7f39968c6be9ed3e731512f9d
+          path: eips
+          persist-credentials: false
+          sparse-checkout: EIPS
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -76,7 +99,10 @@ jobs:
           # PRSpec configuration for the Besu pilot. The pilot workflow writes this
           # exact content at run time (it is never read from the PR under review).
           llm:
-            provider: meta
+            provider: gemini
+            gemini:
+              model: gemini-3.8-flash
+              max_output_tokens: 32768
             meta:
               model: muse-wonder-1.0
               base_url: https://api.meta.ai/v1
@@ -110,7 +136,7 @@ jobs:
               - security_implications
 
           output:
-            format: markdown
+            format: json
             directory: output
             include_code_snippets: true
             include_spec_references: true
@@ -131,46 +157,96 @@ jobs:
           print("list=" + " ".join(eips))
           PY
 
-      - name: Run PRSpec (verify on, never blocks)
+      - name: Run PRSpec (one joint request per EIP; first complete model wins; never blocks)
         if: steps.eips.outputs.list != ''
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MODEL_API_KEY: ${{ secrets.PRSPEC_META_API_KEY }}
           EIPS: ${{ steps.eips.outputs.list }}
           SHA: ${{ steps.pr.outputs.sha }}
         run: |
-          mkdir -p output
+          mkdir -p output/attempts
+          printf 'eip\tmodel\tresult\n' > output/attempts.tsv
           status=0
           for eip in $EIPS; do
-            prspec analyze --eip "$eip" --client besu --source-dir pr-src \
-              --ref "$SHA" --output json --fail-on incomplete || status=$?
+            complete=0
+            for candidate in $PRSPEC_MODELS; do
+              provider="${candidate%%:*}"; model="${candidate#*:}"
+              case "$provider" in
+                gemini) have="${GEMINI_API_KEY:+yes}"; export GEMINI_MODEL="$model" ;;
+                meta)   have="${MODEL_API_KEY:+yes}";  export META_MODEL="$model" ;;
+                *)      have="" ;;
+              esac
+              if [ -z "$have" ]; then
+                printf '%s\t%s\tskipped: no secret configured\n' "$eip" "$candidate" >> output/attempts.tsv
+                continue
+              fi
+              rc=0
+              prspec analyze --eip "$eip" --client besu --source-dir pr-src \
+                --ref "$SHA" --spec-file "eips/EIPS/eip-${eip}.md" \
+                --multi-file --no-verify --provider "$provider" \
+                --output json,markdown,html --fail-on incomplete || rc=$?
+              printf '%s\t%s\texit %s\n' "$eip" "$candidate" "$rc" >> output/attempts.tsv
+              if [ "$rc" = 0 ]; then complete=1; break; fi
+              for f in output/prspec_eip${eip}_*; do
+                if [ -f "$f" ]; then mv "$f" "output/attempts/${model}-${f##*/}"; fi
+              done
+            done
+            if [ "$complete" != 1 ]; then status=20; fi
           done
           echo "exit_status=$status" >> "$GITHUB_ENV"
-          # Render the exact same results as Markdown and HTML without another model call.
-          python - <<'PYCODE'
-          import json
-          from datetime import datetime
-          from pathlib import Path
-          from src.report_generator import ReportGenerator, ReportMetadata
-          generator = ReportGenerator('output')
-          for path in Path('output').glob('prspec_eip*.json'):
-              data = json.loads(path.read_text())
-              metadata = data['metadata']
-              metadata['timestamp'] = datetime.fromisoformat(metadata['timestamp'])
-              for fmt in ('markdown', 'html'):
-                  generator.generate_report(data['results'], ReportMetadata(**metadata), fmt)
-          PYCODE
 
       - name: Job summary
         if: always()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          SHA: ${{ steps.pr.outputs.sha }}
+          EIPS: ${{ steps.eips.outputs.list }}
         run: |
-          {
-            echo "## PRSpec pilot (advisory, non-blocking)"
-            echo "PR head: \`${{ steps.pr.outputs.sha }}\` · EIPs: ${{ steps.eips.outputs.list || 'none touched' }}"
-            if [ "${exit_status:-not-run}" != "0" ]; then
-              echo "> ⚠️ Analysis incomplete or failed (exit: ${exit_status:-not-run}). Treat as no signal."
-            fi
-            cat output/*.md 2>/dev/null || echo "No report produced."
-          } >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import csv, glob, json, os, subprocess
+
+          def head(path):
+              out = subprocess.run(["git", "-C", path, "rev-parse", "HEAD"],
+                                   capture_output=True, text=True).stdout.strip()
+              return out[:12] or "?"
+
+          status = os.environ.get("exit_status", "not-run")
+          print("## PRSpec pilot (advisory, non-blocking)")
+          print(f"PR #{os.environ.get('PR') or '?'} · head `{os.environ.get('SHA') or '?'}` · "
+                f"EIPs: {os.environ.get('EIPS') or 'none touched'}")
+          print(f"\nPRSpec `{os.environ['PRSPEC_COMMIT'][:12]}` · ethereum/EIPs `{head('eips')}` · "
+                f"checked-out PR files `{head('pr-src')}`")
+          if status != "0":
+              print(f"\n> ⚠️ Analysis incomplete or failed (exit: {status}). Treat as no signal.")
+          if os.path.exists("output/attempts.tsv"):
+              rows = list(csv.reader(open("output/attempts.tsv"), delimiter="\t"))[1:]
+              if rows:
+                  print("\n| EIP | Model attempt | Result |\n|---|---|---|")
+                  for eip, model, result in rows:
+                      print(f"| {eip} | `{model}` | {result} |")
+          for path in sorted(glob.glob("output/prspec_eip*.json")):
+              data = json.load(open(path))
+              for r in data.get("results", []):
+                  meta = r.get("meta") or {}
+                  usage = ", ".join(f"{k.replace('_token_count', '')} {meta[k]}" for k in (
+                      "prompt_token_count", "candidates_token_count", "thoughts_token_count")
+                      if k in meta)
+                  print(f"\n**{os.path.basename(path)}**: {data.get('metadata', {}).get('analyzer', '?')}"
+                        f" · status {r.get('status')} · {len(r.get('issues', []))} issue(s)"
+                        + (f" · tokens: {usage}" if usage else ""))
+                  if r.get("source_sha256"):
+                      print("\n<details><summary>Files sent together (SHA-256)</summary>\n")
+                      for p, h in r["source_sha256"].items():
+                          print(f"- `{p}` `{h[:16]}`")
+                      print("\n</details>")
+          reports = sorted(glob.glob("output/prspec_eip*.md"))
+          for md in reports:
+              print("\n---\n")
+              print(open(md).read())
+          if not reports:
+              print("\nNo report produced.")
+          PY
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
