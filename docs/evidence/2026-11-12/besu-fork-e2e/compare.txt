@@ -1,0 +1,27 @@
+~/demo$ python3 /home/runner/work/besu/besu/ctl/.github/prspec-demo/compare.py out/before out/after
+before  besu@19c989a6d96b  Meta (muse-wonder-1.0)  status=PARTIAL_MATCH  issues=5
+        [HIGH] ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java: co
+          AbstractBlockCreator computes the new header's excessBlobGas from parentHeader excess plus the blob count of transactions selected for the current block (newBlobsCount -> blobGasCost(newBlobsCount)). The spec defines header excess
+        [MEDIUM] ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java: co
+          The reviewed files define TARGET_BLOB_GAS_PER_BLOCK and GAS_PER_BLOB but contain no MAX_BLOB_GAS_PER_BLOCK constant or check that the summed blob gas of selected blob transactions is <= 786432 before writing blobGasUsed into the h
+        [MEDIUM] ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java: co
+          When counting blobs, the code simply maps BLOB transactions to getVersionedHashes().orElseThrow() and sums list sizes. In the reviewed files it does not reject zero-blob blob transactions, does not check that every versioned hash
+        [MEDIUM] evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java: CancunGasCalculator() const
+          The gas calculator only enables precompiles up to KZG_POINT_EVAL (0x0A) by passing its last address byte to ShanghaiGasCalculator. None of the reviewed files implement the point evaluation precompile behavior: fixed 50000 gas, exa
+        [LOW] ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java: cr
+          The block creator delegates blob pricing to FeeMarket.blobGasPricePerGas(calculateExcessBlobGasForParent(...)), and the parent-excess helper is correct, but the reviewed files do not contain fake_exponential or the MIN_BLOB_GASPRI
+ after  besu@7605351c1ae8  Meta (muse-wonder-1.0)  status=PARTIAL_MATCH  issues=7
+        [HIGH] ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java: co
+          CancunGasCalculator defines TARGET_BLOB_GAS_PER_BLOCK and BLOB_GAS_PER_BLOB but no MAX_BLOB_GAS_PER_BLOCK constant or comparison. AbstractBlockCreator sums selected blob counts and writes blobGasUsed without enforcing the maximum
+        [HIGH] ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java: co
+          The supplied code only calls getVersionedHashes().orElseThrow() and sums list sizes. It contains no checks for an empty versioned-hash list, the 0x01 version byte, a non-nil to address, LIMIT_BLOBS_PER_TX, or max_fee_per_blob_gas
+        [HIGH] evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java: CancunGasCalculator()
+          CancunGasCalculator only derives the maximum precompile index from KZG_POINT_EVAL. None of the supplied files implements the 192-byte input format, versioned-hash comparison, verify_kzg_proof call, canonical field-element rejectio
+        [MEDIUM] ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java: cr
+          Blob price calculation is delegated to FeeMarket.blobGasPricePerGas, but none of the supplied files contains fake_exponential or the MIN_BLOB_GASPRICE and BLOB_GASPRICE_UPDATE_FRACTION constants. The specified price function there
+        [HIGH] ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java: co
+          No supplied file implements kzg_to_versioned_hash, equality checks between hashes, blobs, commitments and proofs, KZG blob/proof verification, or the announcement-only gossip restriction for blob transactions.
+        [MEDIUM] evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java: computeExcessBlobGas(long,
+          Two overloads have incompatible meanings for the second argument: the int overload treats it as a blob count and multiplies by 131072, while the long overload treats it as already-calculated blob gas used. Java overload selection
+        [MEDIUM] evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java: CancunGasCalculator() and i
+          The supplied gas calculator contains no explicit BLOBHASH opcode handling or HASH_OPCODE_GAS constant. Its correct address and gas behavior cannot be established from these files.
