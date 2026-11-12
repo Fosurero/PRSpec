@@ -1,8 +1,10 @@
 """Command-line interface for PRSpec."""
 
+import hashlib
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -12,7 +14,7 @@ from src import __version__
 try:
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import BarColumn, MofNCompleteColumn, Progress, SpinnerColumn, TextColumn
+    from rich.progress import BarColumn, MofNCompleteColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     from rich.table import Table
     RICH_AVAILABLE = True
     console = Console()
@@ -151,7 +153,7 @@ def _report_outcome(outcome: dict, fail_on: str) -> int:
     code = _exit_code(outcome, fail_on)
     if outcome["incomplete_files"]:
         msg = (f"ANALYSIS INCOMPLETE: {len(outcome['incomplete_files'])} of "
-               f"{outcome['files']} file(s) were not analysed: "
+               f"{outcome['files']} analysis unit(s) failed: "
                + ", ".join(outcome["incomplete_files"]))
         if RICH_AVAILABLE:
             console.print(f"[bold red]{msg}[/bold red]")
@@ -175,10 +177,41 @@ def build_spec_text(spec_data: dict, eip: int) -> str:
     return spec_text
 
 
+def _configured_model(llm_provider: str, cfg) -> str:
+    """Best-effort model id for display; the analyzer reports the authoritative one."""
+    try:
+        conf = getattr(cfg, f"{llm_provider}_config")
+    except Exception:
+        return ""
+    return str(conf.get("model", "")) if isinstance(conf, dict) else ""
+
+
+def _context_rows(code_files: dict, spec_text: str, errors: dict, spec_file: Optional[str]):
+    """Rows describing exactly what a joint request contains: path, bytes, SHA-256."""
+    def digest(text: str) -> str:
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    rows = [(p, f"{len(c.encode('utf-8')):,}", digest(c)) for p, c in code_files.items()]
+    rows += [(p, "not loaded", str(e)[:60]) for p, e in (errors or {}).items()]
+    rows.append((f"spec: {spec_file or 'fetched EIP text'}",
+                 f"{len(spec_text.encode('utf-8')):,}", digest(spec_text)))
+    return rows
+
+
+def _context_title(errors: dict, combined_bytes: int) -> str:
+    """Say before the request whether the joint context will be sent."""
+    if errors:
+        return "Joint context incomplete: the model will not be called"
+    if combined_bytes > 160_000:
+        return "Joint context exceeds 160,000 bytes: the model will not be called"
+    return "Joint context: these sources are sent together in one model request"
+
+
 def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
                   progress_callback=None, verify: bool = False,
                   verify_rounds: int = 2, ref: Optional[str] = None,
-                  source_dir: Optional[str] = None):
+                  source_dir: Optional[str] = None, multi_file: bool = False,
+                  spec_file: Optional[str] = None, selected_files=None,
+                  context_callback=None):
     """Fetch spec+code, build analyzer, return (results_list, analyzer).
     Runs all file analyses in parallel via threads for speed.  When *verify*
     is set, each candidate finding is then cross-examined and grounded."""
@@ -187,12 +220,20 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
 
     # --- Fetch specification (generic for any EIP) ---
     # Prefer the focused fork-to-fork diff; falls back to the full spec file.
-    spec_data = spec_fetcher.fetch_eip_spec(eip, mode="diff")
+    if spec_file:
+        raw_spec = Path(spec_file).read_bytes()
+        if not raw_spec or len(raw_spec) > 2_000_000:
+            raise ValueError("Pinned specification is empty or exceeds 2 MB")
+        spec_data = {"title": f"EIP-{eip}", "eip_markdown": raw_spec.decode("utf-8")}
+    else:
+        spec_data = spec_fetcher.fetch_eip_spec(eip, mode="diff")
     eip_title = spec_data.get("title", f"EIP-{eip}")
 
     # --- Fetch implementation code (generic for any EIP) ---
-    code_files = code_fetcher.fetch_eip_implementation(
-        client, eip, ref=ref, source_dir=source_dir)
+    fetch_kwargs = {"ref": ref, "source_dir": source_dir}
+    if selected_files:
+        fetch_kwargs["selected_files"] = selected_files
+    code_files = code_fetcher.fetch_eip_implementation(client, eip, **fetch_kwargs)
     fetch_errors = dict(code_fetcher.last_fetch_errors)
     language = CodeFetcher.client_language(client)
 
@@ -202,6 +243,41 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
     # --- Assemble spec text (EIP prose + reference-impl fork diff) ---
     focus_areas = cfg.get_eip_focus_areas(eip)
     spec_text = build_spec_text(spec_data, eip)
+
+    # An opt-in joint pass preserves cross-file relationships in one request.
+    # Do not run it on a silently incomplete collection or oversized input.
+    if multi_file:
+        label = "Multi-file context"
+        result = {
+            "file_name": label, "source_files": list(code_files),
+            "client_ref": ref,
+            "source_sha256": {p: hashlib.sha256(c.encode("utf-8")).hexdigest()
+                              for p, c in code_files.items()},
+            "spec_sha256": hashlib.sha256(spec_text.encode("utf-8")).hexdigest(),
+        }
+        combined = "\n\n".join(f"=== FILE: {p} ===\n{c}" for p, c in code_files.items())
+        if context_callback:
+            context_callback(code_files, spec_text, fetch_errors, len(combined.encode("utf-8")))
+        if fetch_errors or len(combined.encode("utf-8")) > 160_000:
+            result.update(status="ERROR", confidence=0, issues=[],
+                          summary="Multi-file analysis not run: missing or oversized source.")
+        else:
+            context = {
+                "eip_number": eip, "eip_title": eip_title,
+                "file_name": label, "function_name": f"EIP-{eip} implementation",
+                "language": language, "focus_areas": focus_areas,
+            }
+            result.update(analyzer.analyze_compliance(spec_text, combined, context).to_dict())
+            if verify:
+                from .verifier import VerificationEngine
+                verify_analyzer = _build_verify_analyzer(llm_provider, cfg, analyzer)
+                VerificationEngine(verify_analyzer, rounds=verify_rounds).verify_results(
+                    [result], spec_text, {label: combined}, context)
+        if fetch_errors:
+            result["source_errors"] = fetch_errors
+        if progress_callback:
+            progress_callback(label)
+        return [result], analyzer
 
     # --- Run analysis (parallel) ---
     futures = {}
@@ -263,7 +339,8 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
 @click.option('--eip', '-e', default=1559, help='EIP number to check (default: 1559)')
 @click.option('--client', '-c', default='go-ethereum', help='Client to analyze (default: go-ethereum)')
 @click.option('--provider', '-p', default=None, help='LLM provider: gemini, openai, meta, local, or azure')
-@click.option('--output', '-o', default='json', help='Output format: json, markdown, html')
+@click.option('--output', '-o', default='json', help='Output format(s): json, markdown, html; comma-separate several '
+                   '(e.g. json,html) to write them from one analysis')
 @click.option('--config', '-f', default=None, help='Path to config.yaml')
 @click.option('--verify/--no-verify', default=True,
               help='Cross-examine each finding and grade it (extra API calls)')
@@ -274,6 +351,12 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
                    'defaults to the client branch in the registry')
 @click.option('--source-dir', default=None, type=click.Path(exists=True, file_okay=False),
               help='Read client files from this local checkout instead of GitHub')
+@click.option('--multi-file', is_flag=True,
+              help='Analyze all registered files together in one bounded model request')
+@click.option('--spec-file', default=None, type=click.Path(exists=True, dir_okay=False),
+              help='Use a local EIP specification (pin its source separately)')
+@click.option('--file', 'selected_files', multiple=True,
+              help='Registered source file to analyze; repeat to choose a focused subset')
 @click.option('--fail-on', type=click.Choice(FAIL_ON_CHOICES), default='incomplete',
               show_default=True,
               help='Non-zero exit when the run is incomplete (20) or, with '
@@ -282,7 +365,7 @@ def _run_analysis(eip: int, client: str, cfg, llm_provider: str,
 def analyze(eip: int, client: str, provider: Optional[str], output: str,
             config: Optional[str], verify: bool, verify_rounds: int,
             ref: Optional[str], source_dir: Optional[str], fail_on: str,
-            verbose: bool):
+            verbose: bool, multi_file: bool, spec_file: Optional[str], selected_files):
     """
     Analyze a client implementation against an EIP specification.
 
@@ -295,6 +378,10 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
         # Load configuration
         cfg = Config(config)
         llm_provider = provider if provider else cfg.llm_provider
+        formats = [f.strip().lower() for f in output.split(",") if f.strip()]
+        unknown = sorted(set(formats) - {"json", "markdown", "md", "html"})
+        if not formats or unknown:
+            raise click.UsageError(f"unsupported --output format: {', '.join(unknown) or output!r}")
 
         # Banner + config summary
         if RICH_AVAILABLE:
@@ -305,6 +392,13 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             info_table.add_row("EIP", str(eip))
             info_table.add_row("Client", client)
             info_table.add_row("Provider", llm_provider)
+            model_id = _configured_model(llm_provider, cfg)
+            if model_id:
+                info_table.add_row("Model", model_id)
+            if source_dir or ref:
+                info_table.add_row("Code", f"{source_dir or client} @ {ref or 'registry branch'}")
+            if spec_file:
+                info_table.add_row("Spec", spec_file)
             info_table.add_row("Output", output)
             info_table.add_row("Verify", f"on · {verify_rounds} rounds" if verify else "off")
             console.print(Panel(info_table, title="[bold]Configuration[/bold]", border_style="blue"))
@@ -313,8 +407,16 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             click.echo(f"  EIP: {eip}  |  Client: {client}  |  Provider: {llm_provider}")
 
         # Get file count for time estimate
-        n_files = len(CodeFetcher.CLIENTS.get(client, {}).get("eip_files", {}).get(eip, []))
+        n_files = len(selected_files) or len(CodeFetcher.CLIENTS.get(client, {}).get("eip_files", {}).get(eip, []))
         est = f"~{max(1, n_files // 2)}-{n_files} min (parallel)" if n_files > 1 else "~1-2 min"
+        units = 1 if multi_file else n_files
+        label = (f"Joint analysis of {n_files} files in one model request" if multi_file
+                 else f"Analyzing {n_files} files ({est})")
+
+        def echo_context(code_files, spec_text, errors, combined_bytes):
+            click.echo(f"\n  {_context_title(errors, combined_bytes)}")
+            for path, size, digest in _context_rows(code_files, spec_text, errors, spec_file):
+                click.echo(f"    {path}  {size}  {digest}")
 
         if RICH_AVAILABLE:
             console.print()
@@ -323,18 +425,29 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
                 TextColumn("[progress.description]{task.description}"),
                 BarColumn(bar_width=30),
                 MofNCompleteColumn(),
+                TimeElapsedColumn(),
                 console=console,
             ) as progress:
-                task = progress.add_task(
-                    f"Analyzing {n_files} files ({est})", total=n_files
-                )
+                task = progress.add_task(label, total=units)
                 def on_file_done(fname):
                     progress.advance(task)
+
+                def on_context(code_files, spec_text, errors, combined_bytes):
+                    table = Table(title=_context_title(errors, combined_bytes), title_justify="left")
+                    table.add_column("Source", style="cyan")
+                    table.add_column("Bytes", justify="right")
+                    table.add_column("SHA-256 (first 16)", style="dim")
+                    for row in _context_rows(code_files, spec_text, errors, spec_file):
+                        table.add_row(*row)
+                    progress.console.print(table)
                 results, analyzer = _run_analysis(
                     eip, client, cfg, llm_provider,
                     progress_callback=on_file_done,
                     verify=verify, verify_rounds=verify_rounds,
                     ref=ref, source_dir=source_dir,
+                    multi_file=multi_file, spec_file=spec_file,
+                    selected_files=list(selected_files),
+                    context_callback=on_context,
                 )
             if verify:
                 n_found = sum(len(r.get("issues", [])) for r in results)
@@ -343,11 +456,14 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
                     f"across {verify_rounds} skeptic round(s).[/dim]"
                 )
         else:
-            click.echo(f"\n  Analyzing {n_files} files ({est})...")
+            click.echo(f"\n  {label}...")
             results, analyzer = _run_analysis(
                 eip, client, cfg, llm_provider,
                 verify=verify, verify_rounds=verify_rounds,
                 ref=ref, source_dir=source_dir,
+                multi_file=multi_file, spec_file=spec_file,
+                selected_files=list(selected_files),
+                context_callback=echo_context,
             )
 
         # Generate report
@@ -360,14 +476,16 @@ def analyze(eip: int, client: str, provider: Optional[str], output: str,
             analyzer=f"{llm_provider.capitalize()} ({analyzer.get_model_info()['model']})"
         )
 
-        report_path = report_gen.generate_report(results, metadata, output)
+        report_paths = [report_gen.generate_report(results, metadata, fmt) for fmt in formats]
 
         # Print summary
         if RICH_AVAILABLE:
             report_gen.print_summary(results, metadata)
-            console.print(f"\n[green]✓ Report saved to:[/green] {report_path}")
+            for report_path in report_paths:
+                console.print(f"[green]✓ Report saved to:[/green] {report_path}")
         else:
-            click.echo(f"\nReport saved to: {report_path}")
+            for report_path in report_paths:
+                click.echo(f"Report saved to: {report_path}")
 
         exit_code = _report_outcome(_run_outcome(results, verify), fail_on)
 

@@ -57,9 +57,9 @@ class TestBesuRegistry(unittest.TestCase):
         files = self.info["eip_files"].get(1559, [])
         self.assertEqual(len(files), 5)
 
-    def test_eip4844_has_seven_files(self):
+    def test_eip4844_has_eight_files(self):
         files = self.info["eip_files"].get(4844, [])
-        self.assertEqual(len(files), 7)
+        self.assertEqual(len(files), 8)
 
     def test_eip4844_core_fee_logic_files_present(self):
         # fake_exponential / MIN_BASE_FEE_PER_BLOB_GAS and the excess-blob-gas
@@ -386,7 +386,7 @@ class TestCodeFetcherMultiClient(unittest.TestCase):
         mock_get.return_value = mock_resp
 
         files = self.fetcher.fetch_eip_implementation("besu", 4844)
-        self.assertEqual(len(files), 7)
+        self.assertEqual(len(files), 8)
         self.assertTrue(mock_get.called)
 
     @patch("requests.Session.get")
