@@ -1,0 +1,44 @@
+# PRSpec configuration for the Besu pilot. The live demo uses the same
+# settings as the pilot workflow.
+llm:
+  provider: gemini
+  gemini:
+    model: gemini-3.8-flash
+    max_output_tokens: 32768
+  meta:
+    model: muse-wonder-1.0
+    base_url: https://api.meta.ai/v1
+    max_tokens: 16384
+
+eips:
+  1559:
+    title: "Fee market change for ETH 1.0 chain"
+    focus_areas:
+      - base_fee_calculation
+      - gas_limit_validation
+      - fee_cap_check
+      - priority_fee_handling
+      - transaction_validation
+      - base_fee_burn_destination
+  4844:
+    title: "Shard Blob Transactions"
+    focus_areas:
+      - blob_gas_price_calculation
+      - excess_blob_gas_update
+      - kzg_commitment_validation
+      - max_blobs_per_block_check
+      - blob_transaction_validation
+      - point_evaluation_precompile
+
+analysis:
+  focus_areas:
+    - specification_compliance
+    - edge_case_handling
+    - validation_checks
+    - security_implications
+
+output:
+  format: json
+  directory: output
+  include_code_snippets: true
+  include_spec_references: true

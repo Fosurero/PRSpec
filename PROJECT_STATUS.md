@@ -49,7 +49,7 @@ _آخر تحديث 2026-11-10 07:45 UTC._
   scoreboard from `evidence-pilot` without merging to `main`.
 - **Missing:** an actual Gemini scoreboard run; replay of historical Besu PRs; a run inside a Besu fork;
   SARIF output; the video (pipeline in `demo/`, final cut waits for live results); the message to
-  Sally (draft exists in Notion, not sent; must not be sent before the live results exist).
+  Sally (draft prepared, not sent; must not be sent before the live results exist).
 - **Reproducible by another developer?** The deterministic part: yes, with `scripts/fetch_clients.sh`
   and the commands in `VERIFICATION.md`. The Gemini part: yes once they have a key; nothing depends on
   this machine.

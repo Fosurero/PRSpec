@@ -116,7 +116,7 @@ class ReportGenerator:
 |--------|-------|
 | Status | {summary['overall_status']} |
 | Model-reported confidence (not a calibrated probability) | {summary['average_confidence']}% |
-| Files analysed | {summary['files_analyzed']} |
+| Analysis units | {summary['files_analyzed']} |
 | Issues | {summary['total_issues']} (H:{summary['high_severity']} M:{summary['medium_severity']} L:{summary['low_severity']}) |
 {verified_row}
 
@@ -125,10 +125,15 @@ class ReportGenerator:
 """
 
         for i, result in enumerate(results, 1):
+            sources = result.get("source_files", [])
+            source_note = ("**Selected source files** (one joint analysis; not sent if incomplete):\n\n"
+                           + "\n".join(f"- `{p}`" for p in sources) + "\n\n") if sources else ""
+            source_note += self._provenance_md(result)
             md_content += f"""### {i}. {result.get('file_name', 'Unknown File')}
 
 **Status**: {result.get('status', 'UNKNOWN')} | **Confidence**: {result.get('confidence', 0)}%
 
+{source_note}\
 {result.get('summary', 'No summary available.')}
 
 """
@@ -243,7 +248,7 @@ against the official EIP-{metadata.eip_number} specification.
         <div class="kpi-row">
             <div class="kpi"><div class="num">{summary['overall_status']}</div><div class="lbl">Status</div></div>
             <div class="kpi"><div class="num">{summary['average_confidence']}%</div><div class="lbl">Model-reported confidence (not probability)</div></div>
-            <div class="kpi"><div class="num">{summary['files_analyzed']}</div><div class="lbl">Files</div></div>
+            <div class="kpi"><div class="num">{summary['files_analyzed']}</div><div class="lbl">Analysis units</div></div>
             <div class="kpi"><div class="num" style="color:#e03e3e">{summary['high_severity']}</div><div class="lbl">High</div></div>
             <div class="kpi"><div class="num" style="color:#d4a017">{summary['medium_severity']}</div><div class="lbl">Medium</div></div>
             <div class="kpi"><div class="num" style="color:#2e7d32">{summary['low_severity']}</div><div class="lbl">Low</div></div>
@@ -269,6 +274,15 @@ against the official EIP-{metadata.eip_number} specification.
                 <p><strong>Model-reported confidence (not probability):</strong> {html.escape(str(result.get('confidence', 0)))}%</p>
                 <p>{html.escape(result.get('summary', 'No summary available.'))}</p>
 """
+            if result.get("source_files"):
+                html_content += ("<p>Selected source files (one joint analysis; not sent if incomplete):</p><ul>"
+                                 + "".join(f"<li><code>{html.escape(str(p))}</code></li>"
+                                           for p in result["source_files"]) + "</ul>")
+            provenance = self._provenance_items(result)
+            if provenance:
+                html_content += ("<p>" + " · ".join(
+                    f"{html.escape(k)}: <code>{html.escape(v)}</code>" for k, v in provenance)
+                    + "</p>")
 
             issues = result.get('issues', [])
             if issues:
@@ -323,7 +337,7 @@ against the official EIP-{metadata.eip_number} specification.
 
         # Opening sentence
         parts = [
-            f"PRSpec analysed {n_files} file{'s' if n_files != 1 else ''} from "
+            f"PRSpec reported {n_files} analysis unit{'s' if n_files != 1 else ''} for "
             f"{metadata.client}'s EIP-{metadata.eip_number} implementation "
             f"using {metadata.analyzer}."
         ]
@@ -665,6 +679,30 @@ against the official EIP-{metadata.eip_number} specification.
                 self.console.print(f"  [red]●[/red] {note}")
             self.console.print()
 
+    @staticmethod
+    def _provenance_items(result: Dict[str, Any]) -> List[tuple]:
+        """Pinned inputs and model usage recorded for one analysis unit."""
+        items = []
+        if result.get("client_ref"):
+            items.append(("Code commit", str(result["client_ref"])))
+        if result.get("spec_sha256"):
+            items.append(("Spec SHA-256", str(result["spec_sha256"])[:16]))
+        meta = result.get("meta") or {}
+        if meta.get("model_version"):
+            items.append(("Model version", str(meta["model_version"])))
+        usage = [f"{label} {meta[key]:,}" for key, label in (
+            ("prompt_token_count", "input"), ("candidates_token_count", "output"),
+            ("thoughts_token_count", "thinking")) if isinstance(meta.get(key), int)]
+        if usage:
+            items.append(("Tokens", ", ".join(usage)))
+        if meta.get("latency_s") is not None:
+            items.append(("Model latency", f"{meta['latency_s']} s"))
+        return items
+
+    def _provenance_md(self, result: Dict[str, Any]) -> str:
+        items = self._provenance_items(result)
+        return ("".join(f"- {k}: `{v}`\n" for k, v in items) + "\n") if items else ""
+
     def print_summary(self, results: List[Dict[str, Any]], metadata: ReportMetadata):
         """Print a summary to the console using Rich"""
         if not RICH_AVAILABLE:
@@ -689,7 +727,7 @@ against the official EIP-{metadata.eip_number} specification.
 
         table.add_row("Overall Status", summary['overall_status'])
         table.add_row("Confidence", f"{summary['average_confidence']}%")
-        table.add_row("Files Analyzed", str(summary['files_analyzed']))
+        table.add_row("Analysis units", str(summary['files_analyzed']))
         table.add_row("Total Issues", str(summary['total_issues']))
         table.add_row("High Severity", str(summary['high_severity']))
         table.add_row("Medium Severity", str(summary['medium_severity']))
@@ -704,6 +742,11 @@ against the official EIP-{metadata.eip_number} specification.
             )
 
         self.console.print(table)
+        for result in results:
+            provenance = self._provenance_items(result)
+            if provenance:
+                self.console.print(" · ".join(f"{k}: {v}" for k, v in provenance),
+                                   style="dim", markup=False)
         self.console.print()
 
         # Print issues

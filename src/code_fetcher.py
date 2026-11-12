@@ -159,6 +159,7 @@ class CodeFetcher:
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/core/Transaction.java",
                 ],
                 4844: [
+                    "ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java",
                     "evm/src/main/java/org/hyperledger/besu/evm/gascalculator/CancunGasCalculator.java",
                     "ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/ExcessBlobGasCalculator.java",
                     "datatypes/src/main/java/org/hyperledger/besu/datatypes/BlobGas.java",
@@ -333,7 +334,8 @@ class CodeFetcher:
 
     def fetch_eip_implementation(self, client: str, eip_number: int,
                                  ref: Optional[str] = None,
-                                 source_dir: Optional[str] = None) -> Dict[str, str]:
+                                 source_dir: Optional[str] = None,
+                                 selected_files: Optional[List[str]] = None) -> Dict[str, str]:
         """Fetch all registered implementation files for an EIP/client pair.
 
         ``ref`` pins a branch, tag or (preferably) a full commit SHA instead of
@@ -360,6 +362,12 @@ class CodeFetcher:
                 f"Supported EIPs for {client}: "
                 f"{', '.join(str(e) for e in self.supported_eips_for_client(client))}"
             )
+        if selected_files is not None:
+            if not selected_files or len(set(selected_files)) != len(selected_files):
+                raise ValueError("Selected files must be nonempty and unique")
+            if not set(selected_files).issubset(file_paths):
+                raise ValueError("Selected file is not registered for this client and EIP")
+            file_paths = selected_files
 
         # Parse owner/repo from URL; use client-specific branch if declared.
         url_parts = client_info["url"].rstrip('/').split('/')
@@ -371,11 +379,24 @@ class CodeFetcher:
         for file_path in file_paths:
             try:
                 if source_dir:
-                    local = Path(source_dir) / file_path
+                    root = Path(source_dir).resolve()
+                    local = root / file_path
+                    # PR checkouts are untrusted data. Never follow a symlink
+                    # to the runner filesystem and send its content to an LLM.
+                    current = root
+                    for part in Path(file_path).parts:
+                        current = current / part
+                        if current.is_symlink():
+                            raise OSError("symlink in source path")
+                    if not local.is_file() or local.stat().st_size > 2_000_000:
+                        raise OSError("source is not a regular file or exceeds 2 MB")
                     files[file_path] = local.read_text(encoding="utf-8")
                 else:
                     files[file_path] = self.fetch_file(owner, repo, file_path, branch=branch)
-            except (requests.RequestException, OSError) as e:
+                if not files[file_path].strip():
+                    del files[file_path]
+                    raise OSError("source file is empty")
+            except (requests.RequestException, OSError, UnicodeError) as e:
                 self.last_fetch_errors[file_path] = f"{type(e).__name__}: {e}"
 
         if not files:

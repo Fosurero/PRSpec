@@ -6,6 +6,7 @@ name: PRSpec pilot (trigger)
 on:
   pull_request:
     paths:
+      - ethereum/blockcreation/src/main/java/org/hyperledger/besu/ethereum/blockcreation/AbstractBlockCreator.java
       - ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/feemarket/**
       - ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/MainnetTransactionValidator.java
       - ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/CancunTargetingGasLimitCalculator.java

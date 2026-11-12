@@ -19,13 +19,34 @@ it was produced from.
 > [`docs/evidence/`](docs/evidence/) only after the run has actually happened. As of 2026-11-10 the
 > full scoreboard has run once on **Meta Muse Spark**; the optional Gemini scoreboard is still pending
 > (free-tier quota, and GitHub Actions is blocked by an account billing lock). See
-> [PROJECT_STATUS.md](PROJECT_STATUS.md) for what is done, partial, and planned.
+> [PROJECT_STATUS.md](PROJECT_STATUS.md) for what is done, partial, and planned. On 2026-11-12 the Besu
+> pilot ran end to end on a Besu fork and was recorded live ([details](#end-to-end-run-on-a-besu-fork-2026-11-12)).
 
 ---
 
 ## Besu: real historical PR replay
 
 [Run the focused demo](pilot/besu/DEMO.md): PRSpec analyzed the real Besu PR [#5786](https://github.com/besu-eth/besu/pull/5786) before and after its published fix. The targeted Meta run flagged the known parent-vs-current blob gas issue before the fix and returned no findings on the selected requirement after it. This is one retrospective case, not a new discovery, a proven CI capability, or evidence of overall accuracy. [Method and raw outputs](docs/evidence/2026-11-10/besu-pr5786/README.md).
+
+
+### End-to-end run on a Besu fork (2026-11-12)
+
+The pilot workflows ran on the fork [`Hardisky/besu`](https://github.com/Hardisky/besu), and a fork-only
+workflow recorded a live PRSpec session on a GitHub-hosted runner:
+[video](https://github.com/Hardisky/besu/raw/prspec-evidence/runs/43132014617/prspec-besu-live-demo.mp4) (5 min 10 s, real-time screen capture, no cuts or overlays) ·
+[terminal transcript](https://github.com/Hardisky/besu/blob/prspec-evidence/runs/43132014617/terminal-transcript.txt) · [all evidence](https://github.com/Hardisky/besu/tree/prspec-evidence/runs/43132014617) ·
+[summary](docs/evidence/2026-11-12/besu-fork-e2e/README.md).
+
+| Run | Besu code | Result (Meta `muse-wonder-1.0`, one joint request) |
+| --- | --- | --- |
+| Fork PR [#1](https://github.com/Hardisky/besu/pull/1) → [pilot run](https://github.com/Hardisky/besu/actions/runs/43131616614) | fork `main` + a comment-only change; 8 mapped EIP-4844 files | FULL_MATCH, 0 findings; job green in 2 min 15 s, never blocks (input 17,953, output 8,895 tokens) |
+| Replay before the [#5786](https://github.com/besu-eth/besu/pull/5786) fix | `19c989a6`, 3 files | 5 findings. The HIGH one is the bug #5786 fixed: the header `excessBlobGas` is computed from the current block's blobs and would be double-counted on the next block (input 11,578, output 11,405 tokens, 131.8 s) |
+| Replay after the fix | `7605351c`, same 3 files | Excess-blob-gas formula judged to match the spec; the 7 remaining items are mostly requirements that live outside the 3 supplied files (input 11,577, output 8,090 tokens, 78.6 s) |
+
+Limits: Gemini (`gemini-3.8-flash`, then `gemini-3.6-flash`) was tried first and returned
+`401 API key not valid` for the fork's secret, so the recorded Meta fallback produced every result. Each
+case ran once, model output is not deterministic, the replay is a known public bug rather than a new
+discovery, and the pilot has not run inside `besu-eth/besu`.
 
 ---
 
@@ -137,7 +158,7 @@ prspec fork-watch --eip 4844 --from 2511e0bc^ --to 2511e0bc --eips-dir ../client
 # Semantic analysis with Gemini (key from https://aistudio.google.com/apikey)
 export GEMINI_API_KEY=...            # never commit it
 prspec models --probe gemini-3.8-flash
-prspec analyze --eip 1559 --client besu --source-dir ../clients/besu --output html
+prspec analyze --eip 1559 --client besu --source-dir ../clients/besu --output json,markdown,html
 ```
 
 ### Docker
@@ -186,7 +207,7 @@ yet. The transport is tested; the quality is not.
 | --- | --- | --- |
 | `prspec witness --eip N -t CLIENT=DIR …` | Deterministic witness matrix | 0 match · 10 mismatch · 20 incomplete |
 | `prspec fork-watch --eip N --from A --to B [--check CLIENT=DIR]` | Spec-change impact card | 0 · 10 a checked client disagrees · 20 incomplete |
-| `prspec analyze --eip N --client C [--source-dir D \| --ref SHA]` | LLM analysis + verification, JSON/Markdown/HTML | 0 · 10 findings (`--fail-on findings`) · 20 incomplete · 1 tool error |
+| `prspec analyze --eip N --client C [--source-dir D \| --ref SHA]` | LLM analysis + verification. `--output json,markdown,html` writes all three from one request; reports carry code commit, spec SHA-256, model version, tokens and latency | 0 · 10 findings (`--fail-on findings`) · 20 incomplete · 1 tool error |
 | `prspec diff --eip N --clients a,b,c` | Cross-client comparison of LLM results | as `analyze` |
 | `prspec models [--probe MODEL]` | Models visible to `GEMINI_API_KEY`, with a one-request probe | |
 | `prspec --no-cloud …` | Privacy guard for any command | |
@@ -229,7 +250,12 @@ unreleased client code through the free tier; use the paid tier or `--provider l
 - **Besu pilot kit** ([`pilot/besu/`](pilot/besu/README.md)) is a read-only, non-blocking workflow pair
   for a client repository. The PR job has no secrets; the LLM job runs from `workflow_run`. It also has a
   baseline config pinned to model and commit, a policy-vs-consensus suppression list, and the mutation
-  scoreboard. It has not been run inside Besu's repository yet.
+  scoreboard. It tries `gemini-3.8-flash`, then `gemini-3.6-flash`, then Meta `muse-wonder-1.0`, and keeps
+  every failed attempt in the artifact and job summary. It ran end to end on a Besu fork on 2026-11-12
+  ([above](#end-to-end-run-on-a-besu-fork-2026-11-12)); it has not been run inside `besu-eth/besu`.
+- **Live demo recorder** ([`pilot/besu/live-demo/`](pilot/besu/live-demo/README.md)) is a fork-only workflow that
+  screen-records a real PRSpec session on a GitHub-hosted runner and publishes the video, terminal
+  transcript, reports and a secret-scan manifest to an evidence branch of the fork.
 - **Gemini live experiment** ([`gemini-live.yml`](.github/workflows/gemini-live.yml)) uses the repository
   secret `GEMINI_API_KEY`. It is triggered by editing `pilot/live/REQUEST` on `evidence-pilot`, or by
   manual dispatch once the file is on `main`.

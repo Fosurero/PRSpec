@@ -33,7 +33,7 @@ def test_focused_manifest_and_recorded_case_are_consistent():
     assert m['verification'] is False
 
 
-def test_workflow_and_baseline_use_same_meta_config():
+def test_workflow_and_baseline_use_same_model_config():
     workflow = yaml.safe_load((ROOT / 'pilot/besu/workflows/prspec-pilot.yml').read_text())
     steps = workflow['jobs']['analyze']['steps']
     script = next(x['run'] for x in steps if x.get('name', '').startswith('Write the pilot config'))
@@ -41,7 +41,9 @@ def test_workflow_and_baseline_use_same_meta_config():
     generated = yaml.safe_load(inner)
     baseline = yaml.safe_load((ROOT / 'pilot/besu/prspec.besu.yaml').read_text())
     assert generated == baseline
-    assert generated['llm']['provider'] == 'meta'
+    assert generated['llm']['provider'] == 'gemini'
+    assert generated['llm']['gemini']['model'] == 'gemini-3.8-flash'
+    assert generated['llm']['meta']['model'] == 'muse-wonder-1.0'
     assert workflow['permissions']['pull-requests'] == 'read'
     assert all('comment' not in x.get('name', '').lower() for x in steps)
 
