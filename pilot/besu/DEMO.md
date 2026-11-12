@@ -30,7 +30,12 @@ git clone --filter=blob:none https://github.com/ethereum/EIPs.git ../EIPs
 META_MODEL=muse-wonder-1.0 python pilot/besu/replay_pr5786.py --live --besu-dir ../besu --eips-dir ../EIPs
 ```
 
-Outputs go to `output/besu-pr5786-rerun/`. This targeted harness supplies the related files as context; the generic PR workflow currently analyzes registry files separately and is **not shown to detect this cross-file case**.
+Outputs go to `output/besu-pr5786-rerun/`. This is the original targeted harness.
+The CLI also has an opt-in `--multi-file` mode, with repeatable `--file` selection
+from the registry and `--spec-file` for a separately pinned local spec. The
+draft PR workflow uses a joint pass over the full registry and the pinned full
+EIP, not this focused excerpt. It has not been shown to detect this case or
+tested end-to-end in GitHub Actions. See the [pilot kit](README.md).
 
 ## What Besu requested
 

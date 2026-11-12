@@ -11,10 +11,12 @@ It never blocks a PR, and you can remove it by deleting two files.
    EIP-1559 / EIP-4844 files PRSpec maps for Besu (paths filter). It has no
    secrets and no permissions; it records the PR number and head SHA.
 2. `prspec-pilot.yml` runs afterwards in the base-repo context
-   (`workflow_run`), so fork PRs never get the API key. It:
+   (`workflow_run`). This draft rejects fork PRs and requires the triggering
+   run to be associated with the PR; it:
    - checks out the PR's Java files **as text** (nothing from the PR is built or executed),
    - installs PRSpec from a pinned commit (not from the PR),
-   - analyses only the EIPs whose files changed, with adversarial verification on,
+   - checks out the EIP text at a pinned commit and analyzes the mapped files
+     jointly, one model call per touched EIP, with verification **off**,
    - writes JSON, Markdown and HTML reports to the `prspec-report` artifact and a summary,
    - does not comment on or modify the PR.
 
@@ -23,8 +25,12 @@ The job has `continue-on-error: true` and is not a required check.
 ## Data path
 
 Only the mapped source files (listed in `src/code_fetcher.py`, Besu section) and the
-EIP text are sent to Meta; the configured model and API endpoint are written in the
-workflow and `prspec.besu.yaml`. API calls may be billable. Standard GitHub Actions,
+pinned EIP text are sent to Meta. JSON records selected paths and SHA-256 hashes
+of each source and specification; response token counts appear when returned.
+The configured model and API endpoint are written in the workflow and
+`prspec.besu.yaml`. The joint input is limited to 160,000 UTF-8 bytes of
+source, but this is not a dollar or token budget. API calls may be billable,
+and no billing dashboard has been checked. Standard GitHub Actions,
 package installation and source retrieval also use network services.
 
 ## Exit codes (fail-closed)
@@ -38,7 +44,10 @@ package installation and source retrieval also use network services.
 
 ## Install (maintainers)
 
-1. Copy `workflows/prspec-pilot-trigger.yml` and `workflows/prspec-pilot.yml` to `.github/workflows/`.
+1. Only in a repository whose owner explicitly approves, copy
+   `workflows/prspec-pilot-trigger.yml` and `workflows/prspec-pilot.yml` to
+   `.github/workflows/` on its default branch. Do not install on Besu without
+   maintainer approval.
 2. Review the pinned `PRSPEC_COMMIT` and the model configuration in the workflow.
 3. Add your own Meta API key as a repository secret `PRSPEC_META_API_KEY`.
 
@@ -68,6 +77,14 @@ For the real historical Besu PR replay and its limits, see [Besu demo guide](DEM
 ## Known limitations (read before trusting a result)
 
 - Findings are LLM output. Verification lowers noise but does not make them proofs.
+- This draft disables verification to limit calls; all findings require human
+  review. A joint result is one analysis unit, not a per-file result. If any
+  selected source is missing or exceeds the joint size limit, no joint model
+  call is made and the run is incomplete.
+- Fork PRs are intentionally rejected; the triggering workflow run must have
+  an association with the PR in the GitHub API. If that association is absent,
+  the draft fails closed. Symlinked source paths are rejected. This mitigates
+  some risks but does not make prompt-injection or untrusted inputs safe.
 - PRSpec reads only the mapped files. Logic that lives elsewhere is invisible.
   Building this kit exposed exactly that: Besu's core EIP-4844 fee logic
   (`BlobFeeMarket.fakeExponential`, `CancunTargetingGasLimitCalculator.computeExcessBlobGas`)
@@ -78,4 +95,8 @@ For the real historical Besu PR replay and its limits, see [Besu demo guide](DEM
 
 ## Important status
 
-The workflow is a draft, not yet tested in Besu CI. The historical PR #5786 experiment used a targeted multi-file context; the generic workflow analyzes registered files individually and is not proven to detect that case. HTML/JSON/Markdown reports and workflow behavior must be validated by a maintainer before trial. The HTML confidence field is a model-reported value, **not** a calibrated probability.
+The workflow remains a draft, not yet tested end-to-end in GitHub Actions or
+Besu CI. The generic joint pass is not proven to detect historical PR #5786;
+that focused experiment used a selected rule and three files. HTML/JSON/Markdown
+reports and workflow behavior must be validated before trial. The HTML
+confidence field is a model-reported value, **not** a calibrated probability.
